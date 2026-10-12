@@ -31,7 +31,7 @@ A Claude Code–native, multi-agent research system for evaluating listed compan
 | `.claude/skills/investment-constitution/` | Canonical definitions, preloaded into every specialist |
 | `methodology/` | Scoring, evidence standards, report contracts, research playbook (10+ year depth standard), metric dictionary, 18 sector playbooks, source guide, investor lenses |
 | `config/investment_policy.json` | Owner policy: no risk limits; hurdle derived each run from the cost of equity |
-| `config/data_sources.json` | Path to the FilingForge library of downloaded filings (read first, via `scripts/corpus.py`) |
+| `config/data_sources.json` | Path to the FilingForge library of downloaded filings (read via `scripts/corpus.py`; used at par with full web research, never as a limit) |
 | `MASTER_RESEARCH_FRAMEWORK.md` | Comprehensive research specification |
 | `PROJECT_INSTRUCTIONS.md` | Global research and execution rules |
 | `COMPANY_SCOREBOARD.csv` | Compact index: identity, run metadata and the two scores, one row per company |

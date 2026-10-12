@@ -2,13 +2,23 @@
 
 Discovery map for primary evidence, oriented to Indian listed companies, with global equivalents. **Tiers follow the constitution's evidence hierarchy.** Site structures and regulation numbers change, so verify the current location when retrieving. Record retrieval failures in the missing-evidence list rather than substituting from memory.
 
-## 0. Local corpus first: FilingForge library
+## 0. Two primary channels at par: the local corpus and the web
+
+Every specialist uses **both** channels in full. The local corpus is a token-efficient copy of filings the owner has downloaded; it is **not** the boundary of the research. The owner downloads as much as possible, but a library can be incomplete (documents never downloaded, categories skipped, years missing) or faulty (download glitches, truncated or misconverted files, dropped tables, wrong period labels). So:
+
+- **Never limit research to what is in the corpus.** Run the full web research the depth standard and your agent definition require (exchange filings, company IR, regulators, rating agencies, courts, industry bodies, peers, news, short-seller reports) regardless of corpus coverage.
+- **Use the corpus where it is good**: cross-year search, fast reading, page-cited extraction.
+- **Cross-check decision-critical numbers** across the two channels (corpus vs. exchange/IR original, or vs. a second independent source). A disagreement is a contradiction to adjudicate, not a reason to pick the convenient value.
+- **Assume nothing is missing just because the corpus lacks it.** Absence in the corpus is not evidence of absence; search the web before recording a gap.
+- Log suspected corpus defects (missing years, truncated text, mislabelled periods) in your missing-evidence list so the owner can re-download.
+
+### 0a. Local corpus: FilingForge library
 
 The owner's FilingForge app downloads exchange filings (annual reports, results, concall transcripts, investor presentations, corporate actions, insider/SAST, AGM documents) into `~/Documents/FilingForgeLibrary/<TICKER>/` (path in `config/data_sources.json`). Each PDF has a Markdown twin, about 25× fewer tokens. `scripts/corpus.py` catalogs it, filters out notices (meeting schedules, trading-window closures, newspaper ads), infers fiscal periods, checks coverage against the depth standard, searches across all years, and maps a passage to its PDF page for citation.
 
 - **Tier:** that of the underlying filing (annual reports and results tier 1; presentations tier 3; transcripts tier 4).
 - **Citation:** `source_url_or_id = FilingForge:<doc_id>` (the exchange announcement ID in the file's metadata); `locator = p.<PDF page>` from `corpus.py locate`, or `MD line <n>` if the page cannot be located (confidence M).
-- **Limits:** downloads are triggered manually in the app, which exposes no API. Markdown has no page markers and can drop table structure, so check decision-critical tables against the PDF page. Documents flagged `thin-extraction` must be read from the PDF.
+- **Known weaknesses:** downloads are triggered manually in the app, which exposes no API, and some may fail or be partial. Markdown has no page markers and can drop table structure, so check decision-critical tables against the PDF page. Documents flagged `thin-extraction` must be read from the PDF, or re-fetched from the exchange/IR site if the PDF is also defective.
 
 ## 1. Company and exchange disclosures (India)
 

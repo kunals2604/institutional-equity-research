@@ -11,7 +11,7 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 - `.claude/skills/investment-constitution/SKILL.md`: **canonical** four layers, fit scale, epistemic tags, citation syntax, specialist protocol
 - `methodology/`: `SCORING.md` · `EVIDENCE_STANDARDS.md` · `REPORT_CONTRACTS.md` · `RESEARCH_PLAYBOOK.md` (how to research; **≥10-year depth standard**) · `METRIC_DEFINITIONS.md` · `SECTOR_PLAYBOOKS.md` · `SOURCE_GUIDE.md` · `INVESTOR_LENSES.md`
 - `config/investment_policy.json`: owner policy. **No position or risk limits**; hurdle = the run's cited cost of equity. Nothing in it limits research depth.
-- `config/data_sources.json` → FilingForge library (`~/Documents/FilingForgeLibrary`): read the company's filings there **first** via `scripts/corpus.py` (Markdown, token-efficient), then fill gaps from the web.
+- `config/data_sources.json` → FilingForge library (`~/Documents/FilingForgeLibrary`): read the company's filings there via `scripts/corpus.py` (Markdown, token-efficient) **and** run full web research at par. The library may be incomplete or have download glitches, so it never limits research (`methodology/SOURCE_GUIDE.md` §0).
 - `MASTER_RESEARCH_FRAMEWORK.md`: what to investigate. `PROJECT_INSTRUCTIONS.md`: global rules
 - `research/companies/<TICKER>/runs/<UTC RUN_ID>/`: one directory per run; `latest_run.txt` points to the latest complete run. `COMPANY_SCOREBOARD.csv`: compact two-score index
 - `archive/`: old Antigravity definitions, **non-operative**. `docs/`: audit, architecture, operations

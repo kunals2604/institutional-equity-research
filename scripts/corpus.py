@@ -220,6 +220,9 @@ def write_catalog(docs: List[dict], run_dir: Path, ticker: str, lib: Path) -> Pa
              "Library: `%s` (FilingForge; read-only). Markdown is text extracted from the PDF; it has **no page markers**." % lib,
              "Cite as `source_url_or_id = FilingForge:<doc_id>`, tier per row, locator = PDF page from "
              "`python3 scripts/corpus.py locate --run RUN_DIR <md_path> \"<text>\"` (or `MD line N` if the PDF is unavailable).",
+             "", "**This corpus is one of two channels at par with full web research, never a limit.** It may be incomplete or contain "
+             "download glitches: a document missing here is not missing evidence, and decision-critical numbers are cross-checked "
+             "against the exchange or IR original (`methodology/SOURCE_GUIDE.md` §0).",
              "", "## Coverage vs Historical Depth Standard", "",
              "- Annual reports: %d fiscal years (%s)" % (len(cov["annual_reports"]), ", ".join(cov["annual_reports"]) or "none"),
              "- Results: %d quarters" % len(cov["results_quarters"]),

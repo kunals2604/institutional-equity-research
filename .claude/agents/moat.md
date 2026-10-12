@@ -27,7 +27,7 @@ Determine whether a **real, economically meaningful and durable** competitive ad
 **Does not own:** the canonical ROCE/ROIC series (financials). Retrieve the primary figures yourself so that your work stays independent, use the dictionary definitions, and list the dependency. Market-share history and industry structure belong to industry; gather the evidence your tests need and flag overlaps.
 
 ## Minimum evidence set
-- **10 years** of the company's returns, gross margins and market share (or the maximum available, with an exception stated) and the same for the 2–3 strongest competitors where filings allow.
+- **10 years** of the company's returns, gross margins and market share (or the maximum available, with an exception stated) and the same for the strongest competitors (at least 2, more where relevant) where filings allow.
 - At least one documented competitor offensive (entry, price war, capacity build-up, new technology) and its outcome, or a clear statement that none occurred.
 
 ## Method

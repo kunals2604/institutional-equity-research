@@ -30,7 +30,7 @@ Explain **how money is made in this industry, who captures it, how that is chang
 
 ## Minimum evidence set
 - **10 years** of industry volumes or value and of company market share (target 15+ years, or two full cycles for cyclical industries). The validator counts years in *Market Share and Company Position* and *Market Size and Reachable Market*.
-- At least 3–6 competitors' filings for benchmarking (tier 1).
+- Filings of every relevant competitor for benchmarking (at least 3; tier 1).
 - Industry-body, regulator or registration data (`SOURCE_GUIDE.md` §4) for share and volume. Company presentations count only as MANAGEMENT STATEMENT.
 
 ## Method
@@ -40,8 +40,8 @@ Explain **how money is made in this industry, who captures it, how that is chang
 4. **Structure and power.** Concentration (CR-n, HHI where computable), barriers, substitutes, buyer and supplier power, and rivalry, using evidence of behavior (price wars, capacity discipline) rather than a checklist.
 5. **Pricing evidence.** Price changes vs. input-cost changes, and the volume response after price increases. Separate genuine pricing power, cost pass-through, mix-driven ASP and shortage pricing.
 6. **Cycle.** Industry cycle drivers (credit, commodity, capacity, replacement, regulation, monsoon), historical peak, trough and mid-cycle volumes and margins, and the current position (Trough / Recovery / Mid-cycle / Peak / Downturn) with evidence.
-7. **Macro and factor sensitivities.** For the 3–6 drivers that matter (rates, INR, crude, metals, rural income, GDP, credit growth, government spending), give the mechanism and an approximate sensitivity (for example "+10 % steel prices ≈ −120 bp gross margin before pass-through", computed or sourced). These feed the CIO's position-risk factor exposures.
-8. **Competitors.** Benchmark 3–6 relevant competitors over 5–10 years on growth, margins, returns, share and strategy from their filings.
+7. **Macro and factor sensitivities.** For every driver that matters (rates, INR, crude, metals, rural income, GDP, credit growth, government spending), give the mechanism and an approximate sensitivity (for example "+10 % steel prices ≈ −120 bp gross margin before pass-through", computed or sourced). These feed the CIO's position-risk factor exposures.
+8. **Competitors.** Benchmark every relevant competitor (at least 3) over 10 years (5 at minimum where history is shorter) on growth, margins, returns, share and strategy from their filings.
 9. **Change vectors.** Regulation, technology, new entrants and business-model shifts: direction, magnitude, timing and evidence quality.
 10. **Industry scenarios.** Industry-level bull, base and bear volume and margin paths with stated drivers (not company valuation).
 

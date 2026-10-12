@@ -1,5 +1,13 @@
 # Framework Change Log
 
+## v2.2.2 — 2026-10-12 — Local corpus and web research at par; breadth floors
+
+| # | Change |
+|---|---|
+| 1 | **Two channels at par:** the FilingForge corpus is no longer "read first, then fill gaps from the web". Specialists use it **and** run full web research regardless of corpus coverage, because a library can be incomplete or contain download glitches. Absence in the corpus is not absence of evidence; decision-critical corpus numbers are cross-checked against the exchange or IR original; suspected corpus defects are logged. (`SOURCE_GUIDE.md` §0, `RESEARCH_PLAYBOOK.md`, constitution §6, `cio.md`, `CATALOG.md` header.) |
+| 2 | **Breadth counts are floors, not ceilings:** peers "3–6" became "all relevant (at least 3)"; macro drivers "3–6" became "every driver that matters"; moat competitors "2–3" became "at least 2, more where relevant"; competitor benchmarking runs over 10 years. |
+| 3 | **No retry cap:** the CIO re-invokes a failing specialist while the failures are fixable, instead of stopping at 2 retries. |
+
 ## v2.2.1 — 2026-10-12 — Local filing corpus, owner policy
 
 | # | Change |

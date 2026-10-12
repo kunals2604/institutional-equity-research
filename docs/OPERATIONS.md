@@ -97,7 +97,7 @@ Tests: `python3 -m unittest discover tests`.
 
 1. In the FilingForge app, download the company (annual reports, results, concalls, investor presentations; more categories are fine). The app saves to `~/Documents/FilingForgeLibrary/<TICKER>/` (path in `config/data_sources.json`). FilingForge has no external API, so this step is manual.
 2. Check what you have: `python3 scripts/corpus.py status --ticker <TICKER>`. It shows coverage against the 10-year depth standard and the gaps.
-3. Run `/research-company …`. The CIO catalogs the library automatically, and specialists read the Markdown (about 25× fewer tokens than the PDFs), cite PDF page numbers via `corpus.py locate`, and fill gaps from the web. If the company is not in the library, the CIO asks once: download first, or proceed web-only.
+3. Run `/research-company …`. The CIO catalogs the library automatically, and specialists read the Markdown (about 25× fewer tokens than the PDFs), cite PDF page numbers via `corpus.py locate`, and run full web research at par (the library may be incomplete or have download glitches; it never limits research). If the company is not in the library, the CIO asks once: download first, or proceed web-only.
 
 The library is never modified, and its documents are not copied into git. Runs record each document's ID, path and SHA-256 in `corpus/catalog.csv`.
 
