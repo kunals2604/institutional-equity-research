@@ -7,3 +7,9 @@ __pycache__/
 
 # Personal Claude Code settings (project settings in .claude/settings.json are shared)
 .claude/settings.local.json
+
+# Downloaded source documents (licensing/size): store references, not files
+research/companies/*/runs/*/_cache/
+
+# Scoreboard write lock
+*.lock

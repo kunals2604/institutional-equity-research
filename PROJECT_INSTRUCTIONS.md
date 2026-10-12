@@ -53,11 +53,20 @@ The phases in the framework and the CIO stages are internal milestones, not stop
 - **Specialists** investigate independently in Stage 1. They do not read other specialists' reports, CIO files, other runs or `archive/` until the CIO hands them specific material in a follow-up.
 - Each agent writes **only** its own files in the run directory (see the constitution §6). Never modify another agent's report or ledger.
 - Specialist outputs are evidence inputs, not unquestionable conclusions. The CIO verifies, adjudicates and decides. It does **not** average scores or split the difference.
-- Only the CIO updates `COMPANY_SCOREBOARD.csv` (via `scripts/update_scoreboard.py`, after QC passes) and only the CIO runs git. Git operations are serialized after all writes finish. Never push without the user's instruction. Never stage unrelated files.
+- Only the CIO updates `COMPANY_SCOREBOARD.csv` (via `scripts/finalize_run.py`, which locks, validates and writes atomically, and only for a `complete` outcome).
+
+## 6a. Git policy
+
+- Only the CIO runs git; specialists never run `git add`, `commit` or `push`.
+- Research runs are committed in **two serialized batches** with `scripts/git_publish.py`: after the Stage-2 barrier (specialist artifacts), and after finalization (CIO report, scorecard, run metadata, scoreboard, `latest_run.txt`). Each commit stages only those paths. Unrelated user changes are never staged.
+- Completed batches are pushed to the **current branch** on the configured remote with a plain `git push`. Never force-push, never merge automatically, never resolve conflicts destructively. If a push fails (authentication, connectivity, non-fast-forward), keep the local commits and report the problem.
+- Commit messages state the truth (for example "7/9 complete; NOT complete: moat, concalls" or "outcome insufficient_evidence"). Git must never make a partial run look complete.
+- Never put tokens, passwords or credentials in repository files. Use the existing remote and authentication configuration.
 
 ## 7. Runs and history
 
-- Every research assignment is a new timestamped run created by `scripts/new_run.py`. Never overwrite or delete a previous run.
+- Every research assignment is a new run with a UTC run ID (`YYYYMMDDTHHMMSSZ`) created by `scripts/new_run.py`. Never overwrite or delete a previous run. `latest_run.txt` points only to the latest **complete** run.
+- Incomplete-run policy: `methodology/SCORING.md` §8. Scores are not manufactured when evidence is insufficient, and a failed run never replaces a valid scoreboard row.
 - Legacy runs (`runs/legacy-antigravity-v1/`) predate these standards. They are discovery leads only and are not on the scoreboard.
 
 ## 8. Business quality vs. investment attractiveness

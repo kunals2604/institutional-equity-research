@@ -28,6 +28,21 @@ CONTRACTS = ROOT / "methodology" / "REPORT_CONTRACTS.md"
 AGENTS_DIR = ROOT / ".claude" / "agents"
 SCOREBOARD = ROOT / "COMPANY_SCOREBOARD.csv"
 
+# Run layout (see methodology/REPORT_CONTRACTS.md).
+RUN_MANIFEST = "run_manifest.json"
+QC_RECORD = "cio/quality_control.md"
+LATEST_POINTER = "latest_run.txt"
+RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z")
+FINAL_LAYER_SECTION = "Four Independent Layer Assessments"
+LAYER_BLOCK_FIELDS = (
+    "Central question", "Strongest supporting evidence", "Strongest contrary evidence",
+    "Business economics", "Valuation methodology", "Base rates", "Bear / base / bull",
+    "Risks and thesis-breakers", "Current-price assessment", "What would change the conclusion",
+)
+FINAL_VERDICT_FIELDS = ("Business quality", "Layer fit", "Current valuation", "Expected return",
+                        "Downside risk", "Evidence confidence", "Verdict")
+FIT_CONF_RE = re.compile(r"Layer-fit confidence:\**\s*\**\s*(High|Medium|Low)")
+
 # Agent registry: name -> claim-ID prefix. Agent files must exist for each.
 SPECIALISTS: Dict[str, str] = {
     "financials": "FIN",
@@ -459,11 +474,11 @@ def prefix_for_ledger(path: Path) -> Optional[str]:
 
 SPECIALIST_FM = ("specialist", "company", "ticker", "exchange", "run_id", "research_cutoff",
                  "report_status", "model_requested", "independence_attestation")
-FINAL_FM = ("company", "ticker", "exchange", "run_id", "research_cutoff", "price", "price_timestamp",
+FINAL_FM = ("company", "ticker", "exchange", "run_id", "as_of_date", "research_cutoff", "price", "price_timestamp",
             "currency", "primary_layer", "secondary_layers", "business_quality",
             "business_quality_confidence", "investment_attractiveness",
-            "investment_attractiveness_confidence", "verdict", "valuation_status", "qc_status",
-            "model_effective")
+            "investment_attractiveness_confidence", "verdict", "valuation_status", "assessment_status",
+            "qc_status", "model_effective")
 
 
 def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None,
@@ -518,36 +533,59 @@ def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Opt
         if not fm.get(k):
             res.error("Front matter missing '%s'" % k)
     check_sections(text, agent_sections("cio"), res)
+    insufficient = fm.get("assessment_status") == "insufficient_evidence"
     layers = canonical_layers()
-    body = section(text, "Four-Layer Analysis") or ""
+    body = section(text, FINAL_LAYER_SECTION) or ""
     blocks = {norm_layer(h): c for h, c in h3_blocks(body)}
-    fits = {}
+    fits, confs = {}, {}
     for i, layer in enumerate(layers, 1):
         if layer not in blocks:
-            res.error("Four-Layer Analysis missing exact heading '### %s'" % layer)
+            res.error("%s missing exact heading '### %s'" % (FINAL_LAYER_SECTION, layer))
             continue
-        m = FIT_SCORE_RE.search(blocks[layer])
-        if not m:
-            res.error("%s: missing 'Layer-fit score: NN/100'" % layer)
-        else:
+        block = blocks[layer]
+        m = FIT_SCORE_RE.search(block)
+        if m:
             fits["L%d" % i] = int(m.group(1))
-    if fm.get("verdict") and fm["verdict"] not in verdicts():
-        res.error("Verdict %r not canonical" % fm["verdict"])
-    if fm.get("valuation_status") and fm["valuation_status"] not in valuation_statuses():
-        res.error("Valuation status %r not canonical" % fm["valuation_status"])
+        elif not insufficient:
+            res.error("%s: missing 'Layer-fit score: NN/100'" % layer)
+        c = FIT_CONF_RE.search(block)
+        if c:
+            confs["L%d" % i] = c.group(1)
+        elif not insufficient:
+            res.error("%s: missing 'Layer-fit confidence: High|Medium|Low'" % layer)
+        for field in LAYER_BLOCK_FIELDS:
+            if not re.search(r"\**%s\**\s*:" % re.escape(field), block, re.I):
+                res.warn("%s: missing item '%s'" % (layer.split(" — ")[0], field))
+    verdict_body = section(text, "Final Verdict") or ""
+    for field in FINAL_VERDICT_FIELDS:
+        if not re.search(r"\**%s\**\s*:" % re.escape(field), verdict_body, re.I):
+            res.error("Final Verdict must state '%s:'" % field)
+    if insufficient:
+        for key in ("business_quality", "investment_attractiveness", "verdict"):
+            if fm.get(key) and fm[key] != "not issued":
+                res.error("Insufficient-evidence report must show %s: not issued" % key)
+    else:
+        if fm.get("verdict") and fm["verdict"] not in verdicts():
+            res.error("Verdict %r not canonical" % fm["verdict"])
+        if fm.get("valuation_status") and fm["valuation_status"] not in valuation_statuses():
+            res.error("Valuation status %r not canonical" % fm["valuation_status"])
     pl = fm.get("primary_layer", "")
     if pl and pl != "None" and norm_layer(pl) not in layers:
         res.error("primary_layer %r is not a canonical layer name" % pl)
     if scorecard:
+        def show(v):
+            return "not issued" if v is None else str(v)
         pairs = [
-            ("business_quality", str(scorecard.get("business_quality", {}).get("final"))),
-            ("investment_attractiveness", str(scorecard.get("investment_attractiveness", {}).get("final"))),
-            ("verdict", scorecard.get("verdict")),
-            ("valuation_status", scorecard.get("valuation_status")),
+            ("business_quality", show(scorecard.get("business_quality", {}).get("final"))),
+            ("investment_attractiveness", show(scorecard.get("investment_attractiveness", {}).get("final"))),
+            ("verdict", show(scorecard.get("verdict"))),
+            ("assessment_status", scorecard.get("assessment_status")),
             ("qc_status", scorecard.get("qc_status")),
             ("run_id", scorecard.get("run_id")),
             ("ticker", scorecard.get("ticker")),
         ]
+        if not insufficient:
+            pairs.append(("valuation_status", scorecard.get("valuation_status")))
         for key, sv in pairs:
             if fm.get(key) is not None and sv is not None and str(fm.get(key)) != str(sv):
                 res.error("Front matter %s=%r differs from scorecard (%r)" % (key, fm.get(key), sv))
@@ -557,6 +595,10 @@ def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Opt
             sc = scorecard.get("layer_fit", {}).get(k, {}).get("score")
             if sc is not None and int(sc) != v:
                 res.error("%s fit %d in report vs %s in scorecard" % (k, v, sc))
+        for k, v in confs.items():
+            sc = scorecard.get("layer_fit", {}).get(k, {}).get("confidence")
+            if sc is not None and sc != v:
+                res.error("%s fit confidence %s in report vs %s in scorecard" % (k, v, sc))
     check_tags(text, res, ledger_ids, None)
     check_layer_names(text, res)
     check_flagged_phrases(text, res, strict=True)
@@ -597,12 +639,26 @@ def validate_scorecard(path: Path) -> Result:
     except Exception as exc:
         res.error("Unreadable JSON: %s" % exc)
         return res
-    for key in ("run_id", "ticker", "price", "layer_fit", "primary_layer", "business_quality",
-                "investment_attractiveness", "scenarios", "verdict", "valuation_status",
-                "qc_status", "classifications", "model"):
+    for key in ("run_id", "ticker", "price", "assessment_status", "layer_fit", "primary_layer",
+                "business_quality", "investment_attractiveness", "scenarios", "verdict",
+                "valuation_status", "qc_status", "classifications", "model"):
         if key not in sc:
             res.error("Missing key '%s'" % key)
     if res.errors:
+        return res
+    if sc["assessment_status"] not in ("complete", "insufficient_evidence"):
+        res.error("assessment_status must be complete or insufficient_evidence")
+        return res
+    if sc["qc_status"] not in ("PASS", "FAIL", "PENDING"):
+        res.error("qc_status must be PASS/FAIL/PENDING")
+    if sc["assessment_status"] == "insufficient_evidence":
+        if not (sc.get("insufficient_evidence_reason") or "").strip():
+            res.error("insufficient_evidence_reason required")
+        for key in ("business_quality", "investment_attractiveness"):
+            if (sc.get(key) or {}).get("final") is not None:
+                res.error("%s.final must be null when evidence is insufficient (no manufactured scores)" % key)
+        if sc.get("verdict") is not None:
+            res.error("verdict must be null when evidence is insufficient")
         return res
     layers = canonical_layers()
     fits = {}
@@ -615,6 +671,8 @@ def validate_scorecard(path: Path) -> Result:
             fits[i] = s
         if not (f.get("rationale") or "").strip():
             res.error("layer_fit.L%d.rationale missing" % i)
+        if f.get("confidence") not in ("High", "Medium", "Low"):
+            res.error("layer_fit.L%d.confidence must be High/Medium/Low" % i)
     pl = sc.get("primary_layer") or "None"
     if pl != "None":
         if norm_layer(pl) not in layers:
@@ -719,8 +777,6 @@ def validate_scorecard(path: Path) -> Result:
                 res.error("Override moves verdict %d notches (max 1)" % gap)
             elif same_notch_swap:
                 res.warn("Verdict swapped within the same notch; check override_reason")
-    if sc["qc_status"] not in ("PASS", "FAIL", "PENDING"):
-        res.error("qc_status must be PASS/FAIL/PENDING")
     return res
 
 

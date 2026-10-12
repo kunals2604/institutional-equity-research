@@ -1,63 +1,100 @@
 # Operations Guide
 
-## Running research
+## 1. Commands
 
-```text
-/research-company BAJFINANCE NSE
-/research-company "TVS Motor Company" NSE --cutoff 2026-10-12
-/research-company SOMESME NSE --reference-position 2000000 focus on IPO proceeds use
-```
+| Purpose | Command | Cost |
+|---|---|---|
+| Full research run | `/research-company "TVS Motor Company Limited" TVSMOTOR NSE` | High: nine Opus specialists with web research, then CIO synthesis |
+| With options | `/research-company "Bajaj Finance Limited" BAJFINANCE NSE --cutoff 2026-10-12 --notes "focus on credit costs"` | High |
+| SME company | `/research-company "<Name>" <TICKER> NSE-SME --reference-position 2000000` | High |
+| Validate configuration | `/research-company --validate-only` | Negligible: static checks and unit tests, no agents |
+| Validate + delegation probe | `/research-company --validate-only --probe` | Small: one specialist answers a configuration check |
+| Dry run | `/research-company --dry-run "TVS Motor Company Limited" TVSMOTOR NSE` | Negligible: prints the plan and paths, writes nothing |
+| Resume an interrupted run | `/research-company --resume TVSMOTOR 20261012T074500Z` | Only the missing work |
 
-- The session becomes the CIO. Expect a long, multi-stage run: nine Opus subagents doing web research in parallel, then synthesis. It uses substantial compute.
-- The CIO pauses for you only if the company's identity is ambiguous.
-- Output: `research/companies/<T>/runs/<RUN_ID>/cio/final_report.md`, plus a scoreboard row if QC passes and a local git commit (not pushed).
+Arguments (full mode): the quoted company name, ticker and exchange are **all required**. Options: `--cutoff YYYY-MM-DD` (default today, UTC), `--hurdle <decimal>` (default 0.12, a placeholder the CIO confirms with cited inputs), `--reference-position <amount>` (default 5,000,000 in the reporting currency), `--notes "<text>"`. Missing identifiers are rejected. If the name, ticker and exchange do not identify the same security, the CIO stops and asks.
 
-## Reading results
+The full run proceeds without asking permission between stages. It finishes with a summary giving the outcome, verdict, both scores and their confidence, layers, QC status, commit SHAs and push status, and the paths to `final_report.md` and `scorecard.json`.
 
-- `COMPANY_SCOREBOARD.csv` holds one row per company: the latest QC-passed run's layer fits, BQ and IA with confidence, verdict, valuation status, E[IRR] and report path. `methodology_version` tells you which scoring rules produced the row. Compare scores only across rows with the same version.
-- Within a report, every number cites a claim ID. Look it up in the run's `evidence_ledger.csv` for the source, page or note, and retrieval date.
+## 2. Outcomes and what changes
 
-## Re-running a company
+| Outcome (`run_manifest.json` status) | Scoreboard | `latest_run.txt` | Git |
+|---|---|---|---|
+| `complete` | Row upserted | Updated | Batch 1 + batch 2, pushed |
+| `insufficient_evidence` (no scores issued; reasons in report) | **Unchanged** | **Unchanged** | Committed with a truthful message |
+| `qc_failed` | **Unchanged** | **Unchanged** | Committed with a truthful message |
+| `failed` / `interrupted` | **Unchanged** | **Unchanged** | Whatever batches completed; resume with `--resume` |
 
-Run `/research-company <T>` again. A new `RUN_ID` is created and earlier runs are untouched. Specialists do not see the earlier run. The CIO compares the two after Stage 2, in "Change Since Prior Run". `update_scoreboard.py` refuses to replace a newer run with an older one.
+The triggers for insufficient evidence are predefined in `methodology/SCORING.md` §8.
 
-## Asking follow-up questions on a finished run
+## 3. Scoreboard
 
-In a session, say for example: "Re-invoke the `moat` specialist on run `research/companies/T/runs/R` to test whether the dealer-network advantage survives the competitor's 2026 expansion." Output goes to `specialists/moat_followup_<n>.md`. Re-run Stage 4 (merge, validate, QC) if the follow-up changes the conclusions. A changed score means writing a new scorecard and going through QC again.
+`COMPANY_SCOREBOARD.csv` is a compact screening index, with one row per company (ticker and exchange):
 
-## Manual validation
+`company, ticker, exchange, assessment_date, latest_run_id, price, currency, price_timestamp, methodology_version, business_quality_score, investment_attractiveness_score`
 
-```bash
-python3 scripts/validate_run.py research/companies/T/runs/R --stage specialists
-python3 scripts/merge_ledgers.py research/companies/T/runs/R
-python3 scripts/validate_run.py research/companies/T/runs/R --stage final
-python3 scripts/validate_report.py any_markdown.md --kind any     # layer-name / phrase / tag lint
-python3 -m unittest discover tests
-```
+- Only `scripts/finalize_run.py` writes it, via `scripts/scoreboard.py`. Writes take an exclusive file lock, re-read the file inside the lock, write to a temp file with fsync, replace it atomically, then re-verify. Concurrent runs cannot lose rows.
+- A newer run is never replaced by an older one. Failed or insufficient runs never touch it.
+- Compare scores only across rows with the same `methodology_version`.
+- Check it with: `python3 scripts/scoreboard.py validate --check-runs`. This verifies every row against its run's scorecard and QC status.
 
-## Changing the methodology
+Everything else (layers, verdict, valuation, reasoning) lives in the run directory named by `latest_run_id`.
 
-1. Edit the authoritative file (see the table in `PROJECT_INSTRUCTIONS.md` §1). Canonical lists sit between `<!-- NAME:BEGIN/END -->` markers.
-2. If scoring dimensions, weights, anchors, gates or verdict mapping change, bump `METHODOLOGY_VERSION` in `methodology/SCORING.md`.
-3. Record the change in `docs/FRAMEWORK_CHANGES.md`.
-4. Run `python3 -m unittest discover tests`. Tests pin the canonical layer names and tags deliberately, so a change to those is a conscious, reviewed decision.
-5. Commit.
+## 4. Git policy (research runs)
 
-To add a specialist section, edit the agent's `REQUIRED_SECTIONS` block. The validator picks it up automatically.
+`scripts/git_publish.py RUN_DIR --batch specialists|final --push` (CIO only):
+- Stages **only** the run directory (plus the scoreboard and pointer in the final batch). Your other changes are untouched.
+- The commit message states the true status.
+- Pushes the current branch to `origin` with a plain `git push`. **No force, no merge, no pull.**
+- If the push fails, the commit stays local and the problem is reported (exit 4). Fix the authentication or branch issue, then `git push` manually.
+- Pushes go to whatever branch is checked out. Check out the branch you want research committed to before starting a run.
 
-## Troubleshooting
+## 5. Re-runs, comparison and follow-ups
 
-| Symptom | Likely cause / fix |
+- Re-running a company creates a new UTC `RUN_ID`. Earlier runs are untouched, and specialists never see them.
+- `python3 scripts/compare_runs.py <old RUN_DIR> <new RUN_DIR>` produces a change table of scores, dimensions, layer fits, verdict, price and methodology version. The CIO includes it under "Change Since Prior Run".
+- To go deeper on a finished run, ask in a session, for example: "Re-invoke `moat` on run R to test X". The output goes to `specialists/moat_followup_<n>.md`. If conclusions change, write a new scorecard and repeat Stage 4.
+
+## 6. Scripts
+
+| Script | Use |
 |---|---|
-| `Agent type 'financials' not found` | Agent definitions are loaded at session start. Restart Claude Code (or open a new session) in the repository root. |
-| `/research-company` not listed | Same as above. The skill lives in `.claude/skills/research-company/`. |
-| Specialists stall on permission prompts | Background agents need web and Bash permissions. `.claude/settings.json` allows WebSearch, WebFetch and `python3 scripts/*`; your own permission mode governs file writes. |
-| Specialist report fails the barrier | Read the validator output. The CIO re-invokes the specialist with the exact errors (at most 2 retries) and otherwise records the gap. |
-| `Merged ledger is stale` | Run `merge_ledgers.py` again after any ledger change. |
-| Scoreboard update refused | Check `qc/auto_checks.json` (passed?), `scorecard.json` (`qc_status: PASS`?) and `qc_record.md` (`QC status: PASS` line). |
-| Duplicate claim IDs across ledgers | Each author must use only its own prefix. Fix the offending ledger and its report citations. |
+| `validate_system.py` | Static validation of agents, skills, taxonomy, contracts, scoreboard schema, run preservation, stale references, Antigravity remnants and secrets. `--live-probe` adds one headless delegation check. |
+| `new_run.py` | Create a run (UTC ID, manifest, templates); `--dry-run` writes nothing |
+| `manifest.py` | Deterministic manifest updates (`set`, `status`, `invocation`, `note`, `show`) |
+| `validate_report.py` | Lint one report (`--kind specialist|followup|final|any`) |
+| `validate_ledger.py` | Check claim ledgers |
+| `validate_scorecard.py` | Check scorecard arithmetic, gates, verdict mapping and layer rules |
+| `validate_run.py` | Stage-2 barrier (`--stage specialists`) and final automated QC (`--stage final`) |
+| `merge_ledgers.py` | Build `evidence_ledger.csv` |
+| `finalize_run.py` | Apply the outcome policy; the only scoreboard and pointer writer |
+| `scoreboard.py` | Scoreboard schema, locked upsert, `validate` |
+| `git_publish.py` | Scoped commit and push batches |
+| `compare_runs.py` | Run-to-run change table |
+| `research_lib.py` | Shared library (parses canonical blocks from the markdown) |
 
-## Data hygiene
+Tests: `python3 -m unittest discover tests`.
 
-- Do not place unsourced data files in company folders. If you add raw data (for example an aggregator export), name the source and retrieval date at the top and tag it as tier 5 when cited.
-- The untracked `research/companies/BAJFINANCE/raw_financials.md` predates this system. Its title says "audited", but it contains quarterly data in an aggregator layout and has no source line. Treat it as an unverified discovery lead.
+## 7. Changing the methodology
+
+1. Edit the authoritative file (see `PROJECT_INSTRUCTIONS.md` §1). Canonical lists sit between `<!-- NAME:BEGIN/END -->` markers.
+2. If scoring dimensions, weights, anchors, gates, verdict mapping or the outcome policy change, bump `METHODOLOGY_VERSION` in `methodology/SCORING.md`.
+3. Record the change in `docs/FRAMEWORK_CHANGES.md`.
+4. Run `python3 scripts/validate_system.py` and the tests, then commit.
+
+## 8. Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `Agent type 'financials' not found` or `/research-company` missing | Agent and skill definitions load at session start. Open a new Claude Code session in the repository root. |
+| Settings permission rules ignored | Accept the workspace trust dialog once in an interactive session |
+| Specialists stall on permission prompts | `.claude/settings.json` allows WebSearch, WebFetch and `python3 scripts/*`. File writes follow your permission mode. |
+| Specialist fails the barrier | The CIO re-invokes it with the validator errors (at most 2 retries), otherwise records the gap |
+| `Merged ledger is stale` | Re-run `merge_ledgers.py` |
+| Run outcome not `complete` | Read the `finalize_run.py` output and `run_manifest.json` `status_history` |
+| Push failed | Commits are local. Fix authentication, or rebase or merge manually if the branch diverged (never force-push). |
+
+## 9. Data hygiene
+
+- Source documents are not committed. Use `RUN_DIR/_cache/` (git-ignored) for downloads, and cite by URL or identifier and locator.
+- The untracked `research/companies/BAJFINANCE/raw_financials.md` predates this system. Its title says "audited", but it has an aggregator layout, quarterly data and no source line. Treat it as an unverified lead.

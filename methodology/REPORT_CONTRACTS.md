@@ -7,28 +7,34 @@ Defines the structure every specialist report shares, the run directory layout, 
 ## 1. Run directory layout
 
 ```text
+COMPANY_SCOREBOARD.csv                      # compact index: one row per company (scripts/scoreboard.py)
 research/companies/<TICKER>/
-├── LATEST_RUN.txt                      # run id of the latest QC-passed run
-└── runs/<RUN_ID>/                      # RUN_ID = YYYYMMDD-HHMM (local time at creation)
-    ├── manifest.json                   # identity, cutoff, conventions, model, status, specialist invocations
-    ├── research_brief.md               # CIO preflight brief given to every specialist
-    ├── source_register.csv             # discovery leads (NOT proof, NOT conclusions)
+├── latest_run.txt                          # RUN_ID of the most recent run with outcome "complete" (never a failed/partial run)
+└── runs/<RUN_ID>/                          # RUN_ID = UTC, sortable: YYYYMMDDTHHMMSSZ (e.g. 20261012T074500Z)
+    ├── run_manifest.json                   # identity, cutoff, start/completion time, price + timestamp, model, status, specialist invocations
+    ├── research_brief.md                   # CIO preflight brief given to every specialist (facts only)
+    ├── source_register.csv                 # discovery leads (NOT proof, NOT conclusions)
     ├── specialists/
-    │   ├── <name>.md                   # 9 initial reports
-    │   ├── <name>_ledger.csv           # 9 claim ledgers
-    │   └── <name>_followup_<n>.md      # optional targeted follow-ups (+ ledgers)
+    │   ├── <name>.md                       # 9 initial reports: financials, filings, management, industry, moat,
+    │   ├── <name>_ledger.csv               #   concalls, valuation, bear-case, special-situations (+ 9 claim ledgers)
+    │   └── <name>_followup_<n>.md          # optional targeted follow-ups (+ ledgers)
     ├── cio/
     │   ├── cio_ledger.csv
     │   ├── contradiction_log.md
-    │   ├── final_report.md
+    │   ├── final_report.md                 # states its as-of date in front matter and the Decision Dashboard
     │   ├── scorecard.json
-    │   └── qc_record.md
-    ├── calc/                           # optional reproducible calculation scripts
-    ├── evidence_ledger.csv             # merged by scripts/merge_ledgers.py
-    └── qc/auto_checks.json             # written by scripts/validate_run.py
+    │   └── quality_control.md
+    ├── calc/                               # optional reproducible calculation scripts
+    ├── evidence_ledger.csv                 # merged by scripts/merge_ledgers.py
+    ├── qc/auto_checks.json                 # written by scripts/validate_run.py --stage final
+    └── _cache/                             # local downloads only; git-ignored, never committed
 ```
 
-Create runs only with `python3 scripts/new_run.py`. Never overwrite or delete a previous run. A re-run is a new `RUN_ID`.
+Rules:
+- Create runs only with `python3 scripts/new_run.py`. It refuses to overwrite an existing run. A re-run is a new `RUN_ID`, independently identifiable and comparable via `scripts/compare_runs.py`.
+- `run_manifest.json` `status` moves through `preflight → specialists_running → specialists_complete|specialists_incomplete → synthesis → qc_auto_passed|qc_auto_failed → complete | insufficient_evidence | qc_failed | failed`. `interrupted` runs are continued with `/research-company --resume`.
+- `scripts/finalize_run.py` alone decides the outcome (`methodology/SCORING.md` §8). Only `complete` updates the scoreboard and `latest_run.txt`.
+- **Source documents are not committed** (licensing, size, access). The repository stores traceable references (URL or identifier, locator, retrieval date) and short permitted extracts in ledgers and reports. Local downloads go to `_cache/`.
 
 ---
 

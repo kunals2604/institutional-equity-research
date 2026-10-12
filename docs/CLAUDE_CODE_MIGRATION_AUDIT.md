@@ -200,6 +200,8 @@ A count of unqualified superlatives across the 20 TVS and Bharti reports (`grep 
 
 ## 7. The architecture being implemented and why
 
+> **Update (v2.1, same day):** after Parts XI–XVI of the brief were received, run IDs became UTC (`YYYYMMDDTHHMMSSZ`), the manifest became `run_manifest.json`, the scoreboard was reduced to 11 columns written only by `scripts/finalize_run.py`, and git publishing moved to `scripts/git_publish.py`. See `docs/FRAMEWORK_CHANGES.md` v2.1.0. The table below is the original design rationale.
+
 | Component | Path | Why |
 |---|---|---|
 | Investment constitution (canonical layer definitions, tags, evidence rules, crosswalk format) | `.claude/skills/investment-constitution/SKILL.md` | One source of truth. It is **preloaded** into every specialist via the `skills:` frontmatter field (verified to exist in Claude Code 2.1.296), so no agent depends on the CIO's summary. |

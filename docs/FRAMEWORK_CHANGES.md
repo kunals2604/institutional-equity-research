@@ -1,5 +1,19 @@
 # Framework Change Log
 
+## v2.1.0 — 2026-10-12 — Parts XI–XVI of the implementation brief
+
+| # | Change | Reason |
+|---|---|---|
+| 1 | Run IDs are UTC and sortable (`YYYYMMDDTHHMMSSZ`); `manifest.json` → `run_manifest.json` with start and completion time, price and timestamp, model, status and status history; `qc_record.md` → `quality_control.md`; `LATEST_RUN.txt` → `latest_run.txt` (points only to the latest **complete** run) | Brief §28 |
+| 2 | **Incomplete-run policy** (`SCORING.md` §8): outcomes complete / insufficient_evidence / qc_failed / failed; insufficient evidence issues **no** scores; `finalize_run.py` applies the policy | Brief §§28–29: no manufactured scores, no failed-run placeholders |
+| 3 | Scoreboard reduced to 11 columns (identity, run metadata, `business_quality_score`, `investment_attractiveness_score`); locked, atomic, verified writes | Brief §29: a compact index, serialized updates |
+| 4 | `/research-company "<Name>" <TICKER> <EXCHANGE>`, all three required and cross-validated; modes `--validate-only [--probe]`, `--dry-run`, `--resume` | Brief §30 |
+| 5 | Final report restructured to sections A–L (Decision Dashboard … Final Verdict); each layer block has 12 required items including base rates and layer-fit confidence; the Final Verdict separates quality, fit, valuation, return, downside and confidence | Brief §31 |
+| 6 | Git: two serialized, path-scoped batches with push to the current branch; no force or merge; truthful messages (`git_publish.py`) | Brief §32 |
+| 7 | `validate_system.py` (static + optional live probe), `manifest.py`, `compare_runs.py`; source documents kept out of git (`_cache/`) | Brief §§28, 33 |
+| 8 | Methodology version 2.0.0 → 2.1.0 | The outcome policy is part of scoring |
+
+
 ## v2.0.0 — 2026-10-12 — Claude Code migration
 
 Methodology version `2.0.0` (`methodology/SCORING.md`). Evidence for each change: `docs/CLAUDE_CODE_MIGRATION_AUDIT.md`.

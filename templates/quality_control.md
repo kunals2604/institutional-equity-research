@@ -1,4 +1,4 @@
-# QC Record — {company} ({ticker}) · run {run_id}
+# Quality Control — {company} ({ticker}) · run {run_id}
 
 ## Automated checks
 Paste the summary of `qc/auto_checks.json` (errors, warnings, pass/fail per target).
@@ -12,6 +12,7 @@ Paste the summary of `qc/auto_checks.json` (errors, warnings, pass/fail per targ
 | Standalone/consolidated and FY/TTM labelled consistently | | |
 | Contradiction log complete; every resolution has an independent check | | |
 | No FACT rests only on tier 6–7; no probability without basis/band | | |
+| Insufficient-evidence triggers (SCORING.md §8) checked | | |
 | BQ judged without price; IA not derived from BQ | | |
 | Thesis-disproof questions all answered | | |
 | No out-of-scope advice (sizing / pairs / shorts) | | |

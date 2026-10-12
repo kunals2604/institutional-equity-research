@@ -5,7 +5,7 @@
   python3 scripts/validate_run.py RUN_DIR --stage final
 
 --stage specialists : all nine initial reports + ledgers exist and validate;
-                      updates manifest specialist statuses.
+                      updates run_manifest.json specialist statuses.
 --stage final       : everything above + follow-ups, CIO ledger, merged ledger
                       freshness, scorecard, final report, contradiction log,
                       QC record. Writes RUN_DIR/qc/auto_checks.json.
@@ -57,9 +57,9 @@ def main(argv=None) -> int:
     p.add_argument("--stage", choices=["specialists", "final"], required=True)
     a = p.parse_args(argv)
     run_dir = Path(a.run_dir)
-    mpath = run_dir / "manifest.json"
+    mpath = run_dir / rl.RUN_MANIFEST
     if not mpath.exists():
-        print("ERROR: no manifest.json in %s" % run_dir)
+        print("ERROR: no %s in %s" % (rl.RUN_MANIFEST, run_dir))
         return 1
     manifest = rl.load_json(mpath)
     results = []
@@ -98,12 +98,12 @@ def main(argv=None) -> int:
             missing.error("scorecard.json missing")
             results.append(missing)
         results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids))
-        for name in ("contradiction_log.md", "qc_record.md"):
-            r = rl.Result(str(run_dir / "cio" / name))
-            fp = run_dir / "cio" / name
+        for rel in ("cio/contradiction_log.md", rl.QC_RECORD):
+            fp = run_dir / rel
+            r = rl.Result(str(fp))
             if not fp.exists():
                 r.error("missing")
-            elif name == "contradiction_log.md" and "<question>" in fp.read_text(encoding="utf-8"):
+            elif rel.endswith("contradiction_log.md") and "<question>" in fp.read_text(encoding="utf-8"):
                 r.warn("contradiction log still contains the template placeholder block")
             results.append(r)
 

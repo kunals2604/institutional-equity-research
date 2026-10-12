@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
-<!-- METHODOLOGY_VERSION: 2.0.0 -->
-Methodology version **2.0.0** (first Claude Code version; see `docs/FRAMEWORK_CHANGES.md`). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+<!-- METHODOLOGY_VERSION: 2.1.0 -->
+Methodology version **2.1.0** (Claude Code version, with the incomplete-run policy in §8; see `docs/FRAMEWORK_CHANGES.md`). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -127,7 +127,7 @@ The CIO must not change weights for a single company. A methodology change is ma
 Definitions used below:
 - **Base value** = the midpoint of the CIO's base-case intrinsic-value range per share.
 - **MoS** = (base value − price) / base value.
-- **H** = hurdle rate recorded in `manifest.json`. The default `0.12` (nominal, INR) is a placeholder. The CIO must state the risk-free rate and equity risk premium used, with sources, or confirm the default with the user.
+- **H** = hurdle rate recorded in `run_manifest.json`. The default `0.12` (nominal, INR) is a placeholder. The CIO must state the risk-free rate and equity risk premium used, with sources, or confirm the default with the user.
 - **E[IRR]** = the probability-weighted 5-year annualized total return (including dividends and dilution) across bear, base and bull.
 - **P(loss)** = the probability of a **permanent** loss of 30 % or more of capital over the holding horizon. Volatility does not count.
 
@@ -224,5 +224,20 @@ For BQ and IA the final report must state:
 - **Meaning of BQ levels:** 90+ rare, world-class economics with long proven durability; 75–89 high-quality; 60–74 good but with an identifiable structural weakness; 45–59 average; 30–44 weak; <30 impaired.
 - **Meaning of IA levels:** 80+ exceptional price-to-value with limited permanent-loss risk (rare); 65–79 attractive; 45–64 fair, with no edge from price; 25–44 unattractive; <25 a high probability of poor or negative real returns, or a disqualifying gate.
 - **Cross-company check:** after every new company is scored, the CIO compares it with the two closest companies on `COMPANY_SCOREBOARD.csv` and states in the QC record whether the relative ordering is defensible. If it is not, the CIO revisits the dimension scores. It does not adjust the weights.
-- **Drift review:** once 5 or more companies have scores under the same methodology version, review the distribution in `docs/CALIBRATION_LOG.md` (create it then). Clustering of all BQ scores in 75–90 indicates anchor inflation.
+- **Drift review:** once 5 or more companies have scores under the same methodology version, review the distribution in `docs/CALIBRATION_LOG.md`. Clustering of all BQ scores in 75–90 indicates anchor inflation.
 - **Re-scoring:** a new run of the same company uses the same method. Report changes in each dimension with the evidence that caused them.
+
+---
+
+## 8. Incomplete-run and insufficient-evidence policy (predefined)
+
+Scores are issued only when the evidence can support them. Precise scores are never manufactured to fill a gap.
+
+| Outcome | Trigger | What is produced | Scoreboard / `latest_run.txt` |
+|---|---|---|---|
+| **complete** | All nine specialists complete (or a gap is accepted under QC), automated and manual QC PASS, and no insufficient-evidence trigger | Full final report, `scorecard.json` with `assessment_status: complete` | Row upserted; pointer updated |
+| **insufficient_evidence** | Any of: (a) the price or share count cannot be verified; (b) after retries, two or more of `financials`, `filings` and `valuation` are missing or failed; (c) fewer than 8 of the ≥12 decision-critical claims selected for re-verification could be confirmed from tier 1–4 sources; (d) consolidated financials for the latest completed fiscal year are unavailable | Final report with **no BQ/IA scores or verdict** (`assessment_status: insufficient_evidence`, scores `null`, `insufficient_evidence_reason` stated); the evidence gathered is preserved | **Unchanged.** Any prior valid row and pointer stay. |
+| **qc_failed** | Automated or manual QC fails and cannot be fixed in the run | Artifacts preserved; report and scorecard carry `qc_status: FAIL` | **Unchanged** |
+| **failed / interrupted** | The run stopped before synthesis (interruption, tool failure) | Whatever artifacts exist, plus a manifest status. Resume with `/research-company --resume <RUN_ID>`. | **Unchanged** |
+
+A failed or insufficient-evidence run never overwrites, blanks or placeholders a previously valid scoreboard row. `scripts/finalize_run.py` applies this table deterministically.
