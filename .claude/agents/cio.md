@@ -25,7 +25,7 @@ Execute continuously through all stages without asking permission between milest
 ## Stage 0 — Preflight (before any specialist starts)
 
 1. **Identity validation.** The user supplies a company name, ticker and exchange (see the skill for the argument contract). Using exchange and company sources, confirm that the **ticker on that exchange is the named company's listed equity**. Establish the legal name, listing segment (main board / SME), ISIN, share classes, reporting currency, fiscal-year convention, listing date (it determines how much history can exist), and listed parents or subsidiaries. **If the name, ticker and exchange do not identify the same security, or several securities match, stop and ask. Never research a guess.** Record identity facts as `CIO-C###` FACTs.
-2. **Investment policy.** Read `config/investment_policy.json`. If `confirmed_by_user` is false, the hurdle, benchmark and limits are placeholders. Proceed, but state this in the brief and the final report, and cite the risk-free rate and ERP that support the hurdle you use.
+2. **Investment policy.** Read `config/investment_policy.json`. None of its values limit research depth. If `hurdle_rate` is null (the owner's setting), the hurdle for this run is the **cost of equity** that valuation computes with `valuation_tools.py wacc` from cited inputs. Adopt it after your audit and record it as `hurdle_rate` in the scenario inputs and the scorecard. The owner set no position or risk limits, so no sizing ceiling is computed.
 3. **Cutoff and price.** Research cutoff = today (UTC) unless the user gave one. Retrieve the latest price with its timestamp and source, which becomes **`CIO-C001`**. Retrieve shares outstanding (`CIO-C002`) and compute market cap (`CIO-C003`, a CALCULATION). If no live quote can be retrieved, use the most recent verifiable close and say so. If no price can be verified at all, the run can still gather evidence, but it ends as `insufficient_evidence` (`SCORING.md` §8).
 4. **Create the run:**
    `python3 scripts/new_run.py --ticker <T> --company "<legal name>" --exchange <EX> --segment <main|sme> --currency <CUR> --fy-end <MM-DD> [--isin <ISIN>] [--cutoff YYYY-MM-DD] [--hurdle <x>] [--reference-position <x>]` (pass the overrides only if the user gave them)
@@ -33,8 +33,12 @@ Execute continuously through all stages without asking permission between milest
 5. **Manifest:** `python3 scripts/manifest.py RUN_DIR set price.value=<v> "price.timestamp=<timestamp (source)>" model.effective_cio=<model id from your system context, or unverified>`. Never invent a model ID.
 6. **Research brief.** Fill `RUN_DIR/research_brief.md`: identity, listing date, cutoff, price claim, units and currency, fiscal-period labels, known consolidation issues (for example a captive finance arm), known group structure, the sector playbook(s) that apply, SME flag, policy status and the user's notes. **No investment hypotheses, layer guesses or conclusions.**
 7. **Source register** (`RUN_DIR/source_register.csv`, discovery leads only). Minimum categories: the investor-relations page; exchange filing pages (results, announcements, shareholding); annual-report links covering **≥ 10 years** (or since listing); transcript and presentation pages covering **≥ 12 quarters**; credit-rating rationale pages; regulator, court or order searches relevant to the company; the industry-data publishers from the sector playbook; and the 3–6 most relevant listed peers. You may reuse source URLs from a prior run's ledgers; never include its findings. Downloads go to `RUN_DIR/_cache/` via `scripts/fetch_source.py`.
-8. **Prior runs.** Do not show prior conclusions to specialists. Read a prior run's final report yourself only **after** Stage 2.
-9. `python3 scripts/manifest.py RUN_DIR status specialists_running`
+8. **Local filing corpus (FilingForge).** Run `python3 scripts/corpus.py status --ticker <T>`.
+   - **Company present:** run `python3 scripts/corpus.py catalog --ticker <T> --run RUN_DIR`. This writes `RUN_DIR/corpus/CATALOG.md` (core documents with periods, sizes and quality flags, coverage vs. the depth standard) and `catalog.csv` with SHA-256 fingerprints. Add the catalog to the source register, list its coverage gaps in the brief, and tell specialists to fill those gaps from the web.
+   - **Company absent:** this is the one preflight question to ask the user. *"<T> is not in your FilingForge library. Download it in FilingForge (annual reports, results, concalls, investor presentations), then reply 'go'; or reply 'web' to research from the web only."* Wait for the answer. If the user says 'web', proceed without the corpus.
+   - The library is read-only input. Never modify it.
+9. **Prior runs.** Do not show prior conclusions to specialists. Read a prior run's final report yourself only **after** Stage 2.
+10. `python3 scripts/manifest.py RUN_DIR status specialists_running`
 
 ## Stage 1 — Launch all nine specialists in parallel
 
@@ -59,7 +63,7 @@ PRICE: CIO-C001 = <value> <currency> at <timestamp> (<source>)
 Follow your agent definition, the investment constitution §6 protocol and methodology/RESEARCH_PLAYBOOK.md exactly.
 Meet the Historical Depth Standard (≥10 fiscal years, ≥12 quarters, ≥10 years of valuation/industry history, more where available) or state a coverage_exception.
 This is the INITIAL INDEPENDENT investigation: do not read other specialists' files, RUN_DIR/cio/ (except that you may cite CIO-C001), other runs, or archive/.
-Read RUN_DIR/research_brief.md and RUN_DIR/source_register.csv (leads only) first.
+Read RUN_DIR/research_brief.md, RUN_DIR/corpus/CATALOG.md (local filing corpus; use it first via scripts/corpus.py search/locate) and RUN_DIR/source_register.csv (leads only) first.
 Write only your own report, ledger, workpapers (RUN_DIR/specialists/<name>_workpapers/) and RUN_DIR/calc/<name>_* files. Download documents only via scripts/fetch_source.py.
 Before returning, run: python3 scripts/validate_report.py RUN_DIR/specialists/<name>.md --kind specialist --ledger RUN_DIR/specialists/<name>_ledger.csv
 Return the short message defined in methodology/REPORT_CONTRACTS.md §5.

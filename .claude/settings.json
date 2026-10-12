@@ -5,6 +5,9 @@
       "WebFetch",
       "Bash(python3 scripts/*)",
       "Bash(python3 -m unittest discover tests*)"
+    ],
+    "additionalDirectories": [
+      "~/Documents/FilingForgeLibrary"
     ]
   }
 }

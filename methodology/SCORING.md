@@ -131,7 +131,7 @@ The CIO must not change weights for a single company. A methodology change is ma
 Definitions used below:
 - **Base value** = the midpoint of the CIO's base-case intrinsic-value range per share.
 - **MoS** = (base value − price) / base value.
-- **H** = hurdle rate recorded in `run_manifest.json`. The default `0.12` (nominal, INR) is a placeholder. The CIO must state the risk-free rate and equity risk premium used, with sources, or confirm the default with the user.
+- **H** = the hurdle: the minimum annual return that compensates for equity risk, used **only** to judge whether an expected return is attractive. It is **not** a research limit. By owner direction, H is derived each run as the **cost of equity** (dated 10-year government bond yield + beta × equity risk premium, inputs cited) from `valuation_tools.py wacc`, unless the IPS sets a fixed value.
 - **E[IRR]** = the probability-weighted 5-year annualized total return (including dividends and dilution) across bear, base and bull.
 - **P(loss)** = the probability of a **permanent** loss of 30 % or more of capital over the holding horizon. Volatility does not count.
 
@@ -264,7 +264,7 @@ A failed or insufficient-evidence run never overwrites, blanks or placeholders a
 
 ## 9. Investment policy inputs and position-risk profile
 
-The **Investment Policy Statement** in `config/investment_policy.json` holds the hurdle rate, horizon, benchmark, reference position, liquidity rule and risk limits. `scripts/new_run.py` snapshots it into `run_manifest.json`. Until the user sets `"confirmed_by_user": true`, every report states that the policy values are placeholders.
+The **Investment Policy Statement** in `config/investment_policy.json` holds the hurdle rate, horizon, benchmark, reference position, liquidity rule and risk limits. `scripts/new_run.py` snapshots it into `run_manifest.json`. The owner has confirmed the policy: **no position or risk limits**, and the hurdle derived per run. With no risk limits, no sizing ceiling is computed. The position-risk profile still reports the facts an investor needs (bear-case loss, permanent-loss band, liquidity, factor exposures).
 
 Every complete run includes a **position-risk profile** (in the report and in `scorecard.json`). It is *inputs for sizing*, not a trade instruction:
 

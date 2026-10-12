@@ -370,9 +370,14 @@ class TestInvestmentPolicy(unittest.TestCase):
         try:
             m = rl.load_json(fx.dir / rl.RUN_MANIFEST)
             self.assertIn("investment_policy", m)
-            self.assertFalse(m["ips_confirmed"])
-            self.assertEqual(m["hurdle_rate"], rl.investment_policy()["hurdle_rate"])
-            self.assertIn("PLACEHOLDER", (fx.dir / "research_brief.md").read_text(encoding="utf-8"))
+            pol = rl.investment_policy()
+            self.assertEqual(m["ips_confirmed"], bool(pol["confirmed_by_user"]))
+            self.assertEqual(m["hurdle_rate"], pol["hurdle_rate"])
+            brief = (fx.dir / "research_brief.md").read_text(encoding="utf-8")
+            if pol["hurdle_rate"] is None:
+                self.assertIn("derived this run from the cited cost of equity", brief)
+            for v in pol["risk_limits"].values():
+                self.assertIsNone(v, "owner directed: no position or risk limits")
         finally:
             fx.cleanup()
 

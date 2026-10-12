@@ -1,5 +1,15 @@
 # Framework Change Log
 
+## v2.2.1 — 2026-10-12 — Local filing corpus, owner policy
+
+| # | Change |
+|---|---|
+| 1 | **FilingForge integration:** `scripts/corpus.py` (status, catalog with SHA-256 and coverage, cross-year search, PDF page `locate` via poppler, page-marked text). The CIO catalogs the local library in Stage 0 (and asks once if the company is missing). Specialists read the Markdown first (about 25× fewer tokens), cite `FilingForge:<doc_id>` with PDF pages, and fill gaps from the web. Config: `config/data_sources.json`; the library is granted as an additional readable directory in `.claude/settings.json`. |
+| 2 | **Owner policy:** no position or risk limits; the hurdle is no longer a fixed 12 % but **derived each run** from the cited cost of equity (`valuation_tools.py wacc`). It is only the yardstick for IA2, never a research limit. The policy is marked confirmed. |
+| 3 | **No length limits:** removed "typical 3,000–9,000 words"; depth standards are floors, not ceilings. |
+| 4 | poppler installed (`pdftotext`, `pdfinfo`) for page-accurate citations from PDFs. |
+
+
 ## v2.2.0 — 2026-10-12 — Institutional review (`docs/INSTITUTIONAL_REVIEW.md`)
 
 | # | Change |

@@ -2,6 +2,14 @@
 
 Discovery map for primary evidence, oriented to Indian listed companies, with global equivalents. **Tiers follow the constitution's evidence hierarchy.** Site structures and regulation numbers change, so verify the current location when retrieving. Record retrieval failures in the missing-evidence list rather than substituting from memory.
 
+## 0. Local corpus first: FilingForge library
+
+The owner's FilingForge app downloads exchange filings (annual reports, results, concall transcripts, investor presentations, corporate actions, insider/SAST, AGM documents) into `~/Documents/FilingForgeLibrary/<TICKER>/` (path in `config/data_sources.json`). Each PDF has a Markdown twin, about 25× fewer tokens. `scripts/corpus.py` catalogs it, filters out notices (meeting schedules, trading-window closures, newspaper ads), infers fiscal periods, checks coverage against the depth standard, searches across all years, and maps a passage to its PDF page for citation.
+
+- **Tier:** that of the underlying filing (annual reports and results tier 1; presentations tier 3; transcripts tier 4).
+- **Citation:** `source_url_or_id = FilingForge:<doc_id>` (the exchange announcement ID in the file's metadata); `locator = p.<PDF page>` from `corpus.py locate`, or `MD line <n>` if the page cannot be located (confidence M).
+- **Limits:** downloads are triggered manually in the app, which exposes no API. Markdown has no page markers and can drop table structure, so check decision-critical tables against the PDF page. Documents flagged `thin-extraction` must be read from the PDF.
+
 ## 1. Company and exchange disclosures (India)
 
 | Data item | Primary source (tier) | Where | Typical history | Notes |

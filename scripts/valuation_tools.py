@@ -244,7 +244,9 @@ def ia4(r: float) -> int:
 
 
 def price_ladder(inp: dict, prices: List[float], scorecard: Optional[dict]) -> dict:
-    h = float(inp.get("hurdle_rate", 0.12))
+    if inp.get("hurdle_rate") is None:
+        raise ValueError("hurdle_rate missing: use the run's cost of equity from `valuation_tools.py wacc` (SCORING.md §3)")
+    h = float(inp["hurdle_rate"])
     weights = {d: w for d, _, w in rl.dimension_weights("IA")}
     fixed, caps, ctx = {}, [], None
     if scorecard:

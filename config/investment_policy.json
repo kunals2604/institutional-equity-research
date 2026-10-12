@@ -1,11 +1,11 @@
 {
-  "_purpose": "Investment Policy Statement (IPS) used by every research run. scripts/new_run.py snapshots it into run_manifest.json. Values below are PLACEHOLDERS until the owner reviews them and sets confirmed_by_user to true. Reports must state when they rely on unconfirmed values.",
-  "confirmed_by_user": false,
+  "_purpose": "Investment Policy Statement (IPS) used by every research run; snapshotted into run_manifest.json. None of these values limit research depth - research is always as deep as the evidence allows.",
+  "confirmed_by_user": true,
   "base_currency": "INR",
-  "benchmark": "Nifty 500 TRI (placeholder - confirm)",
+  "benchmark": "Nifty 500 TRI",
   "investment_horizon_years": 5,
-  "hurdle_rate": 0.12,
-  "hurdle_rate_basis": "Nominal INR annualized total return. Placeholder: the CIO must cite the risk-free rate and equity risk premium supporting it in each run until confirmed.",
+  "hurdle_rate": null,
+  "hurdle_rate_basis": "null = derive each run: hurdle = cost of equity (dated 10-year G-Sec yield + beta x ERP, inputs cited) computed by valuation_tools.py wacc. It is only the yardstick for judging whether an expected return is attractive (IA2); it never limits research.",
   "reference_position": 5000000,
   "liquidity": {
     "max_days_to_exit": 20,
@@ -20,5 +20,7 @@
   },
   "review": {
     "max_months_between_reviews": 12
-  }
+  },
+  "confirmation_note": "2026-10-12: owner directed no position or risk limits; hurdle derived per run from the cited cost of equity.",
+  "benchmark_note": "Used only to compare historical total shareholder return; change freely."
 }

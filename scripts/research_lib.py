@@ -603,7 +603,7 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     check_layer_names(text, res)
     check_flagged_phrases(text, res, strict=False)
     reg = section(text, "Source Register")
-    if reg is not None and "http" not in reg and not re.search(r"\b(BSE|NSE|ISIN|CIN|filing)\b", reg, re.I):
+    if reg is not None and "http" not in reg and not re.search(r"\b(BSE|NSE|ISIN|CIN|filing)\b|FilingForge:", reg, re.I):
         res.warn("Source Register contains no URLs or filing identifiers")
     return res
 

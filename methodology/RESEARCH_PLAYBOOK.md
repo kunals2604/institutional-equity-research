@@ -9,7 +9,7 @@ This is the operating procedure every specialist (and the CIO, for its own audit
 | Step | What you do | Output |
 |---|---|---|
 | **1. Plan** (before any search) | Write your decision questions, the data series you need, the years required by the depth standard (§2), and the likely sources (`methodology/SOURCE_GUIDE.md`) | `specialists/<name>_workpapers/research_plan.md` |
-| **2. Acquire** | Retrieve documents. For PDFs and decision-critical pages, **download** with `python3 scripts/fetch_source.py URL --run RUN_DIR --author <name> --name "<label>"`, which records the SHA-256, size and retrieval time in `source_retrievals.csv`. For quick HTML lookups, use WebFetch. | Cached files plus the retrieval log (failures are logged too) |
+| **2. Acquire** | **Local corpus first:** read `RUN_DIR/corpus/CATALOG.md` (built from the owner's FilingForge library: annual reports, results, transcripts and presentations already converted to Markdown, about 25× fewer tokens than the PDFs). Use `python3 scripts/corpus.py search --ticker <T> "<regex>" --types annual_report` to jump to the exact line across all years, then read only that region with the Read tool (`offset`/`limit`). Get the citation page with `corpus.py locate --run RUN_DIR <md> "<phrase>"`. Where the catalog flags `thin-extraction`, read the PDF instead. **Then fill gaps from the web:** retrieve documents. For PDFs and decision-critical pages, **download** with `python3 scripts/fetch_source.py URL --run RUN_DIR --author <name> --name "<label>"`, which records the SHA-256, size and retrieval time in `source_retrievals.csv`. For quick HTML lookups, use WebFetch. | Cached files plus the retrieval log (failures are logged too) |
 | **3. Read efficiently** | PDFs: open the first pages (table of contents) with the **Read tool** (`pages: "1-6"`), locate the sections you need, and then read only those page ranges (at most 20 pages per call). HTML tables: `python3 scripts/html_tables.py <cached.html> --match "<text>"` extracts tables deterministically. | Page-level locators |
 | **4. Extract** | Record the numbers as you read, with page or note locators, into workpaper CSVs. Financial statements go into `financial_history.csv` (long format, one row per item and period; `templates/financial_history_template.csv`). Record material claims in your ledger **immediately**. | Workpapers + ledger |
 | **5. Verify** | Apply the verification sampling plan (§3). Reconcile aggregator figures with filings and log every discrepancy. | Verification log in workpapers |
@@ -95,6 +95,7 @@ Transcripts: read the **Q&A first**. Analysts' recurring questions reveal what t
 |---|---|
 | WebSearch | Discovery of documents and news; never a citation by itself |
 | WebFetch | Quick reading or navigation of HTML pages; not for decision-critical numbers (§1) |
+| `scripts/corpus.py` | Local FilingForge library: `status`, `catalog`, `search` (regex across all years, with line numbers), `locate` (PDF page for a passage, via poppler), `pages` (page-marked text) |
 | `scripts/fetch_source.py` | Download with provenance (SHA-256, timestamp, status) into `RUN_DIR/_cache/` (git-ignored); logs failures too |
 | Read tool (with `pages`) | Read PDFs page by page; this is where page locators come from |
 | `scripts/html_tables.py` | Deterministic HTML table → CSV extraction |
@@ -113,4 +114,4 @@ If a site blocks automated access (exchange sites sometimes do), try the company
 - **Quantify.** Prefer "receivable days rose from 41 to 68 between FY2021 and FY2024 [CALCULATION: FIN-C031]" to "receivables rose sharply".
 - **One finding, one place.** Refer back instead of repeating.
 - **Uncertainty is part of the answer.** Say what you could not establish and how much it matters.
-- Typical length is 3,000–9,000 words. Depth comes from evidence and analysis, not volume.
+- **No length limit.** Be as detailed and thorough as the evidence supports. Depth comes from evidence and analysis, not repetition.

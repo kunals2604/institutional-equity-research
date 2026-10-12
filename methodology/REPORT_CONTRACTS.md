@@ -15,6 +15,7 @@ research/companies/<TICKER>/
     ├── research_brief.md                   # CIO preflight brief given to every specialist (facts only)
     ├── source_register.csv                 # discovery leads (NOT proof, NOT conclusions)
     ├── source_retrievals.csv               # every download: time, author, URL, HTTP status, bytes, SHA-256 (scripts/fetch_source.py)
+    ├── corpus/                             # CATALOG.md, catalog.csv (+ SHA-256 of each local document), coverage.json (scripts/corpus.py)
     ├── specialists/
     │   ├── <name>.md                       # 9 initial reports: financials, filings, management, industry, moat,
     │   ├── <name>_ledger.csv               #   concalls, valuation, bear-case, special-situations (+ 9 claim ledgers)
@@ -91,7 +92,7 @@ What each must contain:
 - **Domain Conclusion:** answers to the agent's decision questions plus its formal classifications. **No** BQ or IA score, primary-layer selection, or buy/sell verdict.
 - **Source Register:** see `EVIDENCE_STANDARDS.md` §2.
 
-**Length:** depth comes from evidence, not words. Typical length is 3,000–9,000 words. Do not pad, and do not repeat the same finding in several sections; refer back to it instead.
+**Length:** there is **no upper limit**. Research is as deep and thorough as the evidence allows, and the depth standards are floors, not ceilings. Depth comes from evidence, not padding: do not repeat the same finding in several sections; refer back to it instead.
 
 ---
 

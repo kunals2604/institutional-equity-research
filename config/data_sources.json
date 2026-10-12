@@ -1,0 +1,4 @@
+{
+  "_purpose": "Local data sources for research runs. The FilingForge library is read-only input: agents read its Markdown conversions (token-efficient) and use the sibling PDFs for page-number citations.",
+  "filingforge_library": "~/Documents/FilingForgeLibrary"
+}

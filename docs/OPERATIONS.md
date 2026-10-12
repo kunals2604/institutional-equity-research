@@ -80,6 +80,7 @@ Everything else (layers, verdict, valuation, reasoning) lives in the run directo
 
 | Script | Use |
 |---|---|
+| `corpus.py` | Local FilingForge library: `status`, `catalog` (CATALOG.md + SHA-256 + coverage), `search` (regex across all years with line numbers), `locate` (PDF page for a passage), `pages` (page-marked text) |
 | `fetch_source.py` | Download a document with provenance (SHA-256, time, HTTP status) into `RUN_DIR/_cache/`; logs failures too |
 | `html_tables.py` | Deterministic HTML table → CSV extraction |
 | `fin_metrics.py` | Ratios, CAGRs (3/5/10/15 years), per-share compounding, incremental ROIC and forensic screens (accruals, Beneish, Piotroski) from `financial_history.csv`; `general` and `lender` profiles |
@@ -91,6 +92,14 @@ Tests: `python3 -m unittest discover tests`.
 ## 6a. Investment policy
 
 `config/investment_policy.json` is the Investment Policy Statement: hurdle rate, horizon, benchmark, reference position, liquidity rule and risk limits. **Review it and set `"confirmed_by_user": true`.** Until then, every report flags the values as placeholders. Risk limits left `null` mean no sizing ceiling is computed.
+
+## 6b. FilingForge library (local filings, token-efficient)
+
+1. In the FilingForge app, download the company (annual reports, results, concalls, investor presentations; more categories are fine). The app saves to `~/Documents/FilingForgeLibrary/<TICKER>/` (path in `config/data_sources.json`). FilingForge has no external API, so this step is manual.
+2. Check what you have: `python3 scripts/corpus.py status --ticker <TICKER>`. It shows coverage against the 10-year depth standard and the gaps.
+3. Run `/research-company …`. The CIO catalogs the library automatically, and specialists read the Markdown (about 25× fewer tokens than the PDFs), cite PDF page numbers via `corpus.py locate`, and fill gaps from the web. If the company is not in the library, the CIO asks once: download first, or proceed web-only.
+
+The library is never modified, and its documents are not copied into git. Runs record each document's ID, path and SHA-256 in `corpus/catalog.csv`.
 
 ## 7. Changing the methodology
 

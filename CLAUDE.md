@@ -10,7 +10,8 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 ## Where things live (read the relevant file; do not rely on memory)
 - `.claude/skills/investment-constitution/SKILL.md`: **canonical** four layers, fit scale, epistemic tags, citation syntax, specialist protocol
 - `methodology/`: `SCORING.md` · `EVIDENCE_STANDARDS.md` · `REPORT_CONTRACTS.md` · `RESEARCH_PLAYBOOK.md` (how to research; **≥10-year depth standard**) · `METRIC_DEFINITIONS.md` · `SECTOR_PLAYBOOKS.md` · `SOURCE_GUIDE.md` · `INVESTOR_LENSES.md`
-- `config/investment_policy.json`: Investment Policy Statement (hurdle, horizon, benchmark, limits). Placeholders until the user confirms them.
+- `config/investment_policy.json`: owner policy. **No position or risk limits**; hurdle = the run's cited cost of equity. Nothing in it limits research depth.
+- `config/data_sources.json` → FilingForge library (`~/Documents/FilingForgeLibrary`): read the company's filings there **first** via `scripts/corpus.py` (Markdown, token-efficient), then fill gaps from the web.
 - `MASTER_RESEARCH_FRAMEWORK.md`: what to investigate. `PROJECT_INSTRUCTIONS.md`: global rules
 - `research/companies/<TICKER>/runs/<UTC RUN_ID>/`: one directory per run; `latest_run.txt` points to the latest complete run. `COMPANY_SCOREBOARD.csv`: compact two-score index
 - `archive/`: old Antigravity definitions, **non-operative**. `docs/`: audit, architecture, operations
@@ -28,6 +29,6 @@ python3 scripts/validate_system.py [--live-probe]   # configuration and contract
 python3 -m unittest discover tests                   # run after changing agents, methodology or scripts
 python3 scripts/new_run.py ... [--dry-run]   ·   scripts/manifest.py   ·   scripts/validate_run.py RUN --stage specialists|final
 scripts/merge_ledgers.py · validate_scorecard.py · finalize_run.py · git_publish.py · compare_runs.py · scoreboard.py validate
-scripts/fetch_source.py · html_tables.py · fin_metrics.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
+scripts/corpus.py · fetch_source.py · html_tables.py · fin_metrics.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
 ```
 Canonical vocabularies are parsed from marked blocks (`<!-- NAME:BEGIN -->`) in the markdown. Edit them there, then run the tests.

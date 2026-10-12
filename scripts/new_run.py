@@ -57,7 +57,7 @@ def main(argv=None) -> int:
 
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
     policy = rl.investment_policy(Path(a.policy))
-    hurdle = a.hurdle if a.hurdle is not None else float(policy["hurdle_rate"])
+    hurdle = a.hurdle if a.hurdle is not None else policy.get("hurdle_rate")  # None = derive per run (cost of equity)
     ref_pos = a.reference_position if a.reference_position is not None else float(policy["reference_position"])
     ticker = a.ticker.strip().upper()
     company = a.company.strip()
@@ -112,7 +112,7 @@ def main(argv=None) -> int:
         "company": company, "ticker": ticker, "run_id": run_id, "created_at": now.isoformat(),
         "cutoff": cutoff, "exchange": exchange, "segment": a.segment, "isin": a.isin,
         "currency": a.currency, "fy_end": a.fy_end, "sme_mode": "ON" if a.segment == "sme" else "OFF",
-        "hurdle": hurdle, "reference_position": int(ref_pos),
+        "hurdle": hurdle if hurdle is not None else "derived this run from the cited cost of equity", "reference_position": int(ref_pos),
         "benchmark": policy.get("benchmark", ""), "horizon": policy.get("investment_horizon_years", 5),
         "ips_status": "CONFIRMED by user" if policy.get("confirmed_by_user") else "PLACEHOLDER values (not yet confirmed by user)",
     }

@@ -246,7 +246,8 @@ def check_methodology(rep):
         need = {"confirmed_by_user", "hurdle_rate", "investment_horizon_years", "benchmark", "reference_position",
                 "liquidity", "risk_limits"}
         rep.add("investment policy (IPS) has required keys", need <= set(pol), str(sorted(need - set(pol))))
-        rep.add("investment policy hurdle is a plausible decimal", 0 < float(pol["hurdle_rate"]) < 0.5)
+        h = pol.get("hurdle_rate")
+        rep.add("investment policy hurdle is null (derived per run) or a plausible decimal", h is None or 0 < float(h) < 0.5)
         if not pol.get("confirmed_by_user"):
             rep.add("investment policy confirmed by user", True, "NOT YET CONFIRMED — values are placeholders (warning)")
     except Exception as exc:
