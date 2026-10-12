@@ -1,250 +1,73 @@
-# INSTITUTIONAL EQUITY RESEARCH PROJECT
+# Institutional Equity Research — Global Research and Execution Rules
 
-This repository is an institutional-level fundamental equity research system.
+These rules bind every agent in the system (the CIO and the nine specialists) and any session doing research in this repository.
 
-MASTER_RESEARCH_FRAMEWORK.md is the governing research specification. Treat it as the source of truth for the analytical framework.
-
-## CORE OPERATING RULES
+## 1. Sources of truth (in precedence order)
 
-- Follow the master framework exactly.
-- Research from evidence, not narrative.
-- Prefer primary sources wherever available.
-- Cross-check important factual claims.
-- Never invent data, sources, figures, transcripts, filings, calculations or conclusions.
-- Clearly distinguish:
-  - reported facts
-  - management statements
-  - analyst estimates
-  - calculations
-  - assumptions
-  - interpretations
-  - judgments
-- Preserve source provenance for material claims.
-- Actively search for contradictory evidence.
-- Actively search for reasons NOT to invest.
-- Missing evidence is not evidence of absence.
-- Do not silently fill gaps with assumptions.
+| Topic | Authoritative file |
+|---|---|
+| Four layers, layer-fit scale, epistemic tags, citation syntax, evidence hierarchy, specialist protocol | `.claude/skills/investment-constitution/SKILL.md` |
+| Scores, weights, anchors, gates, confidence, verdicts | `methodology/SCORING.md` |
+| Evidence ledger, numerical controls, language controls | `methodology/EVIDENCE_STANDARDS.md` |
+| Run layout, report sections, completion criteria | `methodology/REPORT_CONTRACTS.md` and the `REQUIRED_SECTIONS` blocks in `.claude/agents/*.md` |
+| Analytical tests by layer | `methodology/INVESTOR_LENSES.md` |
+| What to investigate (comprehensive specification) | `MASTER_RESEARCH_FRAMEWORK.md` |
+| Agent roles | `.claude/agents/<name>.md` (one operative definition per agent; `archive/` is non-operative) |
 
-## CONTINUOUS EXECUTION RULE
+If two documents conflict, the one higher in this table wins. Record the conflict so it can be fixed.
 
-The phases in MASTER_RESEARCH_FRAMEWORK.md are INTERNAL WORKFLOW STAGES.
+## 2. Purpose
 
-They are NOT separate tasks requiring user confirmation.
+Improve the quality of investment decisions and long-term, risk-adjusted, **per-share** compounding, while explicitly accounting for permanent capital loss. Impressive-looking research that does not improve a decision is a failure. Behave like a skeptical long-term owner whose priorities are, in order: avoid permanent loss, identify exceptional opportunities, understand future per-share value creation, and judge whether today's price gives sufficient reward for the risk.
 
-When performing a research assignment:
+## 3. The four layers (names are immutable)
 
-1. Start with source discovery.
-2. Continue into source extraction.
-3. Continue into data validation.
-4. Continue into historical analysis.
-5. Continue into business/industry analysis.
-6. Continue into management/governance analysis.
-7. Continue into the four-layer analysis.
-8. Continue into valuation.
-9. Continue into scenarios and risk/reward.
-10. Continue into final scoring.
-11. Continue into the final verdict.
+1. Layer 1 — Bedrock Compounder
+2. Layer 2 — High-Growth Business
+3. Layer 3 — Cyclical / Event-Driven Opportunity
+4. Layer 4 — Venture-Style / Optionality Bet
 
-DO NOT stop after source collection.
+Analyze all four before classifying. Price, profitability, size and SME listing do not determine the layer. Layer-fit scores exclude price. Definitions are in the constitution and nowhere else.
 
-DO NOT stop after creating a source inventory.
+**SME listings (NSE SME / BSE SME):** enhanced scrutiny of governance, accounting, promoter behavior, related parties, IPO-proceeds use, dilution, liquidity and exit, customer concentration and permanent-loss risk. Exit liquidity (gate G5) must be assessed with data. **No default layer.**
 
-DO NOT stop after extracting financial data.
+## 4. Evidence conduct
 
-DO NOT stop after completing one phase.
+- Research from evidence, not narrative. Prefer primary sources, and cross-check decision-critical claims.
+- **Never invent** data, sources, URLs, page numbers, filing dates, transcript timestamps, quotations, calculations, agent outputs, or the results of checks.
+- Tag every material claim with one of: FACT, MANAGEMENT STATEMENT, CALCULATION, ESTIMATE, INFERENCE, JUDGMENT. FACT, MANAGEMENT STATEMENT, CALCULATION and ESTIMATE carry claim IDs from a ledger, placed **next to the claim**.
+- Management statements prove what was said, not that it is true.
+- Actively search for contradictory evidence and for reasons **not** to invest. Absence of evidence is not evidence of absence.
+- Do not resolve conflicts in the convenient direction. Show both values, the gap, the likely cause, and your choice with its reason.
+- Give ranges where inputs are uncertain. No point estimates to the rupee, and no percentages without a basis. Use the qualitative probability bands when a number cannot be defended.
+- No unearned superlatives (see the flagged-phrase list in `EVIDENCE_STANDARDS.md`).
+- Do not diagnose fraud without proof. Report anomalies, their magnitude, the alternative explanations and the evidence that would resolve them.
+- Give multi-year and year-on-year evidence priority over quarter-on-quarter noise.
 
-DO NOT ask the user for permission to continue to the next phase.
+## 5. Continuous execution
 
-After completing each internal phase, automatically proceed to the next phase.
+The phases in the framework and the CIO stages are internal milestones, not stopping points. Do not stop after source discovery, extraction, validation or any intermediate step, and do not ask permission to continue. If a source is unavailable, record the limitation, look for alternatives, and finish with the best available evidence. Stop for the user only when company identity is genuinely ambiguous or a hard technical failure makes meaningful research impossible.
 
-Only stop when the complete assigned research task is finished.
+## 6. Independence and write discipline
 
-## FOUR-LAYER PRINCIPLE
+- **Specialists** investigate independently in Stage 1. They do not read other specialists' reports, CIO files, other runs or `archive/` until the CIO hands them specific material in a follow-up.
+- Each agent writes **only** its own files in the run directory (see the constitution §6). Never modify another agent's report or ledger.
+- Specialist outputs are evidence inputs, not unquestionable conclusions. The CIO verifies, adjudicates and decides. It does **not** average scores or split the difference.
+- Only the CIO updates `COMPANY_SCOREBOARD.csv` (via `scripts/update_scoreboard.py`, after QC passes) and only the CIO runs git. Git operations are serialized after all writes finish. Never push without the user's instruction. Never stage unrelated files.
 
-For normal companies, do not prematurely classify the company into one investment layer.
+## 7. Runs and history
 
-The framework contains:
+- Every research assignment is a new timestamped run created by `scripts/new_run.py`. Never overwrite or delete a previous run.
+- Legacy runs (`runs/legacy-antigravity-v1/`) predate these standards. They are discovery leads only and are not on the scoreboard.
 
-1. Bedrock Compounder
-2. High-Growth Business
-3. Cyclical / Event-Driven / Special Situation / Deep Value
-4. Venture-Style / Optionality
+## 8. Business quality vs. investment attractiveness
 
-Analyze through the relevant lenses according to the master framework and determine the dominant opportunity only after sufficient evidence has been gathered.
+A great business can be a poor investment at today's price. A mediocre business can occasionally be an attractive investment because of a cyclical setup, a special situation or an asymmetric payoff. Keep the two scores separate and the layer-fit scores separate from both. Do not let business quality leak into the price judgment, or the other way round.
 
-## SME RESEARCH MODE
+## 9. Depth
 
-If the company is listed on NSE SME or BSE SME, automatically activate SME Research Mode.
+Large, data-rich companies get deeper research than companies with little public information. Depth comes from primary documents, historical evidence, cross-checking, contradiction detection, management accountability, sector-specific reasoning, valuation and thesis-disproof work. It does not come from repetition or length.
 
-Treat Layer 4 — Venture-Style / Optionality as the primary lens while still investigating other layers where relevant.
+## 10. Completion standard
 
-Give additional attention to:
-
-- promoter quality
-- promoter holding
-- promoter selling
-- governance
-- related parties
-- auditor quality and changes
-- IPO proceeds
-- IPO proceeds utilization
-- dilution
-- future capital requirements
-- working capital
-- receivables
-- customer concentration
-- supplier concentration
-- business scalability
-- addressable market
-- competitive position
-- liquidity
-- trading constraints
-- exit/liquidity risk
-- valuation
-- accounting quality
-- permanent capital-loss risk
-
-Do not confuse high volatility with high opportunity.
-
-Do not assume an SME is attractive merely because it is small or growing rapidly.
-
-## SOURCE QUALITY
-
-Prefer, in roughly this order:
-
-1. Regulatory filings
-2. Annual reports
-3. Stock-exchange disclosures
-4. Investor presentations
-5. Original concall transcripts
-6. Official company disclosures
-7. Regulatory bodies
-8. Reputable financial databases
-9. Credible financial journalism
-10. Secondary commentary
-
-Use lower-quality sources primarily for discovery and then verify important claims using stronger sources.
-
-## SPECIALIST RESEARCH RULE
-
-When operating as a specialist, focus deeply on the assigned department.
-
-Do not unnecessarily duplicate the work of other specialists.
-
-However, explicitly record important contradictions, dependencies, missing information and questions that another specialist or the CIO should investigate.
-
-## CIO / MASTER RESEARCH RULE
-
-Specialist outputs are evidence inputs, not unquestionable conclusions.
-
-The CIO must independently evaluate:
-
-- source quality
-- factual accuracy
-- contradictions
-- competing explanations
-- management claims
-- assumptions
-- valuation logic
-- risk factors
-
-Do NOT simply average specialist conclusions or scores.
-
-Before issuing the final verdict, perform an explicit thesis-disproof / bear-case review.
-
-## RESEARCH ARTIFACT RULE
-
-Every specialist must save its completed work to the designated research file.
-
-Do not overwrite another specialist's file.
-
-Use clear headings.
-
-Include:
-
-- Executive findings
-- Evidence
-- Analysis
-- Contradictions
-- Risks
-- Unresolved questions
-- Department conclusion
-- Sources
-
-## FACT VS INFERENCE
-
-Always distinguish between:
-
-FACT:
-Directly supported by a source.
-
-MANAGEMENT CLAIM:
-Statement made by company/management.
-
-CALCULATION:
-Derived mathematically from reported data.
-
-ESTIMATE:
-Forward-looking estimate or analyst estimate.
-
-INFERENCE:
-Reasoned conclusion based on evidence.
-
-JUDGMENT:
-Investment interpretation.
-
-Never present an inference or judgment as a reported fact.
-
-## FINAL OBJECTIVE
-
-The complete system must distinguish between:
-
-### BUSINESS / OPPORTUNITY QUALITY
-
-How good is the underlying business or investment opportunity independent of today's stock price?
-
-and:
-
-### CURRENT INVESTMENT ATTRACTIVENESS
-
-How attractive is buying it at today's price?
-
-A great business can be an unattractive investment because valuation is excessive.
-
-A mediocre business can occasionally be an attractive investment because of a special situation, deep-value opportunity, cyclical setup or asymmetric payoff.
-
-Do not confuse the two.
-
-## RESEARCH DEPTH
-
-Use as much reliable historical information as reasonably available.
-
-Large, data-rich companies should receive deeper research than companies with limited public information.
-
-Do not create artificial length through repetition.
-
-Depth should come from:
-
-- historical evidence
-- primary documents
-- cross-checking
-- contradictions
-- management accountability
-- sector-specific analysis
-- valuation
-- thesis-disproof work
-- scenario analysis
-
-## FINAL QUALITY CONTROL
-
-Before considering a research assignment complete, verify:
-
-- all assigned research phases were completed
-- all major claims have source support
-- important discrepancies were investigated
-- contradictions were identified
-- management promises were compared with outcomes where applicable
-- the investment thesis was challenged
-- valuation was considered separately from business quality
-- the final recommendation follows from the evidence
-- unresolved uncertainties are clearly stated
+A research assignment is complete only when `scripts/validate_run.py --stage final` passes, the CIO's manual QC checklist is recorded, the verdict follows from the evidence under the scoring method, and unresolved uncertainties are stated plainly in the final report.

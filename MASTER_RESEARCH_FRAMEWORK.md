@@ -1,6 +1,16 @@
 # ELITE MASTER INVESTMENT RESEARCH FRAMEWORK
 ## Comprehensive Fundamental Investment Analysis of [COMPANY NAME]
 
+> **Role of this document (v2.0, Claude Code migration, 2026-10-12).** This is the comprehensive **research specification**: *what* must be investigated. It is applied by a CIO and nine specialist agents (`.claude/agents/`), launched with `/research-company`.
+> Where this document and the files below overlap, these are **authoritative**:
+> - `.claude/skills/investment-constitution/SKILL.md`: the canonical four-layer definitions, the layer-fit scale, epistemic tags, claim-ID citation and the evidence hierarchy
+> - `methodology/SCORING.md`: Business Quality and Investment Attractiveness dimensions, weights, anchors, gates, confidence and verdict mapping
+> - `methodology/EVIDENCE_STANDARDS.md`: evidence ledger, numerical controls, language controls
+> - `methodology/INVESTOR_LENSES.md`: analytical tests by layer
+> - `methodology/REPORT_CONTRACTS.md`: run layout, report structure and completion criteria
+>
+> Changes from v1 are listed in `docs/FRAMEWORK_CHANGES.md`. In short: SME listing no longer defaults to Layer 4; layer scores are *fit* scores that exclude price; the single mixed weighted scorecard is replaced by two separate scorecards; there is one canonical verdict vocabulary.
+
 ---
 
 # 0. CORE OBJECTIVE
@@ -134,9 +144,10 @@ Assess:
 At the end of this section, provide:
 
 ### Layer 1 — Bedrock Compounder Assessment
-**Score: X/100**
+**Layer-fit score: X/100.** Use the constitution's fit scale. It measures fit to the archetype and **excludes price**.
+If fit ≥ 41, add a **current-price assessment under this lens** (value range, implied expectations, expected return).
 
-Explain why.
+Explain why, citing evidence.
 
 ---
 
@@ -219,14 +230,15 @@ Ask:
 
 At the end:
 
-### Layer 2 — High-Growth Assessment
-**Score: X/100**
+### Layer 2 — High-Growth Business Assessment
+**Layer-fit score: X/100.** Use the constitution's fit scale. It **excludes price**.
+If fit ≥ 41, add a current-price assessment under this lens.
 
-Explain why.
+Explain why, citing evidence.
 
 ---
 
-# 3. LAYER 3 — CYCLICAL / EVENT-DRIVEN ANALYSIS
+# 3. LAYER 3 — CYCLICAL / EVENT-DRIVEN OPPORTUNITY ANALYSIS
 
 Independently analyze [COMPANY NAME] as a potential cyclical, turnaround, special-situation or event-driven opportunity.
 
@@ -306,14 +318,15 @@ Ask:
 
 At the end:
 
-### Layer 3 — Cyclical / Event-Driven Assessment
-**Score: X/100**
+### Layer 3 — Cyclical / Event-Driven Opportunity Assessment
+**Layer-fit score: X/100.** Use the constitution's fit scale. It **excludes price**. Note that a low current multiple is a price observation, not evidence of fit.
+If fit ≥ 41, add a current-price assessment under this lens (normalized value, catalyst-adjusted value, downside floor).
 
-Explain why.
+Explain why, citing evidence.
 
 ---
 
-# 4. LAYER 4 — VENTURE-STYLE / OPTIONALITY ANALYSIS
+# 4. LAYER 4 — VENTURE-STYLE / OPTIONALITY BET ANALYSIS
 
 Independently analyze whether [COMPANY NAME] represents a venture-style or asymmetric optionality opportunity.
 
@@ -380,23 +393,24 @@ Do not force mature-company metrics onto an early-stage opportunity.
 
 At the end:
 
-### Layer 4 — Venture-Style / Optionality Assessment
-**Score: X/100**
+### Layer 4 — Venture-Style / Optionality Bet Assessment
+**Layer-fit score: X/100.** Use the constitution's fit scale. It **excludes price**. Layer 4 describes the shape of the outcome distribution; it is never a label for "expensive" or "small".
+If fit ≥ 41, add a current-price assessment under this lens (a dilution-adjusted outcome tree).
 
-Explain why.
+Explain why, citing evidence.
 
 ---
 
-# 5. FOUR-LAYER COMPARATIVE ASSESSMENT
-# SME RESEARCH MODE — NSE SME / BSE SME COMPANIES
+# 4A. SME ENHANCED-SCRUTINY MODE — NSE SME / BSE SME COMPANIES
 
-If [COMPANY NAME] is listed on the NSE SME or BSE SME platform, automatically activate SME RESEARCH MODE.
+If [COMPANY NAME] is listed on the NSE SME or BSE SME platform, automatically activate **SME ENHANCED-SCRUTINY MODE** (`--segment sme` in `scripts/new_run.py`).
 
-For SME RESEARCH MODE, treat the company as a **Layer 4 — Venture-Style / Optionality Bet by default**.
+**SME listing does NOT determine the investment layer.** All four layers are still analyzed independently and classified on the evidence. A small, profitable, high-return SME may be a nascent Layer 1 or Layer 2 business. A cyclical SME may be Layer 3. Layer 4 applies only when value depends on uncertain milestones. (v1 treated SMEs as Layer 4 by default; that rule contradicted the analyze-before-classifying principle and is withdrawn.)
 
-Do NOT spend equal research effort trying to prove that an SME company is a Layer 1 compounder, Layer 2 high-growth company, or Layer 3 cyclical/event-driven opportunity. The primary objective is to determine whether this small, under-followed business has genuine asymmetric long-term optionality and whether the current price compensates for the risks.
-
-If evidence reveals meaningful secondary characteristics from Layers 1–3, mention them, but do not let them displace the primary Layer-4 analysis.
+What SME mode *does* change:
+- The governance, promoter, accounting, dilution, liquidity, exit, concentration and permanent-loss investigations below are **mandatory and deeper**.
+- Investment Attractiveness gate **G5** (exit liquidity) must be explicitly assessed with data (`methodology/SCORING.md`).
+- The burden of evidence is higher: management statements need corroboration before they support any layer-fit score above 60.
 
 ## SME CORE QUESTION
 
@@ -621,8 +635,8 @@ Include **probability of permanent capital loss**, not merely stock-price volati
 
 ## SME FINAL OUTPUT PRIORITIES
 
-For SME RESEARCH MODE, make these especially prominent:
-- Layer 4 Venture / Optionality Score /100
+In SME ENHANCED-SCRUTINY MODE, make these especially prominent:
+- All four layer-fit scores (no layer is presumed)
 - Business / Opportunity Quality /100
 - Current Investment Attractiveness /100
 - Governance Risk
@@ -633,21 +647,19 @@ For SME RESEARCH MODE, make these especially prominent:
 - Concentration Risk
 - Promoter / Key-Person Risk
 
-Final SME verdict:
-- HIGH-CONVICTION SPECULATIVE BUY
-- SPECULATIVE BUY
-- WATCHLIST / WAIT FOR BETTER PRICE
-- TOO SPECULATIVE / INSUFFICIENT EVIDENCE
-- AVOID
+Final SME verdict: use the **canonical verdict list** in `methodology/SCORING.md` §5. That list already contains SPECULATIVE BUY for Layer-4-primary buys. Where evidence is too thin to judge, say so explicitly and let the IA confidence (Low) and gate G6 express it. Do not invent new verdict labels.
 
 Never call an SME company “safe” merely because headline financial ratios look strong.
 
+---
+
+# 5. FOUR-LAYER COMPARATIVE ASSESSMENT
 
 Only AFTER completing all four independent analyses, compare them.
 
-Create a table:
+Create a table of **layer-fit** scores (constitution fit scale; price excluded), followed by the separate current-price assessment for every layer with fit ≥ 41:
 
-| Investment Lens | Score /100 | What Makes It Fit | What Weakens the Case | Key Driver |
+| Investment Lens | Layer-fit /100 | What Makes It Fit | What Weakens the Case | Key Driver | Current-price view (if fit ≥ 41) |
 |---|---:|---|---|---|
 | Bedrock Compounder | | | | |
 | High-Growth Business | | | | |
@@ -709,6 +721,8 @@ Explicitly state how the questions from multiple layers interact.
 # 7. TWO FINAL SCORES — NON-NEGOTIABLE
 
 At the end provide **two distinct final scores out of 100**.
+
+**Authoritative method:** `methodology/SCORING.md` defines the fixed dimensions, weights, anchors, gates, confidence levels, judgment bands and verdict mapping. The lists below describe what each score *means*. They are not an alternative scoring method. The four layer-fit scores are a third, separate measure and are never averaged into either score.
 
 ## A. BUSINESS / OPPORTUNITY QUALITY SCORE — /100
 
@@ -781,11 +795,11 @@ Examples:
 
 ### 75 Business Quality + 89 Investment Attractiveness
 
-> **Not an elite compounder, but an unusually attractive cyclical/event opportunity → BUY.**
+> **Not an elite compounder, but an unusually attractive cyclical/event opportunity → STRONG BUY (or BUY if IA confidence is Low).**
 
 ### 68 Business Quality + 82 Investment Attractiveness
 
-> **Ordinary-looking business with unusually attractive valuation/catalysts → POSSIBLE SPECIAL SITUATION.**
+> **Ordinary-looking business with unusually attractive valuation/catalysts → a buy-rated opportunity, typically Layer 3 primary. The verdict follows the mapping; the special-situation character is described by the layer, not by a separate verdict label.**
 
 ### 55 Business Quality + 42 Investment Attractiveness
 
@@ -827,6 +841,8 @@ Determine how far back each source category can reasonably be retrieved.
 
 Extract the underlying information before forming conclusions.
 
+Record every material claim in the author's **evidence ledger** as it is extracted: tag, value, period, basis, source, exact locator, retrieval date, tier and confidence (`methodology/EVIDENCE_STANDARDS.md`). Reports cite claim IDs inline (`[FACT: FIN-C012]`). A list of sources at the end is not traceability.
+
 ---
 
 ## PHASE 2 — DATA VALIDATION
@@ -848,7 +864,7 @@ Analyze the maximum useful historical period.
 
 ---
 
-## PHASE 4 — FOUR-LAYER ANALYSIS / SME OVERRIDE
+## PHASE 4 — FOUR-LAYER ANALYSIS (SME: ENHANCED SCRUTINY, NO DEFAULT LAYER)
 
 For normal companies, analyze independently through:
 
@@ -859,7 +875,7 @@ For normal companies, analyze independently through:
 
 Do not classify beforehand.
 
-For NSE SME / BSE SME companies, apply SME RESEARCH MODE: Layer 4 is the primary lens by default. Do not spend equal effort scoring Layers 1–3 unless evidence materially changes the thesis.
+For NSE SME / BSE SME companies, apply SME ENHANCED-SCRUTINY MODE (§4A). All four layers are still analyzed and classified on the evidence.
 
 ---
 
@@ -2189,39 +2205,17 @@ Determine whether upside is sufficiently large relative to downside.
 
 ---
 
-# 50. FINAL WEIGHTED SCORECARD
+# 50. FINAL SCORECARDS (TWO, NEVER COMBINED)
 
-Create a weighted score appropriate to the company and to the opportunity revealed by the four-layer analysis.
+v1 asked for one weighted scorecard mixing quality categories (moat, governance) with price categories (valuation, market expectations, risk/reward). That produced a third, undefined score and has been **withdrawn**.
 
-Potential criteria:
+Produce instead:
+1. **Business Quality scorecard:** dimensions BQ1–BQ8 with fixed weights and anchors (`methodology/SCORING.md` §2). Price is never an input.
+2. **Investment Attractiveness scorecard:** dimensions IA1–IA8 with fixed weights and anchors (`methodology/SCORING.md` §3).
 
-| Category | Score /100 | Weight | Weighted Score | Reason |
-|---|---:|---:|---:|---|
-| Business / Opportunity Quality | | | | |
-| Growth | | | | |
-| Profitability / Economics | | | | |
-| Financial Strength | | | | |
-| Cash Flow / Capital Generation | | | | |
-| Earnings Quality | | | | |
-| Industry | | | | |
-| TAM / Structural Opportunity | | | | |
-| Competitive Position | | | | |
-| Moat | | | | |
-| Management | | | | |
-| Management Execution | | | | |
-| Promise vs Delivery | | | | |
-| Governance | | | | |
-| Capital Allocation | | | | |
-| Financial Resilience | | | | |
-| Valuation | | | | |
-| Market Expectations | | | | |
-| Risk / Reward | | | | |
-| Future Potential | | | | |
-| Sector-Specific Factors | | | | |
+Weights are **fixed across companies** so that scores mean the same thing from company to company. Sector and archetype differences are handled inside each dimension's anchors (for example, mid-cycle returns for cyclicals; ROE versus cost of equity for lenders; unit economics with reduced confidence for growers). Sector-specific metrics from §40 feed the relevant dimensions as evidence.
 
-Weights should reflect the company's actual economics and identified investment archetype(s).
-
-Do not give equal weight to irrelevant factors.
+For each score, state: the dimension scores with cited rationale, the weighted raw score, gates applied, the final score, confidence and judgment band, what prevents a higher score, what could lower it, and the evidence most likely to change it.
 
 ---
 
@@ -2287,17 +2281,17 @@ Answer:
 
 > **“If I had fresh capital today, would I buy [COMPANY NAME] at the current market price?”**
 
-Choose:
+Choose exactly one canonical verdict (`methodology/SCORING.md` §5; mapping from scores, with at most a one-notch reasoned override):
 
 - STRONG BUY
 - BUY
-- WATCH / WAIT FOR BETTER PRICE
+- SPECULATIVE BUY (Layer 4 primary and a buy-level mapping)
+- WATCHLIST — WAIT FOR BETTER PRICE
 - HOLD / NEUTRAL
 - AVOID
 - STRONG AVOID
-- SPECULATIVE / OPTIONALITY BET where appropriate
 
-Explain exactly why.
+Explain exactly why. Position sizing, trading instructions, pair trades and short recommendations are out of scope unless the user asks for them.
 
 ---
 
@@ -2307,10 +2301,10 @@ At the very end, display prominently:
 
 ## FOUR-LAYER ASSESSMENT
 
-**Layer 1 — Bedrock Compounder:** XX/100  
-**Layer 2 — High-Growth:** XX/100  
-**Layer 3 — Cyclical/Event-Driven:** XX/100  
-**Layer 4 — Venture/Optionality:** XX/100
+**Layer 1 — Bedrock Compounder:** fit XX/100  
+**Layer 2 — High-Growth Business:** fit XX/100  
+**Layer 3 — Cyclical / Event-Driven Opportunity:** fit XX/100  
+**Layer 4 — Venture-Style / Optionality Bet:** fit XX/100
 
 ### PRIMARY FIT
 [Layer]
@@ -2345,13 +2339,13 @@ Meaning:
 
 ## CURRENT VALUATION
 
-**Cheap / Fair / Expensive / Extremely Expensive**
+**Extremely Cheap / Cheap / Reasonably Valued / Fair-to-Full / Expensive / Extremely Expensive**
 
 ---
 
 ## FINAL VERDICT
 
-**STRONG BUY / BUY / WATCHLIST / WAIT / HOLD / AVOID / SPECULATIVE**
+**One of: STRONG BUY / BUY / SPECULATIVE BUY / WATCHLIST — WAIT FOR BETTER PRICE / HOLD / NEUTRAL / AVOID / STRONG AVOID**
 
 ---
 
@@ -2576,17 +2570,16 @@ Before giving the final answer, verify that the analysis has determined:
 
 ---
 
-# FINAL SME OVERRIDE
+# FINAL SME RULE
 
 If [COMPANY NAME] is an NSE SME or BSE SME company:
 
-1. Automatically activate SME RESEARCH MODE.
-2. Treat Layer 4 — Venture-Style / Optionality as the primary investment framework.
-3. Do not waste equal analytical effort proving Layers 1–3.
-4. Still mention any material secondary characteristics from Layers 1–3.
-5. Prioritize scalability, TAM, promoter quality, governance, financial forensics, dilution, liquidity/exit risk, customer concentration, capital allocation and permanent-capital-loss risk.
-6. Use current verified exchange/platform information where relevant.
-7. Complete the entire workflow continuously without stopping between phases.
+1. Activate SME ENHANCED-SCRUTINY MODE (§4A).
+2. Analyze all four layers independently. **No layer is the default.**
+3. Prioritize scalability, reachable market, promoter quality, governance, financial forensics, dilution, liquidity and exit risk, customer concentration, capital allocation and permanent-capital-loss risk.
+4. Explicitly assess Investment Attractiveness gate G5 (exit liquidity) with data.
+5. Use current, verified exchange and platform information where relevant.
+6. Complete the entire workflow continuously without stopping between phases.
 
 # FINAL INSTRUCTION
 
@@ -2652,4 +2645,4 @@ Do NOT stop after Phase 0, Phase 1, source extraction, financial-data extraction
 
 If a source is unavailable, continue with other research, document the limitation, and complete the analysis from the strongest evidence available.
 
-For NSE SME / BSE SME companies, automatically activate SME RESEARCH MODE and treat Layer 4 as the primary analytical lens.
+For NSE SME / BSE SME companies, automatically activate SME ENHANCED-SCRUTINY MODE. Analyze all four layers; SME status raises the burden of evidence but does not choose the layer.

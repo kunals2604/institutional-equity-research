@@ -1,0 +1,13 @@
+# Master Contradiction Log — {company} ({ticker}) · run {run_id}
+
+One block per material disagreement (between specialists, or between a specialist and the CIO audit). Never resolve by midpoint without a stated method. Unresolved is an acceptable outcome; record its confidence impact.
+
+## X-01 — <question>
+- **Specialist positions:** …
+- **Evidence for each:** …
+- **Contrary evidence:** …
+- **Assumptions required:** …
+- **Independent check (CIO):** … [CIO-C…]
+- **Resolution:** … | Unresolved
+- **Confidence:** High | Medium | Low — reason
+- **Investment impact:** layer fit / score dimension / valuation input / verdict affected

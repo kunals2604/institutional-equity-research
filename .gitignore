@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+
+# Personal Claude Code settings (project settings in .claude/settings.json are shared)
+.claude/settings.local.json

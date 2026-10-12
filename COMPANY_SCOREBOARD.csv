@@ -1,0 +1,1 @@
+ticker,exchange,company,run_id,research_cutoff,price,currency,price_timestamp,primary_layer,secondary_layers,l1_fit,l2_fit,l3_fit,l4_fit,business_quality,bq_confidence,investment_attractiveness,ia_confidence,verdict,valuation_status,expected_irr_5y,methodology_version,qc_status,model_effective,report_path,updated_at
