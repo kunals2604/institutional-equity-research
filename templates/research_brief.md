@@ -24,8 +24,8 @@ Run: `{run_id}` · Created: {created_at} · Research cutoff: **{cutoff}**
 - Consolidated vs. standalone: _known issues, e.g. captive finance subsidiary, listed subsidiaries_
 - Group structure leads: _listed parent/subsidiaries, holding companies_
 - SME enhanced-scrutiny mode: **{sme_mode}**
-- Hurdle rate (placeholder until CIO confirms with cited inputs): {hurdle}
-- Reference position for exit-liquidity test: {reference_position} {currency}
+- Investment policy (config/investment_policy.json): **{ips_status}**. Hurdle {hurdle}; horizon {horizon} years; benchmark {benchmark}; reference position for the exit-liquidity test {reference_position} {currency}
+- Historical depth required (methodology/RESEARCH_PLAYBOOK.md §2): at least 10 fiscal years of financials, 12 quarters of calls and results, 10 years of valuation and industry history. Use more where available; cyclicals need two full cycles.
 
 ## User notes
 _none_

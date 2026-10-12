@@ -1,0 +1,21 @@
+{
+  "_comment": "ILLUSTRATIVE inputs for scripts/valuation_tools.py (dcf / reverse-dcf). Every input must trace to a ledger claim; record the claim IDs in _sources.",
+  "_sources": {"base_revenue": "FIN-C010", "tax_rate": "FIN-C031", "wacc": "VAL-C020", "net_debt": "FIN-C044", "shares_diluted": "CIO-C002"},
+  "currency": "INR crore",
+  "base_year": "FY2025",
+  "base_revenue": 10000,
+  "years": 10,
+  "revenue_growth": [0.14, 0.06],
+  "ebit_margin": [0.12, 0.14],
+  "tax_rate": 0.25,
+  "sales_to_capital": 2.5,
+  "wacc": 0.115,
+  "terminal_growth": 0.05,
+  "terminal_roic": 0.15,
+  "risk_free_rate": 0.07,
+  "net_debt": 500,
+  "non_operating_assets": 0,
+  "minority_interest": 0,
+  "shares_diluted": 47.5,
+  "mid_year": true
+}

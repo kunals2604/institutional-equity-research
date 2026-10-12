@@ -52,6 +52,16 @@ def main(argv=None) -> int:
         print("| %s | %s | %s | %s |" % (item, a, b, "**yes**" if a != b else ""))
     if mo.get("methodology_version") != mn.get("methodology_version"):
         print("\nNOTE: methodology version changed; scores are not directly comparable.")
+    cutoff = mn.get("research_cutoff") or ""
+    preds = so.get("predictions") or []
+    if preds:
+        print("\n### Prior predictions to resolve (decision journal)")
+        print("| id | statement | p | due | status at this run |\n|---|---|---|---|---|")
+        for pr in preds:
+            due = str(pr.get("due", ""))
+            status = "DUE: resolve as hit / miss / void with evidence" if due and due <= cutoff else "not yet due"
+            print("| %s | %s | %s | %s | %s |" % (pr.get("id"), pr.get("statement"), pr.get("probability"), due, status))
+        print("Record resolutions in the final report and in docs/CALIBRATION_LOG.md (hit rate by probability bucket).")
     return 0
 
 

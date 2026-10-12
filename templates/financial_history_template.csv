@@ -1,0 +1,4 @@
+item,period,value,unit,basis,source_tier,source_url_or_id,locator,verified,note
+revenue,FY2024,1000,INR crore,consolidated,1,https://example.invalid/annual-report-fy2024.pdf,"p.212, Consolidated Statement of Profit and Loss",Y,ILLUSTRATIVE ROW: replace with real data
+revenue,FY2023,900,INR crore,consolidated,5,https://example.invalid/aggregator-page,P&L table,N,ILLUSTRATIVE ROW: aggregator (tier 5) value; verify per RESEARCH_PLAYBOOK §3
+shares_basic,FY2024,10,crore shares,consolidated,1,https://example.invalid/annual-report-fy2024.pdf,"p.230, Note 38 EPS",Y,ILLUSTRATIVE ROW: share unit must share the money unit's scale (crore/crore)

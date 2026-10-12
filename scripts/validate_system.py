@@ -136,6 +136,8 @@ def check_agents(rep):
             except ValueError as exc:
                 rep.add("specialist required sections block: %s" % name, False, str(exc))
             rep.add("specialist references all four layers: %s" % name, all(x in text for x in ("L1", "L2", "L3", "L4")))
+            rep.add("specialist defines a minimum evidence set: %s" % name, "## Minimum evidence set" in text)
+            rep.add("specialist reads the sector playbooks: %s" % name, "SECTOR_PLAYBOOKS.md" in text)
     rep.add("exactly the ten expected agents", set(names) == expected,
             "found %s" % sorted(names))
     dups = {n: fs for n, fs in names.items() if len(fs) > 1}
@@ -217,6 +219,38 @@ def check_taxonomy_and_docs(rep):
     missing = [x for x in (rl.RUN_MANIFEST, "final_report.md", "scorecard.json", "quality_control.md",
                            rl.LATEST_POINTER, "evidence_ledger.csv", "source_register.csv") if x not in contracts]
     rep.add("run layout in REPORT_CONTRACTS.md matches implementation", not missing, str(missing) if missing else "")
+
+
+def check_methodology(rep):
+    for doc in ("RESEARCH_PLAYBOOK.md", "SOURCE_GUIDE.md", "SECTOR_PLAYBOOKS.md", "METRIC_DEFINITIONS.md",
+                "SCORING.md", "EVIDENCE_STANDARDS.md", "INVESTOR_LENSES.md", "REPORT_CONTRACTS.md"):
+        rep.add("methodology document exists: %s" % doc, (ROOT / "methodology" / doc).exists())
+    mins = rl.depth_minimums()
+    rep.add("Historical Depth Standard parses (>=10 fiscal years, >=12 quarters)",
+            mins.get("financials.fiscal_years", 0) >= 10 and mins.get("concalls.quarters", 0) >= 12, str(mins))
+    th = rl.evidence_thresholds()
+    rep.add("evidence thresholds parse", {"min_claims_per_specialist", "min_primary_share_overall"} <= set(th), str(th))
+    keys = rl.metric_keys()
+    rep.add("metric dictionary has >= 100 keys", len(keys) >= 100, "%d keys" % len(keys))
+    import fin_metrics
+    engine = set(fin_metrics.SHARE_ITEMS | fin_metrics.PER_SHARE_ITEMS | fin_metrics.PCT_ITEMS | fin_metrics.OPTIONAL_ZERO)
+    engine |= {"roce", "roic", "roe", "roa", "nopat", "fcf", "dso", "dio", "dpo", "ccc", "nim", "credit_cost", "pcr",
+               "beneish_m_score", "piotroski_f_score", "incremental_roic_3y", "incremental_roic_5y", "accruals_ratio"}
+    missing = sorted(k for k in engine if k not in keys)
+    rep.add("metrics engine outputs are dictionary keys", not missing, str(missing) if missing else "")
+    sectors = (ROOT / "methodology" / "SECTOR_PLAYBOOKS.md").read_text(encoding="utf-8")
+    n = len(re.findall(r"^## \d+\. ", sectors, re.M))
+    rep.add("sector playbooks cover >= 15 sectors", n >= 15, "%d sectors" % n)
+    try:
+        pol = rl.investment_policy()
+        need = {"confirmed_by_user", "hurdle_rate", "investment_horizon_years", "benchmark", "reference_position",
+                "liquidity", "risk_limits"}
+        rep.add("investment policy (IPS) has required keys", need <= set(pol), str(sorted(need - set(pol))))
+        rep.add("investment policy hurdle is a plausible decimal", 0 < float(pol["hurdle_rate"]) < 0.5)
+        if not pol.get("confirmed_by_user"):
+            rep.add("investment policy confirmed by user", True, "NOT YET CONFIRMED — values are placeholders (warning)")
+    except Exception as exc:
+        rep.add("investment policy (IPS) parses", False, repr(exc))
 
 
 def check_contracts(rep):
@@ -306,7 +340,7 @@ def main(argv=None) -> int:
     p.add_argument("--json", action="store_true")
     a = p.parse_args(argv)
     rep = Report()
-    for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_contracts, check_run_preservation):
+    for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation):
         try:
             fn(rep)
         except Exception as exc:  # a crashing check is a failing check

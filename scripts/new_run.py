@@ -47,14 +47,18 @@ def main(argv=None) -> int:
     p.add_argument("--fy-end", default="03-31", help="MM-DD fiscal year end")
     p.add_argument("--isin", default="unknown")
     p.add_argument("--cutoff", default=None, help="YYYY-MM-DD (default: today, UTC)")
-    p.add_argument("--hurdle", type=float, default=0.12)
-    p.add_argument("--reference-position", type=float, default=5_000_000)
+    p.add_argument("--hurdle", type=float, default=None, help="override the IPS hurdle rate")
+    p.add_argument("--reference-position", type=float, default=None, help="override the IPS reference position")
+    p.add_argument("--policy", default=str(rl.INVESTMENT_POLICY), help="investment policy JSON (IPS)")
     p.add_argument("--run-id", default=None, help="override (tests only); default UTC YYYYMMDDTHHMMSSZ")
     p.add_argument("--root", default=str(rl.ROOT), help="repository root (tests)")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
 
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    policy = rl.investment_policy(Path(a.policy))
+    hurdle = a.hurdle if a.hurdle is not None else float(policy["hurdle_rate"])
+    ref_pos = a.reference_position if a.reference_position is not None else float(policy["reference_position"])
     ticker = a.ticker.strip().upper()
     company = a.company.strip()
     exchange = a.exchange.strip().upper()
@@ -108,7 +112,9 @@ def main(argv=None) -> int:
         "company": company, "ticker": ticker, "run_id": run_id, "created_at": now.isoformat(),
         "cutoff": cutoff, "exchange": exchange, "segment": a.segment, "isin": a.isin,
         "currency": a.currency, "fy_end": a.fy_end, "sme_mode": "ON" if a.segment == "sme" else "OFF",
-        "hurdle": a.hurdle, "reference_position": int(a.reference_position),
+        "hurdle": hurdle, "reference_position": int(ref_pos),
+        "benchmark": policy.get("benchmark", ""), "horizon": policy.get("investment_horizon_years", 5),
+        "ips_status": "CONFIRMED by user" if policy.get("confirmed_by_user") else "PLACEHOLDER values (not yet confirmed by user)",
     }
     for src, dst in (("research_brief.md", "research_brief.md"),
                      ("contradiction_log.md", "cio/contradiction_log.md"),
@@ -131,8 +137,10 @@ def main(argv=None) -> int:
         "status": "preflight",
         "assessment_status": None,
         "price": {"value": None, "timestamp": None, "claim_id": "CIO-C001"},
-        "hurdle_rate": a.hurdle,
-        "reference_position": a.reference_position,
+        "hurdle_rate": hurdle,
+        "reference_position": ref_pos,
+        "investment_policy": policy,
+        "ips_confirmed": bool(policy.get("confirmed_by_user")),
         "framework_commit": git_head(root),
         "methodology_version": rl.methodology_version(),
         "model": {"requested": "opus", "effective_cio": "unverified",

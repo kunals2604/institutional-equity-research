@@ -14,9 +14,11 @@ research/companies/<TICKER>/
     ├── run_manifest.json                   # identity, cutoff, start/completion time, price + timestamp, model, status, specialist invocations
     ├── research_brief.md                   # CIO preflight brief given to every specialist (facts only)
     ├── source_register.csv                 # discovery leads (NOT proof, NOT conclusions)
+    ├── source_retrievals.csv               # every download: time, author, URL, HTTP status, bytes, SHA-256 (scripts/fetch_source.py)
     ├── specialists/
     │   ├── <name>.md                       # 9 initial reports: financials, filings, management, industry, moat,
     │   ├── <name>_ledger.csv               #   concalls, valuation, bear-case, special-situations (+ 9 claim ledgers)
+    │   ├── <name>_workpapers/              # research plan, extraction tables (e.g. financial_history.csv), verification logs
     │   └── <name>_followup_<n>.md          # optional targeted follow-ups (+ ledgers)
     ├── cio/
     │   ├── cio_ledger.csv
@@ -24,9 +26,9 @@ research/companies/<TICKER>/
     │   ├── final_report.md                 # states its as-of date in front matter and the Decision Dashboard
     │   ├── scorecard.json
     │   └── quality_control.md
-    ├── calc/                               # optional reproducible calculation scripts
+    ├── calc/                               # inputs/outputs of fin_metrics.py, valuation_tools.py and other reproducible calculations
     ├── evidence_ledger.csv                 # merged by scripts/merge_ledgers.py
-    ├── qc/auto_checks.json                 # written by scripts/validate_run.py --stage final
+    ├── qc/                                 # auto_checks.json, evidence_stats.json, numeric_conflicts.csv (validate_run.py --stage final)
     └── _cache/                             # local downloads only; git-ignored, never committed
 ```
 
@@ -51,6 +53,7 @@ research_cutoff: <YYYY-MM-DD>
 report_status: complete        # complete | partial
 model_requested: opus
 independence_attestation: "Initial investigation completed without reading other specialists' reports or prior-run conclusions for this company."
+coverage_exception: ""         # optional: why the Historical Depth Standard could not be met
 ---
 ```
 
@@ -60,22 +63,27 @@ independence_attestation: "Initial investigation completed without reading other
 
 ## 3. Common sections (all nine specialists, in this order)
 
-Domain sections from the agent definition go between *Key Findings* and the *Four-Layer Evidence Crosswalk*. Numbering headings (`## 3. …`) is optional; the heading text must match.
+Order: the **head** sections, then the domain sections from the agent definition, then the **tail** sections. Numbering headings (`## 3. …`) is optional; the heading text must match.
 
-<!-- COMMON_SECTIONS:BEGIN -->
+<!-- COMMON_SECTIONS_HEAD:BEGIN -->
 - Mandate, Scope and Independence
 - Key Findings
+- Data Coverage
+<!-- COMMON_SECTIONS_HEAD:END -->
+
+<!-- COMMON_SECTIONS_TAIL:BEGIN -->
 - Four-Layer Evidence Crosswalk
 - Contradictions and Data Conflicts
 - Assumptions, Uncertainty and Missing Evidence
 - Questions and Dependencies for the CIO
 - Domain Conclusion
 - Source Register
-<!-- COMMON_SECTIONS:END -->
+<!-- COMMON_SECTIONS_TAIL:END -->
 
 What each must contain:
-- **Mandate, Scope and Independence:** the decision questions answered; what was in and out of scope; the years and documents covered; blockers.
+- **Mandate, Scope and Independence:** the decision questions answered; what was in and out of scope; blockers; the sector playbook(s) applied.
 - **Key Findings:** 5–10 findings, most decision-relevant first, each tagged and cited.
+- **Data Coverage:** a table with columns data series | periods covered | count | sources and tier | verification (full / sampled / aggregator-only) | gaps and exceptions. It must meet the Historical Depth Standard (`methodology/RESEARCH_PLAYBOOK.md` §2), or the front matter must carry a `coverage_exception:` explaining why not. `validate_report.py` counts the periods.
 - **Four-Layer Evidence Crosswalk:** exactly as specified in the constitution §5.
 - **Contradictions and Data Conflicts:** conflicts *between sources* found in your own research (values, gap, likely cause, resolution, confidence). You have not read other specialists, so do not speculate about them.
 - **Assumptions, Uncertainty and Missing Evidence:** the assumptions table and missing-evidence list from `methodology/EVIDENCE_STANDARDS.md` §5.
@@ -92,7 +100,7 @@ What each must contain:
 A specialist deliverable is **complete** only if:
 1. `specialists/<name>.md` and `specialists/<name>_ledger.csv` exist.
 2. The header matches the run's company, ticker and run id.
-3. All common and domain sections are present.
+3. All common and domain sections are present, and the Data Coverage meets the depth standard (or there is a stated exception).
 4. The crosswalk has all four canonical layer headings, each with a plausibility effect.
 5. Every FACT, MANAGEMENT STATEMENT, CALCULATION and ESTIMATE tag cites a claim ID that exists in the ledger.
 6. The ledger passes `scripts/validate_ledger.py` with no errors.

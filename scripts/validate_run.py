@@ -20,6 +20,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_lib as rl  # noqa: E402
+import evidence_stats  # noqa: E402
+import reconcile_numbers  # noqa: E402
 
 
 def check_specialists(run_dir: Path, manifest: dict, results: list) -> set:
@@ -98,6 +100,24 @@ def main(argv=None) -> int:
             missing.error("scorecard.json missing")
             results.append(missing)
         results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids))
+        # Evidence statistics (warnings) and cross-ledger numeric conflicts (must be adjudicated).
+        (run_dir / "qc").mkdir(exist_ok=True)
+        stats = evidence_stats.compute(run_dir)
+        rl.write_json(run_dir / "qc" / "evidence_stats.json", stats)
+        sres = rl.Result(str(run_dir / "qc" / "evidence_stats.json"))
+        for w in stats["warnings"]:
+            sres.warn(w)
+        results.append(sres)
+        found = reconcile_numbers.conflicts(run_dir)
+        cres2 = rl.Result(str(run_dir / "qc" / "numeric_conflicts.csv"))
+        log_path = run_dir / "cio" / "contradiction_log.md"
+        log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        for c in found:
+            ids_in_conflict = [x.strip() for x in c["claim_ids"].split(";")]
+            if not any(cid in log_text for cid in ids_in_conflict):
+                cres2.error("unadjudicated numeric conflict: %s %s %s..%s (%s) — cite these claim IDs in cio/contradiction_log.md"
+                            % (c["metric"], c["period"], c["min"], c["max"], c["claim_ids"]))
+        results.append(cres2)
         for rel in ("cio/contradiction_log.md", rl.QC_RECORD):
             fp = run_dir / rel
             r = rl.Result(str(fp))

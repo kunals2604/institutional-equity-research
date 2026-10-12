@@ -23,6 +23,7 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 - author
 - claim
 - tag
+- metric
 - value
 - unit
 - period
@@ -48,10 +49,11 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 | author | The agent name, for example `financials`, `bear-case`, `cio` |
 | claim | One sentence stating exactly what is claimed |
 | tag | One of the six constitution tags, spelled exactly |
+| metric | **Required when `value` is filled** for FACT / CALCULATION / ESTIMATE: a key from `methodology/METRIC_DEFINITIONS.md`, a `cagr_<item>_<n>y` key, or `other:<short_name>`. This is what lets `scripts/reconcile_numbers.py` find agents reporting different numbers for the same thing. |
 | value / unit / period | For quantitative claims: `48213`, `INR crore`, `FY2025`. Leave blank for qualitative claims. |
 | basis | `consolidated`, `standalone`, `segment:<name>`, or `n/a` |
 | source_title / source_issuer | For example `Annual Report 2024-25` / `TVS Motor Company Ltd` |
-| source_url_or_id | The URL actually retrieved, or a stable identifier (BSE/NSE filing ID, ISIN, CIN, document title + date). **Never invented.** |
+| source_url_or_id | The URL actually retrieved, or a stable identifier (BSE/NSE filing ID, ISIN, CIN, document title + date). **Never invented.** For documents downloaded with `scripts/fetch_source.py`, use the URL. Its SHA-256 fingerprint is then in `source_retrievals.csv`. |
 | source_date | Publication or filing date (YYYY-MM-DD where known) |
 | retrieved_date | The date you accessed it in this run (YYYY-MM-DD) |
 | locator | Page, note, table, schedule, paragraph or transcript timestamp, for example `p.212, Note 28`. Use `NOT_LOCATED` only when genuinely unknown; this lowers confidence. |
@@ -69,7 +71,18 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 - CALCULATION: `formula_or_inputs` is required and should reference input claim IDs.
 - ESTIMATE: `formula_or_inputs` or `notes` must state the basis.
 - `source_tier` ∈ 1–7, `primary` ∈ {Y, N}, `confidence` ∈ {H, M, L}.
+- Quantitative FACT / CALCULATION / ESTIMATE rows carry a valid `metric`.
 - Every claim ID cited in a report must exist in a ledger in that run.
+
+### Evidence thresholds (checked by `scripts/evidence_stats.py`; breaches are QC warnings the CIO must address)
+<!-- EVIDENCE_THRESHOLDS:BEGIN -->
+- min_claims_per_specialist: 25
+- min_primary_share_overall: 0.60
+- min_primary_share_per_specialist: 0.40
+- max_not_located_share: 0.15
+- max_low_tier_fact_share: 0.20
+<!-- EVIDENCE_THRESHOLDS:END -->
+"Low-tier FACT" means a FACT whose only source is tier 6–7.
 
 ---
 
@@ -81,6 +94,11 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 - Do not paste long extracts. Quote at most the sentence that matters, with its locator.
 
 ---
+
+## 2a. Document provenance
+
+- Download decision-critical documents (annual reports, results, transcripts, orders, rating rationales) with `scripts/fetch_source.py`. It stores the file under `RUN_DIR/_cache/` (git-ignored, because of licensing and size) and appends a row to `RUN_DIR/source_retrievals.csv` (committed): time, author, URL, final URL, HTTP status, content type, bytes, **SHA-256**, local path. Failed attempts are logged too, which documents missing evidence honestly.
+- WebFetch output is a model-processed rendering. It may be cited for **qualitative** facts with the URL. **Decision-critical numbers** must be read from the original document (PDF page via the Read tool, or an HTML table via `scripts/html_tables.py`) and cited at that location.
 
 ## 3. Numerical controls (all agents; the CIO audits)
 
@@ -96,6 +114,9 @@ Reconcile and **state explicitly** in every report that uses numbers:
 8. **Provider differences:** when a database and a filing disagree, record both, the size of the gap, the likely cause (classification, restatement, consolidation scope) and which figure you use.
 9. **Cost of capital:** use **one** cost-of-capital assumption set per run, defined by the valuation specialist and adjudicated by the CIO, with inputs cited. Any sensitivity uses explicitly labeled alternatives.
 10. **Valuation inputs → output:** every input in a valuation model traces to a claim ID, and the final value traces to the model.
+11. **One definition per metric:** use `methodology/METRIC_DEFINITIONS.md`. If you must deviate (for example ROCE including other income), use a distinct `other:` metric key and say so.
+12. **Deterministic arithmetic:** material ratios, CAGRs and valuation math come from `scripts/fin_metrics.py` / `scripts/valuation_tools.py` (or a script in `calc/`), not mental arithmetic.
+13. **Cross-ledger reconciliation:** `scripts/reconcile_numbers.py` flags different values for the same `(metric, period, basis, unit)` across agents (tolerance 1 %). The CIO must adjudicate **every** flagged conflict in the contradiction log; `validate_run.py --stage final` fails while any conflict is unaddressed.
 
 **Reproducibility:** for every material calculation, show the formula and enough arithmetic to reproduce it, or put the computation in a small script under the run directory (`calc/*.py`) and cite it.
 

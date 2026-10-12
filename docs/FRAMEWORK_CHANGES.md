@@ -1,5 +1,19 @@
 # Framework Change Log
 
+## v2.2.0 — 2026-10-12 — Institutional review (`docs/INSTITUTIONAL_REVIEW.md`)
+
+| # | Change |
+|---|---|
+| 1 | **Historical Depth Standard** (at least 10 FY financials, 12 quarters of calls, 10 years of valuation and industry history, 12 quarters of shareholding), validator-enforced, with `coverage_exception`; a Data Coverage section is required in every specialist report; `coverage` recorded in the scorecard |
+| 2 | `methodology/RESEARCH_PLAYBOOK.md` (operating procedure, verification sampling plan, context discipline), `SOURCE_GUIDE.md`, `SECTOR_PLAYBOOKS.md` (18 sectors), `METRIC_DEFINITIONS.md` (151 metric keys) |
+| 3 | Ledger gains a `metric` column (required for quantitative claims); evidence thresholds; the WebFetch rule; document provenance via SHA-256 |
+| 4 | Scripts: `fetch_source.py`, `html_tables.py`, `fin_metrics.py`, `valuation_tools.py`, `evidence_stats.py`, `reconcile_numbers.py`; the final QC fails on unadjudicated numeric conflicts |
+| 5 | Scoring 2.2.0: quantitative guides for BQ1/BQ3/BQ4/BQ5; deterministic IA1/IA2/IA4 via the price ladder; a layer-specific IA interpretation table; investment policy inputs and the position-risk profile (§9); decision outputs: triggers, predictions, review date (§10); forecast calibration |
+| 6 | `config/investment_policy.json` (IPS) snapshotted into every run |
+| 7 | CIO: variant perception and key debates, a canonical numeric base, symmetric adversarial review, decision triggers, the position-risk profile, falsifiable predictions, prior-prediction resolution; the final report gains three sections |
+| 8 | Specialists: minimum evidence sets; new sections (segment economics, forensic screens, rating history, ESG risks, promoter structure, macro sensitivities, quantified moat metrics, analyst concerns, liquidity, drawdowns and TSR, return decomposition, price ladder, pre-mortem, short-seller search, event calendar); ownership gaps closed |
+
+
 ## v2.1.0 — 2026-10-12 — Parts XI–XVI of the implementation brief
 
 | # | Change | Reason |

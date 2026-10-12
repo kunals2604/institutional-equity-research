@@ -9,12 +9,15 @@ the single source of truth:
     methodology/SCORING.md                           weights, gates, verdicts
     methodology/EVIDENCE_STANDARDS.md                ledger columns, phrases
     methodology/REPORT_CONTRACTS.md                  common report sections
+    methodology/METRIC_DEFINITIONS.md                metric keys
+    methodology/RESEARCH_PLAYBOOK.md                 historical depth minimums
     .claude/agents/<name>.md                         domain / final sections
 
 Standard library only; Python 3.9 compatible.
 """
 
 import csv
+import datetime as dt
 import json
 import re
 from pathlib import Path
@@ -25,8 +28,12 @@ CONSTITUTION = ROOT / ".claude" / "skills" / "investment-constitution" / "SKILL.
 SCORING = ROOT / "methodology" / "SCORING.md"
 EVIDENCE = ROOT / "methodology" / "EVIDENCE_STANDARDS.md"
 CONTRACTS = ROOT / "methodology" / "REPORT_CONTRACTS.md"
+METRICS = ROOT / "methodology" / "METRIC_DEFINITIONS.md"
+PLAYBOOK = ROOT / "methodology" / "RESEARCH_PLAYBOOK.md"
 AGENTS_DIR = ROOT / ".claude" / "agents"
 SCOREBOARD = ROOT / "COMPANY_SCOREBOARD.csv"
+INVESTMENT_POLICY = ROOT / "config" / "investment_policy.json"
+PROBABILITY_BANDS = ("remote", "low", "moderate", "elevated", "high")
 
 # Run layout (see methodology/REPORT_CONTRACTS.md).
 RUN_MANIFEST = "run_manifest.json"
@@ -163,8 +170,77 @@ def ledger_columns() -> List[str]:
     return read_block(EVIDENCE, "LEDGER_COLUMNS")
 
 
+def common_head() -> List[str]:
+    return read_block(CONTRACTS, "COMMON_SECTIONS_HEAD")
+
+
+def common_tail() -> List[str]:
+    return read_block(CONTRACTS, "COMMON_SECTIONS_TAIL")
+
+
 def common_sections() -> List[str]:
-    return read_block(CONTRACTS, "COMMON_SECTIONS")
+    return common_head() + common_tail()
+
+
+def metric_keys() -> Set[str]:
+    return {line.split(" — ")[0].strip() for line in read_block(METRICS, "METRIC_KEYS")}
+
+
+def valid_metric(key: str, keys: Optional[Set[str]] = None) -> bool:
+    key = (key or "").strip()
+    if key.startswith("other:") and len(key) > 6:
+        return True
+    if re.fullmatch(r"cagr_[a-z_]+_\d+y", key):
+        return True
+    return key in (keys if keys is not None else metric_keys())
+
+
+def _key_values(path: Path, name: str) -> Dict[str, str]:
+    out = {}
+    for line in read_block(path, name):
+        if ":" in line:
+            k, v = line.split(":", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+def depth_minimums() -> Dict[str, int]:
+    return {k: int(v) for k, v in _key_values(PLAYBOOK, "DEPTH_MINIMUMS").items()}
+
+
+def evidence_thresholds() -> Dict[str, float]:
+    return {k: float(v) for k, v in _key_values(EVIDENCE, "EVIDENCE_THRESHOLDS").items()}
+
+
+def investment_policy(path: Optional[Path] = None) -> dict:
+    return json.loads((path or INVESTMENT_POLICY).read_text(encoding="utf-8"))
+
+
+# Period counting for the Historical Depth Standard -------------------------
+
+_FY_RE = re.compile(r"\bFY\s?'?(\d{4}|\d{2})\b")
+_Q_RE = re.compile(r"\bQ([1-4])\s?FY\s?'?(\d{4}|\d{2})\b")
+_QEND_RE = re.compile(r"\b(Mar|Jun|Sep|Dec)[a-z]*[\s'\-]*(\d{4}|\d{2})\b")
+_YEAR_RE = re.compile(r"\b(19[89]\d|20[0-4]\d)\b")
+
+
+def _yr(s: str) -> int:
+    y = int(s)
+    return y + 2000 if y < 100 else y
+
+
+def fiscal_years(text: str) -> Set[int]:
+    return {_yr(m.group(1)) for m in _FY_RE.finditer(text)}
+
+
+def quarters(text: str) -> Set[str]:
+    out = {"Q%sFY%d" % (m.group(1), _yr(m.group(2))) for m in _Q_RE.finditer(text)}
+    out |= {"%s%d" % (m.group(1), _yr(m.group(2))) for m in _QEND_RE.finditer(text)}
+    return out
+
+
+def any_years(text: str) -> Set[int]:
+    return fiscal_years(text) | {int(y) for y in _YEAR_RE.findall(text)}
 
 
 def agent_sections(agent: str) -> List[str]:
@@ -400,6 +476,7 @@ def validate_ledger(path: Path, expected_prefix: Optional[str] = None) -> Tuple[
         res.error("Header mismatch. Expected: %s" % ",".join(cols))
         return res, ids
     tags = set(epistemic_tags())
+    mkeys = metric_keys()
     for i, r in enumerate(rows, 2):
         cid = (r.get("claim_id") or "").strip()
         where = "row %d (%s)" % (i, cid or "no id")
@@ -416,6 +493,14 @@ def validate_ledger(path: Path, expected_prefix: Optional[str] = None) -> Tuple[
             res.error("%s: tag %r not canonical" % (where, tag))
         if not (r.get("claim") or "").strip():
             res.error("%s: empty claim" % where)
+        metric = (r.get("metric") or "").strip()
+        if (r.get("value") or "").strip() and tag in ("FACT", "CALCULATION", "ESTIMATE"):
+            if not metric:
+                res.error("%s: quantitative %s requires a metric key (METRIC_DEFINITIONS.md)" % (where, tag))
+            elif not valid_metric(metric, mkeys):
+                res.error("%s: metric %r not in METRIC_DEFINITIONS.md (use other:<name>)" % (where, metric))
+        elif metric and not valid_metric(metric, mkeys):
+            res.error("%s: metric %r not in METRIC_DEFINITIONS.md (use other:<name>)" % (where, metric))
         tier = (r.get("source_tier") or "").strip()
         conf = (r.get("confidence") or "").strip()
         prim = (r.get("primary") or "").strip()
@@ -504,9 +589,10 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     if fm.get("report_status") == "partial":
         res.warn("Report status is partial")
     if not followup:
-        required = common_sections()[:2] + (agent_sections(name) if name in SPECIALISTS else []) + common_sections()[2:]
+        required = common_head() + (agent_sections(name) if name in SPECIALISTS else []) + common_tail()
         check_sections(text, required, res)
         check_crosswalk(text, res)
+        check_coverage(name, text, fm, res)
     allowed = {SPECIALISTS[name], CIO_PREFIX} if (name in SPECIALISTS and not followup) else None
     if ledger_ids is not None:
         # Specialists may cite the CIO's preflight claims (e.g. price CIO-C001).
@@ -520,6 +606,36 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     if reg is not None and "http" not in reg and not re.search(r"\b(BSE|NSE|ISIN|CIN|filing)\b", reg, re.I):
         res.warn("Source Register contains no URLs or filing identifiers")
     return res
+
+
+# (specialist, section(s), counter, depth key, unit label, error-or-warning)
+_COVERAGE_RULES = (
+    ("financials", ("Historical Financial Summary",), fiscal_years, "financials.fiscal_years", "fiscal years", True),
+    ("concalls", ("Coverage of Communications", "Promise-to-Delivery Database"), quarters, "concalls.quarters", "quarters", True),
+    ("valuation", ("Historical and Peer Valuation", "Price History, Drawdowns and TSR"), any_years, "valuation.history_years", "years", True),
+    ("management", ("Ownership, Pledging and Insider Activity",), quarters, "management.shareholding_quarters", "quarters", False),
+    ("industry", ("Market Share and Company Position", "Market Size and Reachable Market"), any_years, "industry.history_years", "years", False),
+)
+
+
+def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result) -> None:
+    """Historical Depth Standard (methodology/RESEARCH_PLAYBOOK.md §2)."""
+    mins = depth_minimums()
+    exception = (fm.get("coverage_exception") or "").strip()
+    for agent, sections, counter, key, label, hard in _COVERAGE_RULES:
+        if agent != name or key not in mins:
+            continue
+        body = "\n".join(section(text, s) or "" for s in sections)
+        n = len(counter(body))
+        if n >= mins[key]:
+            continue
+        msg = "Historical depth: %d %s found in %s; standard requires %d" % (n, label, " / ".join(sections), mins[key])
+        if exception:
+            res.warn(msg + " (coverage_exception: %s)" % exception[:80])
+        elif hard:
+            res.error(msg + " (add coverage_exception to front matter if genuinely unavailable)")
+        else:
+            res.warn(msg)
 
 
 def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Optional[Set[str]]) -> Result:
@@ -625,6 +741,77 @@ def mapped_verdict(bq: int, ia: int, ia_conf: str, gates_hit: List[str], primary
     return "SPECULATIVE BUY" if l4 else v
 
 
+def _date(s) -> Optional[dt.date]:
+    try:
+        return dt.date.fromisoformat(str(s)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _validate_decision_outputs(sc: dict, res: Result) -> None:
+    """Coverage, predictions, decision triggers, position risk, review date (SCORING.md §§9-10)."""
+    asof = _date(sc.get("as_of_date") or sc.get("research_cutoff"))
+    mins = depth_minimums()
+    cov = sc.get("coverage")
+    if not isinstance(cov, dict):
+        res.error("coverage block missing (financial_years, transcript_quarters, valuation_history_years)")
+    else:
+        for key, depth_key in (("financial_years", "financials.fiscal_years"), ("transcript_quarters", "concalls.quarters"),
+                               ("valuation_history_years", "valuation.history_years")):
+            v = cov.get(key)
+            if not isinstance(v, int) or v < 0:
+                res.error("coverage.%s must be a non-negative integer" % key)
+            elif v < mins.get(depth_key, 0) and not (cov.get("exception") or "").strip():
+                res.error("coverage.%s=%d below the depth standard (%d) without coverage.exception" % (key, v, mins[depth_key]))
+    preds = sc.get("predictions")
+    if not isinstance(preds, list) or not 3 <= len(preds) <= 7:
+        res.error("predictions must list 3-7 falsifiable predictions")
+    else:
+        ids = set()
+        for p in preds:
+            pid = p.get("id")
+            if not pid or pid in ids:
+                res.error("prediction ids must be unique and non-empty")
+            ids.add(pid)
+            if not (p.get("statement") or "").strip():
+                res.error("prediction %s: statement missing" % pid)
+            prob = p.get("probability")
+            if not isinstance(prob, (int, float)) or not 0.05 <= prob <= 0.95:
+                res.error("prediction %s: probability must be between 0.05 and 0.95" % pid)
+            due = _date(p.get("due"))
+            if due is None:
+                res.error("prediction %s: due must be YYYY-MM-DD" % pid)
+            elif asof and due <= asof:
+                res.error("prediction %s: due date must be after the as-of date" % pid)
+    trig = sc.get("decision_triggers")
+    if not isinstance(trig, dict):
+        res.error("decision_triggers block missing")
+    else:
+        for key in ("buy_below", "strong_buy_below", "avoid_above"):
+            if key not in trig or not (trig[key] is None or isinstance(trig[key], (int, float))):
+                res.error("decision_triggers.%s must be a number or null" % key)
+        if not (trig.get("method") or "").strip():
+            res.error("decision_triggers.method missing")
+    pr = sc.get("position_risk")
+    if not isinstance(pr, dict):
+        res.error("position_risk block missing")
+    else:
+        if pr.get("p_permanent_loss_band") not in PROBABILITY_BANDS:
+            res.error("position_risk.p_permanent_loss_band must be one of %s" % (PROBABILITY_BANDS,))
+        if not isinstance(pr.get("factor_exposures"), list) or not pr.get("factor_exposures"):
+            res.error("position_risk.factor_exposures must list at least one driver")
+        for key in ("bear_case_loss_pct", "days_to_exit_reference_position", "sizing_ceiling_pct"):
+            if key not in pr or not (pr[key] is None or isinstance(pr[key], (int, float))):
+                res.error("position_risk.%s must be a number or null" % key)
+        if not (pr.get("sizing_basis") or "").strip():
+            res.error("position_risk.sizing_basis missing")
+    review = _date(sc.get("next_review_due"))
+    if review is None:
+        res.error("next_review_due must be YYYY-MM-DD")
+    elif asof and not asof < review <= asof + dt.timedelta(days=366):
+        res.error("next_review_due must fall within 12 months after the as-of date")
+
+
 _CLASSIFICATION_GATES = {
     ("reporting_reliability", "highly concerning"): "G1",
     ("reporting_reliability", "material concerns"): "G2",
@@ -651,6 +838,8 @@ def validate_scorecard(path: Path) -> Result:
         return res
     if sc["qc_status"] not in ("PASS", "FAIL", "PENDING"):
         res.error("qc_status must be PASS/FAIL/PENDING")
+    if sc["assessment_status"] == "complete":
+        _validate_decision_outputs(sc, res)
     if sc["assessment_status"] == "insufficient_evidence":
         if not (sc.get("insufficient_evidence_reason") or "").strip():
             res.error("insufficient_evidence_reason required")

@@ -46,7 +46,7 @@ You are now the **CIO**. Do not spawn a CIO subagent; this session is the orches
    - **Stage 0:** identity validation → price `CIO-C001` → `new_run.py` → `manifest.py` → brief and source register (leads only).
    - **Stage 1:** nine parallel Agent calls in **one message** (`financials`, `filings`, `management`, `industry`, `moat`, `concalls`, `valuation`, `bear-case`, `special-situations`), then wait for all nine.
    - **Stage 2:** `validate_run.py --stage specialists` → targeted re-invocations → `git_publish.py --batch specialists --push`.
-   - **Stage 3:** read everything; audit at least 12 claims and recompute at least 3; contradiction log; follow-ups; four independent layer assessments; classification; adversarial review when the draft verdict is a buy; thesis-disproof; insufficient-evidence check; `scorecard.json` + `validate_scorecard.py`; final report.
+   - **Stage 3:** read everything → `reconcile_numbers.py` + `evidence_stats.py` (adopt the audited financials dataset as the numeric base) → audit at least 12 claims and recompute at least 3 with the scripts → contradiction log (every numeric conflict) → follow-ups → variant perception and key debates → four independent layer assessments → classification → symmetric adversarial review (any buy or avoid verdict, or a verdict change) → thesis-disproof → insufficient-evidence check → `scorecard.json` + `validate_scorecard.py` → decision triggers (price ladder), position risk, predictions, review date → change analysis → final report.
    - **Stage 4:** `merge_ledgers.py` → `validate_run.py --stage final` → `quality_control.md` → `finalize_run.py` → `git_publish.py --batch final --push` → completion summary with the paths to `final_report.md` and `scorecard.json`.
 
 ## 4. Resume

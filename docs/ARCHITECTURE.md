@@ -77,12 +77,31 @@ The code verifies **structure and traceability**. It cannot verify that a cited 
 
 See `methodology/REPORT_CONTRACTS.md` §1. Each run is self-contained and immutable once committed. `run_manifest.json` records identity, cutoff, the hurdle rate, the framework commit, the methodology version, model information and per-specialist invocation status, so a run can be interpreted later even after the methodology changes.
 
+## 5a. Research data layer (v2.2)
+
+```text
+sources ──fetch_source.py──▶ _cache/ (git-ignored) + source_retrievals.csv (SHA-256, status)
+   │                                   │
+   └──Read tool (PDF pages) / html_tables.py ──▶ workpapers (financial_history.csv, tables, logs)
+                                                   │
+                       fin_metrics.py ◀────────────┘           valuation_tools.py ◀── calc/*.json inputs
+                             │                                        │
+                             ▼                                        ▼
+                ledgers (claim + metric key + locator)   ──▶  reconcile_numbers.py · evidence_stats.py
+                                                                       │
+                                                         CIO adjudication ─▶ scorecard (IA1/2/4 via price ladder)
+```
+
+- **Depth:** the Historical Depth Standard (`RESEARCH_PLAYBOOK.md` §2) is counted by `validate_report.py` in the relevant sections.
+- **One number per fact:** the metric dictionary, cross-ledger reconciliation, and the audited financials dataset as the canonical numeric base.
+- **Arithmetic by code:** formulas live in the scripts and the dictionary; tests check them against closed-form identities.
+
 ## 6. Verification performed at migration (2026-10-12)
 
 | Check | Method | Result |
 |---|---|---|
-| Static system validation | `python3 scripts/validate_system.py` | 173 checks, 0 failed. Covers agents, frontmatter keys, models, tools, skills, taxonomy, output paths, scorecard schema, scoreboard schema, run preservation, stale references, Antigravity remnants and credentials. |
-| Unit and integration tests | `python3 -m unittest discover tests` | 38 tests pass: full synthetic runs (complete, qc_failed, insufficient_evidence), ledger, scorecard and report failure cases, 12 concurrent scoreboard writers losing no rows, scoped git batches in a throwaway repo (unrelated staged file untouched; push failure keeps the local commit), dry-run writing nothing, the legacy TVS regression |
+| Static system validation | `python3 scripts/validate_system.py` | 207 checks, 0 failed (v2.2). Covers agents, frontmatter keys, models, tools, skills, taxonomy, output paths, scorecard schema, scoreboard schema, run preservation, stale references, Antigravity remnants and credentials. |
+| Unit and integration tests | `python3 -m unittest discover tests` | 62 tests pass (v2.2), including the metrics engine, the valuation identities, provenance tools, the numeric-conflict gate, depth enforcement and decision outputs. Earlier coverage: full synthetic runs (complete, qc_failed, insufficient_evidence), ledger, scorecard and report failure cases, 12 concurrent scoreboard writers losing no rows, scoped git batches in a throwaway repo (unrelated staged file untouched; push failure keeps the local commit), dry-run writing nothing, the legacy TVS regression |
 | Live delegation probe | `validate_system.py --live-probe` (fresh headless Claude Code 2.1.296 session) | `bear-case` invoked via the native Agent tool and replied `PRELOADED=Y; PREFIX=BEAR; MODEL=claude-opus-5-5; AGENT_TOOL=N` |
 | Parallel launch of all nine | Fresh headless session, nine Agent calls in one message | All nine returned their correct prefixes (FIN, FIL, MGT, IND, MOAT, CON, VAL, BEAR, SPS) with zero tool calls; all `claude-opus-5-5`; none has the Agent tool |
 | `/research-company --validate-only --probe` | Fresh headless session through the skill | Ran the validator and tests, probed one specialist, wrote nothing |

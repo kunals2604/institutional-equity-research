@@ -1216,6 +1216,8 @@ Explain what is actually driving financial growth.
 
 # 18. YEAR-ON-YEAR / MULTI-YEAR PRIORITY
 
+> **Historical Depth Standard (enforced):** at least 10 fiscal years of financial statements (15–20 and two full cycles where available), at least 12 quarters of results and calls, and at least 10 years of valuation, share-price and industry history. See `methodology/RESEARCH_PLAYBOOK.md` §2. Shorter coverage requires a stated `coverage_exception`.
+
 Give greater weight to:
 
 - YoY
@@ -1850,6 +1852,8 @@ For financial institutions:
 
 # 40. SECTOR-SPECIFIC METRICS
 
+> Detailed playbooks for 18 sectors (KPIs, accounting traps, cycle drivers, valuation methods to use and avoid, sources) are in `methodology/SECTOR_PLAYBOOKS.md`. Metric formulas are in `methodology/METRIC_DEFINITIONS.md`.
+
 Do not apply a generic list of metrics to every business.
 
 First understand its economics.
@@ -2413,6 +2417,8 @@ Summarize the entire opportunity.
 ---
 
 # 56. DEPTH STANDARD
+
+> Operational procedure for acquiring, reading, verifying and computing within real constraints: `methodology/RESEARCH_PLAYBOOK.md` and `methodology/SOURCE_GUIDE.md`.
 
 Go as deep as reliable evidence permits.
 

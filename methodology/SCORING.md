@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
-<!-- METHODOLOGY_VERSION: 2.1.0 -->
-Methodology version **2.1.0** (Claude Code version, with the incomplete-run policy in §8; see `docs/FRAMEWORK_CHANGES.md`). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+<!-- METHODOLOGY_VERSION: 2.2.0 -->
+Methodology version **2.2.0** (adds quantitative anchor guides, layer-specific IA interpretation, investment policy inputs, position-risk and decision outputs; see `docs/FRAMEWORK_CHANGES.md`). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -48,6 +48,7 @@ The CIO must not change weights for a single company. A methodology change is ma
 - 30–49: Below the cost of capital on average. For growers: unit economics unproven or negative at contribution level.
 - 0–29: Persistent value destruction on capital employed.
 - *Cyclicals:* use mid-cycle, never peak. *Growers:* score evidenced contribution, cohort or incremental economics, and reduce confidence rather than inflating the score.
+- **Quantitative guide** (start here; deviate only with a written reason). Non-financials: the spread of 10-year (or through-cycle) median `roic` over the run's WACC: ≥ 15 pp → 90–100; 8–15 pp → 75–89; 3–8 pp → 60–74; 0–3 pp → 45–59; −5–0 pp → 30–44; < −5 pp → 0–29. Lenders: the spread of through-cycle `roe` (at normalized credit cost) over cost of equity: ≥ 8 pp → 90–100; 4–8 → 75–89; 1–4 → 60–74; −1–1 → 45–59; < −1 → 0–44. **Adjust within or one band down** if `incremental_roic_5y` is below half the historical median, or if returns depend on a single peak period.
 
 **BQ2 Competitive advantage and industry structure** (owner evidence: moat and industry)
 - 90–100: An identified mechanism (switching costs, network effects, cost advantage, scale, intangible or regulatory) is evidenced in pricing, retention, share or returns, and survives the competitor-attack test. The industry is rational.
@@ -62,6 +63,7 @@ The CIO must not change weights for a single company. A methodology change is ma
 - 50–69: A moderate runway; the business will become a payout story within ~5 years.
 - 30–49: A mature, saturated or shrinking market.
 - 0–29: Structural decline.
+- **Quantitative guide:** the reachable market (from industry) relative to current revenue, together with the reinvestment rate × incremental return. Reachable market ≥ 5× revenue with reinvestment ≥ 50 % of NOPAT at incremental returns ≥ WACC + 5 pp → 85–100. Reachable market 2–5× with a moderate reinvestment rate → 65–84. Reachable market < 2×, or reinvestment returns ≈ WACC → 45–64. Shrinking reachable market → < 45.
 
 **BQ4 Cash generation and earnings quality** (owner evidence: financials and filings)
 - 90–100: Cumulative CFO ≈ or > PAT over 5+ years, FCF consistent with owner earnings, no material accrual or capitalization concerns.
@@ -70,8 +72,10 @@ The CIO must not change weights for a single company. A methodology change is ma
 - 30–49: Persistent CFO < PAT, rising receivables or inventory, or aggressive capitalization.
 - 0–29: Earnings not backed by cash.
 - *Financials:* use internal capital generation, credit-cost normalization and provisioning adequacy instead of FCF.
+- **Quantitative guide** (non-financials): 10-year cumulative `cfo_to_pat` ≥ 1.0 and FCF positive in ≥ 8 of 10 years → 85–100; `cfo_to_pat` 0.85–1.0 → 70–84; 0.7–0.85 → 50–69; 0.5–0.7 → 30–49; < 0.5 → 0–29. Subtract up to one band for an adverse forensic screen (rising `accruals_ratio`, `dso` growing faster than revenue for 2+ years, `other_income_share_pbt` > 25 %) that the evidence does not explain. For heavy-growth-capex businesses, judge CFO/EBITDA after tax rather than FCF, and say so. Lenders: `internal_capital_generation` vs. advances growth (self-funding ≥ 1 → upper bands), plus provisioning adequacy (PCR, ECL coverage).
 
 **BQ5 Balance-sheet resilience and downside survivability**
+- **Quantitative guide** (non-financials, mid-cycle EBITDA): net cash → 90–100; `net_debt_to_ebitda` ≤ 1× → 75–89; 1–2.5× → 55–74; 2.5–4× → 35–54; > 4× → 0–34. Subtract one band if `interest_coverage` < 3× at trough, or if > 40 % of debt matures within 24 months without committed refinancing. Lenders: capital headroom over the regulatory minimum (Tier-1) ≥ 5 pp with positive ALM gaps in the ≤ 1-year buckets → 85–100; 3–5 pp → 70–84; 1–3 pp → 50–69; < 1 pp or negative short-term ALM gaps → < 50.
 - 90–100: Net cash or very low leverage. Survives a severe downturn without external capital.
 - 70–89: Comfortable leverage and maturity profile. Survives a normal downturn.
 - 50–69: Leverage acceptable at mid-cycle but uncomfortable at a trough.
@@ -139,6 +143,19 @@ Definitions used below:
 **IA6 Value-realization path:** a compounding engine or hard catalyst visible within 3 years → 80–100; a probable catalyst or slower compounding → 55–79; soft or speculative → 30–54; none → 0–29.
 **IA7 Liquidity, dilution and exit:** liquid with no expected dilution → 90–100; minor dilution or liquidity friction → 60–89; material dilution expected or thin liquidity → 30–59; exit impractical or heavy dilution likely → 0–29.
 **IA8 Valuation evidence quality:** ≥80 % of material valuation inputs primary-sourced and reconciled → 90–100; 60–80 % → 70–89; 40–60 % → 50–69; <40 % → 0–49.
+
+**Deterministic scoring of IA1, IA2 and IA4.** `scripts/valuation_tools.py price-ladder` maps MoS, E[IRR] and asymmetry to these anchors by linear interpolation within each band. Use its output; deviate only with a written reason. E[IRR] and asymmetry are defined in `methodology/METRIC_DEFINITIONS.md`: E[IRR] is the IRR of the probability-weighted horizon value plus dividends.
+
+### Layer-specific interpretation of IA inputs
+
+| Input | L1 Bedrock Compounder | L2 High-Growth Business | L3 Cyclical / Event-Driven | L4 Venture-Style / Optionality |
+|---|---|---|---|---|
+| Base value (IA1) | Owner-earnings / long-duration DCF | Scenario DCF to steady-state economics | Normalized or catalyst-adjusted value, discounted for expected time to realization | Probability-weighted, dilution-adjusted outcome value |
+| Horizon for E[IRR] (IA2) | Policy horizon (default 5 years) | Policy horizon | Expected time to realization + 1 year (capped at the policy horizon) | Policy horizon. Include financing dilution. |
+| Permanent-loss focus (IA3) | Moat erosion, de-rating of a long-duration multiple | Growth stall + de-rating + dilution | Value trap, structural decline, trough solvency | Milestone failure; near-total loss is inherent |
+| Realization path (IA6) | Compounding engine visibility | Scaling milestones | Hard or probable catalyst with mechanism | Milestone calendar |
+
+Layer-4 opportunities score lower on IA3 by construction. They can still reach a buy-level IA through asymmetry (IA4) and margin of safety on a probability-weighted value. The resulting verdict is SPECULATIVE BUY with a sizing ceiling (§9). This conservatism is intentional.
 
 ### IA gates
 <!-- IA_GATES:BEGIN -->
@@ -226,6 +243,7 @@ For BQ and IA the final report must state:
 - **Cross-company check:** after every new company is scored, the CIO compares it with the two closest companies on `COMPANY_SCOREBOARD.csv` and states in the QC record whether the relative ordering is defensible. If it is not, the CIO revisits the dimension scores. It does not adjust the weights.
 - **Drift review:** once 5 or more companies have scores under the same methodology version, review the distribution in `docs/CALIBRATION_LOG.md`. Clustering of all BQ scores in 75–90 indicates anchor inflation.
 - **Re-scoring:** a new run of the same company uses the same method. Report changes in each dimension with the evidence that caused them.
+- **Forecast calibration:** falsifiable predictions (§10) are scored when they fall due (`scripts/compare_runs.py` lists them). Track the hit rate by probability bucket in `docs/CALIBRATION_LOG.md`. A process whose "70 %" predictions come true 40 % of the time is overconfident, and its confidence levels must be lowered.
 
 ---
 
@@ -241,3 +259,27 @@ Scores are issued only when the evidence can support them. Precise scores are ne
 | **failed / interrupted** | The run stopped before synthesis (interruption, tool failure) | Whatever artifacts exist, plus a manifest status. Resume with `/research-company --resume <RUN_ID>`. | **Unchanged** |
 
 A failed or insufficient-evidence run never overwrites, blanks or placeholders a previously valid scoreboard row. `scripts/finalize_run.py` applies this table deterministically.
+
+---
+
+## 9. Investment policy inputs and position-risk profile
+
+The **Investment Policy Statement** in `config/investment_policy.json` holds the hurdle rate, horizon, benchmark, reference position, liquidity rule and risk limits. `scripts/new_run.py` snapshots it into `run_manifest.json`. Until the user sets `"confirmed_by_user": true`, every report states that the policy values are placeholders.
+
+Every complete run includes a **position-risk profile** (in the report and in `scorecard.json`). It is *inputs for sizing*, not a trade instruction:
+
+| Item | Definition |
+|---|---|
+| Bear-case loss | (price − bear-case horizon value incl. dividends) ÷ price, if positive |
+| Permanent-loss band | Qualitative band for P(loss ≥ 30 %) (constitution §4) |
+| Days to exit the reference position | reference position ÷ (ADTV × max participation), from the IPS liquidity rule |
+| Key factor exposures | The 2–4 macro or factor drivers that would correlate this holding with others (rates, crude, rural demand, INR, credit cycle…) |
+| **Sizing ceiling** (only if the IPS sets risk limits) | min(IPS max position %, IPS max loss per position % ÷ bear-case loss, liquidity cap). Computed by `scripts/valuation_tools.py sizing-ceiling`. SPECULATIVE BUY positions are additionally capped at the IPS `speculative_max_position_pct`. |
+
+Position sizing beyond this ceiling, trading instructions, pair trades and short recommendations remain outside the system's scope unless the user asks for them.
+
+## 10. Decision outputs (complete runs)
+
+1. **Decision triggers (price ladder).** Using `valuation_tools.py price-ladder` with the run's scenario values and the non-price IA dimensions held constant, state the price at or below which the mapped verdict would become BUY, and STRONG BUY (if reachable), and above which it would become AVOID. These are hypothetical triggers, not limit orders. They go stale when the evidence changes.
+2. **Falsifiable predictions (decision journal).** Write 3–7 specific, measurable, dated predictions that the thesis implies, each with a probability between 0.05 and 0.95. For example: "FY2027 consolidated EBITDA margin ≥ 18 % (p = 0.65)". They are recorded in `scorecard.json` and resolved by the next run of the company.
+3. **Next review date.** Within 12 months, and earlier if a monitored trigger or a scheduled event (results, regulatory decision, record date) could change the verdict.

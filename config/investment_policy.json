@@ -1,0 +1,24 @@
+{
+  "_purpose": "Investment Policy Statement (IPS) used by every research run. scripts/new_run.py snapshots it into run_manifest.json. Values below are PLACEHOLDERS until the owner reviews them and sets confirmed_by_user to true. Reports must state when they rely on unconfirmed values.",
+  "confirmed_by_user": false,
+  "base_currency": "INR",
+  "benchmark": "Nifty 500 TRI (placeholder - confirm)",
+  "investment_horizon_years": 5,
+  "hurdle_rate": 0.12,
+  "hurdle_rate_basis": "Nominal INR annualized total return. Placeholder: the CIO must cite the risk-free rate and equity risk premium supporting it in each run until confirmed.",
+  "reference_position": 5000000,
+  "liquidity": {
+    "max_days_to_exit": 20,
+    "max_adtv_participation": 0.2,
+    "adtv_window_trading_days": 90
+  },
+  "risk_limits": {
+    "portfolio_aum": null,
+    "max_position_pct": null,
+    "max_loss_per_position_pct": null,
+    "speculative_max_position_pct": null
+  },
+  "review": {
+    "max_months_between_reviews": 12
+  }
+}

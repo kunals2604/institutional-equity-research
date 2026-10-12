@@ -1,0 +1,12 @@
+{
+  "_comment": "ILLUSTRATIVE inputs for valuation_tools.py scenario-irr / price-ladder. Horizon values are per-share values at the end of the horizon; intrinsic_value_today is the base-case range today (for margin of safety).",
+  "price": 1000,
+  "horizon_years": 5,
+  "hurdle_rate": 0.12,
+  "intrinsic_value_today": {"low": 950, "high": 1150},
+  "scenarios": {
+    "bear": {"probability": 0.25, "value_per_share": [600, 750], "dps": 10},
+    "base": {"probability": 0.50, "value_per_share": [1500, 1700], "dps": 12},
+    "bull": {"probability": 0.25, "value_per_share": [2200, 2600], "dps": 15}
+  }
+}

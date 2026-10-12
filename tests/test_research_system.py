@@ -40,7 +40,7 @@ def write_ledger(path, rows):
 
 
 def fact_row(cid, author, claim="Fixture fact", locator="p.10, Note 3"):
-    return {"claim_id": cid, "author": author, "claim": claim, "tag": "FACT", "value": "100",
+    return {"claim_id": cid, "author": author, "claim": claim, "tag": "FACT", "metric": "revenue", "value": "100",
             "unit": "INR crore", "period": "FY2025", "basis": "consolidated",
             "source_title": "Fixture Annual Report 2024-25", "source_issuer": "FixtureCo Ltd",
             "source_url_or_id": "https://example.invalid/fixture-ar-2025.pdf", "source_date": "2025-06-30",
@@ -49,7 +49,7 @@ def fact_row(cid, author, claim="Fixture fact", locator="p.10, Note 3"):
 
 
 def calc_row(cid, author, inputs):
-    return {"claim_id": cid, "author": author, "claim": "Fixture ratio", "tag": "CALCULATION",
+    return {"claim_id": cid, "author": author, "claim": "Fixture ratio", "tag": "CALCULATION", "metric": "roce",
             "value": "0.2", "unit": "ratio", "period": "FY2025", "basis": "consolidated",
             "confidence": "M", "formula_or_inputs": "%s / %s" % inputs}
 
@@ -63,20 +63,30 @@ def crosswalk():
     return "\n".join(parts)
 
 
-def specialist_report(name, run_id, ticker="FIXTURECO", extra=""):
+FY_COLS = " | ".join("FY%d" % y for y in range(2011, 2026))          # 15 fiscal years
+QUARTERS = ", ".join("Q%dFY%d" % (q, y) for y in range(2022, 2026) for q in range(1, 5))  # 16 quarters
+COVERAGE_TEXT = {  # section -> text that satisfies the Historical Depth Standard
+    "Historical Financial Summary": "| item | %s |" % FY_COLS,
+    "Coverage of Communications": "Calls reviewed: %s." % QUARTERS,
+    "Historical and Peer Valuation": "P/E history %s." % FY_COLS,
+    "Ownership, Pledging and Insider Activity": "Shareholding: %s." % QUARTERS,
+    "Market Share and Company Position": "Share history %s." % FY_COLS,
+}
+
+
+def specialist_report(name, run_id, ticker="FIXTURECO", extra="", coverage=True):
     prefix = rl.SPECIALISTS[name]
     fm = ("---\nspecialist: %s\ncompany: FixtureCo Ltd\nticker: %s\nexchange: NSE\nrun_id: %s\n"
           "research_cutoff: 2026-01-01\nreport_status: complete\nmodel_requested: opus\n"
           "independence_attestation: \"Initial investigation completed independently.\"\n---\n\n" % (name, ticker, run_id))
-    common = rl.common_sections()
     body = ["# %s report — FixtureCo\n" % name]
-    for s in common[:2]:
+    for s in rl.common_head():
         body.append("## %s\nRevenue was ₹100 crore [FACT: %s-C001]; ratio 0.2 [CALCULATION: %s-C002]; price per CIO-C001 [FACT: CIO-C001].\n"
                     % (s, prefix, prefix))
     for s in rl.agent_sections(name):
-        body.append("## %s\nFixture content [INFERENCE].\n" % s)
+        body.append("## %s\nFixture content [INFERENCE]. %s\n" % (s, COVERAGE_TEXT.get(s, "") if coverage else ""))
     body.append(crosswalk())
-    for s in common[3:]:
+    for s in rl.common_tail()[1:]:
         body.append("## %s\nFixture content [JUDGMENT]. Source: https://example.invalid/fixture-ar-2025.pdf\n" % s)
     return fm + "\n".join(body) + extra
 

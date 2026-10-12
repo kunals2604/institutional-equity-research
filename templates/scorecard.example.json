@@ -273,5 +273,62 @@
     "requested": "opus",
     "effective_cio": "unverified",
     "subagents": "opus alias (frontmatter); per-subagent ID not exposed"
-  }
+  },
+  "coverage": {
+    "financial_years": 15,
+    "transcript_quarters": 20,
+    "valuation_history_years": 12,
+    "exception": null
+  },
+  "predictions": [
+    {
+      "id": "P1",
+      "statement": "FY2027 consolidated revenue growth >= 12%",
+      "metric": "revenue_growth",
+      "due": "2027-06-30",
+      "probability": 0.6,
+      "claim_ids": [
+        "FIN-C010"
+      ]
+    },
+    {
+      "id": "P2",
+      "statement": "FY2027 ROCE stays >= 18%",
+      "metric": "roce",
+      "due": "2027-06-30",
+      "probability": 0.7,
+      "claim_ids": [
+        "FIN-C022"
+      ]
+    },
+    {
+      "id": "P3",
+      "statement": "No equity dilution above 2% by 2028-03-31",
+      "metric": "share_count_change",
+      "due": "2028-03-31",
+      "probability": 0.8,
+      "claim_ids": [
+        "FIN-C050"
+      ]
+    }
+  ],
+  "decision_triggers": {
+    "buy_below": 820,
+    "strong_buy_below": null,
+    "avoid_above": 1350,
+    "method": "valuation_tools.py price-ladder with IA3, IA5-IA8 held constant",
+    "notes": "Hypothetical triggers; re-run before acting."
+  },
+  "position_risk": {
+    "bear_case_loss_pct": 28.0,
+    "p_permanent_loss_band": "low",
+    "days_to_exit_reference_position": 0.4,
+    "factor_exposures": [
+      "domestic consumption",
+      "input commodity prices"
+    ],
+    "sizing_ceiling_pct": null,
+    "sizing_basis": "no ceiling: IPS risk limits not set"
+  },
+  "next_review_due": "2026-07-01"
 }

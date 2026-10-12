@@ -9,7 +9,8 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 
 ## Where things live (read the relevant file; do not rely on memory)
 - `.claude/skills/investment-constitution/SKILL.md`: **canonical** four layers, fit scale, epistemic tags, citation syntax, specialist protocol
-- `methodology/SCORING.md` · `EVIDENCE_STANDARDS.md` · `INVESTOR_LENSES.md` · `REPORT_CONTRACTS.md`
+- `methodology/`: `SCORING.md` · `EVIDENCE_STANDARDS.md` · `REPORT_CONTRACTS.md` · `RESEARCH_PLAYBOOK.md` (how to research; **≥10-year depth standard**) · `METRIC_DEFINITIONS.md` · `SECTOR_PLAYBOOKS.md` · `SOURCE_GUIDE.md` · `INVESTOR_LENSES.md`
+- `config/investment_policy.json`: Investment Policy Statement (hurdle, horizon, benchmark, limits). Placeholders until the user confirms them.
 - `MASTER_RESEARCH_FRAMEWORK.md`: what to investigate. `PROJECT_INSTRUCTIONS.md`: global rules
 - `research/companies/<TICKER>/runs/<UTC RUN_ID>/`: one directory per run; `latest_run.txt` points to the latest complete run. `COMPANY_SCOREBOARD.csv`: compact two-score index
 - `archive/`: old Antigravity definitions, **non-operative**. `docs/`: audit, architecture, operations
@@ -17,7 +18,7 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 ## Non-negotiables
 1. The four layer names are immutable: Layer 1 — Bedrock Compounder; Layer 2 — High-Growth Business; Layer 3 — Cyclical / Event-Driven Opportunity; Layer 4 — Venture-Style / Optionality Bet. Analyze all four before classifying. SME listing does not set the layer.
 2. Business Quality, Investment Attractiveness and layer fit are three separate measures. Score only per `methodology/SCORING.md`.
-3. Never invent sources, URLs, pages, figures, quotations, agent outputs or check results. Material claims carry tags and claim IDs from a ledger.
+3. Never invent sources, URLs, pages, figures, quotations, agent outputs or check results. Material claims carry tags and claim IDs from a ledger, and quantitative claims carry a metric key. Material arithmetic comes from the scripts, not mental math.
 4. Only the CIO updates the scoreboard (via `scripts/finalize_run.py`) and runs git (via `scripts/git_publish.py`: two serialized batches, push to the current branch, never force, never auto-merge). Never stage unrelated files (for example the untracked `research/companies/BAJFINANCE/`).
 5. Never overwrite a previous run; never edit legacy runs or `archive/`.
 
@@ -27,5 +28,6 @@ python3 scripts/validate_system.py [--live-probe]   # configuration and contract
 python3 -m unittest discover tests                   # run after changing agents, methodology or scripts
 python3 scripts/new_run.py ... [--dry-run]   ·   scripts/manifest.py   ·   scripts/validate_run.py RUN --stage specialists|final
 scripts/merge_ledgers.py · validate_scorecard.py · finalize_run.py · git_publish.py · compare_runs.py · scoreboard.py validate
+scripts/fetch_source.py · html_tables.py · fin_metrics.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
 ```
 Canonical vocabularies are parsed from marked blocks (`<!-- NAME:BEGIN -->`) in the markdown. Edit them there, then run the tests.

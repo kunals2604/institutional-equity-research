@@ -29,7 +29,8 @@ A Claude Code–native, multi-agent research system for evaluating listed compan
 | `.claude/agents/` | The ten operative agent definitions (`cio` + nine specialists) |
 | `.claude/skills/research-company/` | The `/research-company` workflow |
 | `.claude/skills/investment-constitution/` | Canonical definitions, preloaded into every specialist |
-| `methodology/` | Scoring, evidence standards, investor lenses, report contracts |
+| `methodology/` | Scoring, evidence standards, report contracts, research playbook (10+ year depth standard), metric dictionary, 18 sector playbooks, source guide, investor lenses |
+| `config/investment_policy.json` | Investment Policy Statement: hurdle, horizon, benchmark, risk limits (confirm before production use) |
 | `MASTER_RESEARCH_FRAMEWORK.md` | Comprehensive research specification |
 | `PROJECT_INSTRUCTIONS.md` | Global research and execution rules |
 | `COMPANY_SCOREBOARD.csv` | Compact index: identity, run metadata and the two scores, one row per company |

@@ -57,23 +57,40 @@ Everything else (layers, verdict, valuation, reasoning) lives in the run directo
 
 ## 6. Scripts
 
+**Orchestration and QC (CIO)**
+
 | Script | Use |
 |---|---|
-| `validate_system.py` | Static validation of agents, skills, taxonomy, contracts, scoreboard schema, run preservation, stale references, Antigravity remnants and secrets. `--live-probe` adds one headless delegation check. |
-| `new_run.py` | Create a run (UTC ID, manifest, templates); `--dry-run` writes nothing |
+| `validate_system.py` | Static validation of agents, skills, taxonomy, methodology, contracts, investment policy, scoreboard schema, run preservation, stale references, Antigravity remnants and secrets. `--live-probe` adds one headless delegation check. |
+| `new_run.py` | Create a run (UTC ID, manifest with the investment-policy snapshot, templates); `--dry-run` writes nothing |
 | `manifest.py` | Deterministic manifest updates (`set`, `status`, `invocation`, `note`, `show`) |
-| `validate_report.py` | Lint one report (`--kind specialist|followup|final|any`) |
-| `validate_ledger.py` | Check claim ledgers |
-| `validate_scorecard.py` | Check scorecard arithmetic, gates, verdict mapping and layer rules |
-| `validate_run.py` | Stage-2 barrier (`--stage specialists`) and final automated QC (`--stage final`) |
+| `validate_report.py` | Lint one report (`--kind specialist|followup|final|any`), including Historical Depth Standard counts |
+| `validate_ledger.py` | Check claim ledgers (tags, sources, locators, metric keys) |
+| `validate_scorecard.py` | Scorecard arithmetic, gates, verdict mapping, layer rules and decision outputs |
+| `validate_run.py` | Stage-2 barrier (`--stage specialists`) and final automated QC (`--stage final`, which includes evidence statistics and the numeric-conflict gate) |
 | `merge_ledgers.py` | Build `evidence_ledger.csv` |
+| `reconcile_numbers.py` | Cross-ledger numeric conflicts (same metric, period, basis, unit), written to `qc/numeric_conflicts.csv` |
+| `evidence_stats.py` | Evidence quality by agent (claims, primary share, tiers, NOT_LOCATED), checked against thresholds |
 | `finalize_run.py` | Apply the outcome policy; the only scoreboard and pointer writer |
 | `scoreboard.py` | Scoreboard schema, locked upsert, `validate` |
 | `git_publish.py` | Scoped commit and push batches |
-| `compare_runs.py` | Run-to-run change table |
+| `compare_runs.py` | Run-to-run change table plus the prior predictions to resolve |
+
+**Research and analytics (specialists and CIO)**
+
+| Script | Use |
+|---|---|
+| `fetch_source.py` | Download a document with provenance (SHA-256, time, HTTP status) into `RUN_DIR/_cache/`; logs failures too |
+| `html_tables.py` | Deterministic HTML table → CSV extraction |
+| `fin_metrics.py` | Ratios, CAGRs (3/5/10/15 years), per-share compounding, incremental ROIC and forensic screens (accruals, Beneish, Piotroski) from `financial_history.csv`; `general` and `lender` profiles |
+| `valuation_tools.py` | `wacc`, `dcf` (with sensitivity and sanity warnings), `reverse-dcf`, `scenario-irr` (E[IRR], asymmetry, MoS), `price-ladder` (IA1/IA2/IA4 by price, giving decision triggers), `decompose`, `sizing-ceiling` |
 | `research_lib.py` | Shared library (parses canonical blocks from the markdown) |
 
 Tests: `python3 -m unittest discover tests`.
+
+## 6a. Investment policy
+
+`config/investment_policy.json` is the Investment Policy Statement: hurdle rate, horizon, benchmark, reference position, liquidity rule and risk limits. **Review it and set `"confirmed_by_user": true`.** Until then, every report flags the values as placeholders. Risk limits left `null` mean no sizing ceiling is computed.
 
 ## 7. Changing the methodology
 
