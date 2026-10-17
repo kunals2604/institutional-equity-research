@@ -15,11 +15,19 @@ This is the operating procedure every specialist (and the CIO, for its own audit
 | **5. Verify** | Apply the verification sampling plan (§3). Reconcile aggregator figures with filings and log every discrepancy. | Verification log in workpapers |
 | **6. Compute** | **Never do material arithmetic in your head.** Use `python3 scripts/fin_metrics.py` (ratios, CAGRs, forensic screens) and `python3 scripts/valuation_tools.py` (WACC, DCF, reverse DCF, scenario IRR, price ladder, return decomposition). Save input files under `RUN_DIR/calc/`. Cite outputs as CALCULATION with the formula. | `calc/` inputs and outputs |
 | **7. Analyze** | Apply your domain method, the relevant sector playbook (`methodology/SECTOR_PLAYBOOKS.md`), your owned lenses (`methodology/INVESTOR_LENSES.md`), and the four-layer crosswalk | — |
-| **8. Write incrementally** | Write the report to disk **section by section** as each analysis completes; don't hold the whole report in memory until the end. Tag and cite as you write. | Report file |
-| **9. Self-QC** | Run `validate_report.py`. Check your Data Coverage table against §2. Re-read your Key Findings against the ledger: does every number match? | Clean validator output |
+| **8. Write incrementally** | Write the report to disk **section by section** as each analysis completes; don't hold the whole report in memory until the end. Tag and cite as you write. After each method step, update `specialists/<name>_workpapers/progress.md` (steps done, files written, next step) so that an interruption costs nothing. Writing early is about **safety, never about brevity**: an interruption or a resume never justifies shortening any section. | Report file + `progress.md` |
+| **9. Self-QC** | Fill the **Method Coverage Checklist** (`REPORT_CONTRACTS.md`): one row per numbered step of your `## Method`. Every Partial or Not available row needs what you tried and what would close it; go back and close any you can before returning. Run `validate_report.py`. Check your Data Coverage table against §2. Re-read your Key Findings against the ledger: does every number match? | Clean validator output |
 | **10. Return** | The short return message (`REPORT_CONTRACTS.md` §5) | — |
 
 **Context discipline.** Your files are your memory. Long documents do not belong in your context. Extract what matters, with locators, into workpapers. If you notice that earlier context was summarized (auto-compaction), **re-read your research plan, ledger and workpapers before continuing**, and never reconstruct a figure from memory.
+
+**Interrupted runs.** If you are resumed after an interruption, read `progress.md`, your plan, ledger and report first, then continue from the next step at full depth. Never redo finished work, and never reconstruct figures from memory.
+
+### 1a. Retrieval protocol (when a download fails)
+
+1. `fetch_source.py` already retries transient failures (timeouts, TLS/EOF errors, 429/5xx) with backoff, then falls back to the system `curl`, which also handles most 403 responses from sites that block Python. It reuses a document any agent already downloaded in this run, so do not re-download.
+2. If it still fails, try the same document elsewhere, in this order: the company IR site; the other exchange (BSE ↔ NSE); the regulator (SEBI, MCA, RBI, TRAI and so on); the stock-exchange archive URL pattern for that year; the rating agency's own site; a search for the exact file name.
+3. Only then record it as Not available: name the document, every URL tried with its error, and the evidence you used instead. That goes in the missing-evidence list and the Method Coverage Checklist, so the CIO's gap-closure loop can pick it up.
 
 **WebFetch caution.** WebFetch returns a model-processed rendering of a page, not the raw document. It can paraphrase or mis-transcribe numbers. Use it to discover and navigate. For any **decision-critical number**, read it from the original document (a PDF page via Read, or an HTML table via `html_tables.py`) and cite that location.
 
@@ -96,11 +104,11 @@ Transcripts: read the **Q&A first**. Analysts' recurring questions reveal what t
 | WebSearch | Discovery of documents and news; never a citation by itself |
 | WebFetch | Quick reading or navigation of HTML pages; not for decision-critical numbers (§1) |
 | `scripts/corpus.py` | Local FilingForge library: `status`, `catalog`, `search` (regex across all years, with line numbers), `locate` (PDF page for a passage, via poppler), `pages` (page-marked text) |
-| `scripts/fetch_source.py` | Download with provenance (SHA-256, timestamp, status) into `RUN_DIR/_cache/` (git-ignored); logs failures too |
+| `scripts/fetch_source.py` | Download with provenance (SHA-256, timestamp, status) into `RUN_DIR/_cache/` (git-ignored); logs failures too; retries, curl fallback and in-run reuse (§1a) |
 | Read tool (with `pages`) | Read PDFs page by page; this is where page locators come from |
 | `scripts/html_tables.py` | Deterministic HTML table → CSV extraction |
 | `scripts/fin_metrics.py` | Ratios, CAGRs, per-share compounding, forensic screens from `financial_history.csv` (general and lender profiles) |
-| `scripts/valuation_tools.py` | `wacc`, `dcf`, `reverse-dcf`, `scenario-irr`, `price-ladder`, `decompose` |
+| `scripts/valuation_tools.py` | `wacc`, `dcf` (with `event_uplifts`), `reverse-dcf`, `scenario-build` (horizon values from DCF inputs), `scenario-irr` (hurdle-adjusted asymmetry), `price-ladder`, `decompose`, `robustness` |
 | `scripts/validate_report.py` | Self-check before returning |
 
 If a site blocks automated access (exchange sites sometimes do), try the company's own IR page, or another official mirror of the same document. If nothing works, record the gap in the missing-evidence list. **Never reconstruct a document's contents from memory.**

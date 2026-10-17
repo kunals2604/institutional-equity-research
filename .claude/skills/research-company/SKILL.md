@@ -1,7 +1,7 @@
 ---
 name: research-company
-description: Run the full institutional equity research workflow on one listed company. The current session becomes the CIO, validates identity, creates a UTC-timestamped run, launches the nine specialist subagents in parallel, adjudicates their evidence, completes the four-layer assessment and both scores, passes QC, updates COMPANY_SCOREBOARD.csv and latest_run.txt, and commits and pushes. Also supports --validate-only, --dry-run and --resume. Expensive in full mode; runs only when the user invokes it.
-argument-hint: "\"<Company name>\" <TICKER> <EXCHANGE> [--cutoff YYYY-MM-DD] [--hurdle 0.12] [--reference-position 5000000] [--notes \"...\"] | --validate-only [--probe] | --dry-run \"<Company>\" <TICKER> <EXCHANGE> | --resume <TICKER> <RUN_ID>"
+description: Run the full institutional equity research workflow on one listed company. The current session becomes the CIO, validates identity, creates a UTC-timestamped run, runs the nine specialist subagents (one at a time by default), closes coverage gaps, adjudicates their evidence, writes its own independent analysis and synthesis before scoring, completes the four-layer assessment and both scores, passes QC, updates COMPANY_SCOREBOARD.csv and latest_run.txt, and commits and pushes. Also supports --validate-only, --dry-run and --resume. Expensive in full mode; runs only when the user invokes it.
+argument-hint: "\"<Company name>\" <TICKER> <EXCHANGE> [--cutoff YYYY-MM-DD] [--hurdle 0.12] [--reference-position 5000000] [--notes \"...\"] [--parallel] | --validate-only [--probe] | --dry-run \"<Company>\" <TICKER> <EXCHANGE> | --resume <TICKER> <RUN_ID>"
 disable-model-invocation: true
 ---
 
@@ -18,7 +18,7 @@ disable-model-invocation: true
 | **Dry run** | `--dry-run "<Company name>" <TICKER> <EXCHANGE>` | Shows the identity as parsed, the run directory that would be created, prior runs, artifact paths and stages. **Writes nothing and launches no agents.** Never present this as research. |
 | **Resume** | `--resume <TICKER> <RUN_ID>` | Continues an interrupted run in place (§4) |
 
-Options for full mode: `--cutoff YYYY-MM-DD` (default today, UTC), `--hurdle <decimal>` (default 0.12, a placeholder the CIO must confirm with cited inputs), `--reference-position <amount>` (default 5,000,000 in the reporting currency, used for the exit-liquidity gate), `--notes "<text for the brief>"`.
+Options for full mode: `--cutoff YYYY-MM-DD` (default today, UTC), `--hurdle <decimal>` (default 0.12, a placeholder the CIO must confirm with cited inputs), `--reference-position <amount>` (default 5,000,000 in the reporting currency, used for the exit-liquidity gate), `--notes "<text for the brief>"`, `--parallel` (launch all nine specialists at once instead of one at a time; same depth, more exposed to session limits and download failures).
 
 **Validation rules (full and dry-run):**
 - All three identifiers are required: a quoted company name, a ticker (A–Z, 0–9, `&._-`), and an exchange (NSE, BSE, NSE-SME, BSE-SME, or a named foreign exchange).
@@ -44,16 +44,16 @@ You are now the **CIO**. Do not spawn a CIO subagent; this session is the orches
 1. Read `.claude/agents/cio.md` **in full** (the operative protocol) and the documents it lists.
 2. Run the protocol end to end, continuously, without pausing at milestones:
    - **Stage 0:** identity validation → price `CIO-C001` → `new_run.py` → `manifest.py` → **local corpus** (`corpus.py status` / `catalog`; if the company is missing from the FilingForge library, ask once: download first, or web only. The corpus is one of two channels at par with full web research, never a limit) → brief and source register (leads only).
-   - **Stage 1:** nine parallel Agent calls in **one message** (`financials`, `filings`, `management`, `industry`, `moat`, `concalls`, `valuation`, `bear-case`, `special-situations`), then wait for all nine.
-   - **Stage 2:** `validate_run.py --stage specialists` → targeted re-invocations → `git_publish.py --batch specialists --push`.
-   - **Stage 3:** read everything → `reconcile_numbers.py` + `evidence_stats.py` (adopt the audited financials dataset as the numeric base) → audit at least 12 claims and recompute at least 3 with the scripts → contradiction log (every numeric conflict) → follow-ups → variant perception and key debates → four independent layer assessments → classification → symmetric adversarial review (any buy or avoid verdict, or a verdict change) → thesis-disproof → insufficient-evidence check → `scorecard.json` + `validate_scorecard.py` → decision triggers (price ladder), position risk, predictions, review date → change analysis → final report.
+   - **Stage 1 (sequential by default):** one Agent call at a time in the order of `cio.md` Stage 1 (financials, filings, industry, moat, management, concalls, valuation, special-situations, bear-case). Wait for each, validate its report with `validate_report.py`, fix errors, then launch the next. With `--parallel`, launch all nine in **one message** and wait for all nine. If a session limit interrupts a specialist, resume it with SendMessage (it reads its `progress.md`) at full depth; never ask it to shorten its work.
+   - **Stage 2:** `validate_run.py --stage specialists` → targeted re-invocations → **gap-closure loop** (`cio/gap_register.md`: every Partial / Not available checklist row and material missing-evidence item, classified closable or irreducible; closable gaps go back to the owning specialist) → `git_publish.py --batch specialists --push`.
+   - **Stage 3 (synthesis first, scores last):** read everything → `reconcile_numbers.py` + `evidence_stats.py` (adopt the audited financials dataset as the numeric base) → audit at least 12 claims and recompute at least 3 with the scripts → correlated-evidence check → contradiction log (every numeric conflict) → follow-ups → **CIO independent analysis** (`cio/cio_analysis.md`, including `score_guides.py`) → **written synthesis** (variant perception, key debates, four independent layer assessments, classification, thesis-disproof) → insufficient-evidence check → **score from the synthesis**: `cio/scorecard_inputs.json` → `build_scorecard.py` → **confidence assessment** (`valuation_tools.py robustness`, SCORING.md §4) → symmetric adversarial review (any buy or avoid verdict, or a verdict change), then rebuild → decision triggers (price ladder), position risk, predictions, review date → change analysis → final report.
    - **Stage 4:** `merge_ledgers.py` → `validate_run.py --stage final` → `quality_control.md` → `finalize_run.py` → `git_publish.py --batch final --push` → completion summary with the paths to `final_report.md` and `scorecard.json`.
 
 ## 4. Resume
 
 `--resume <TICKER> <RUN_ID>`: set `RUN_DIR = research/companies/<TICKER>/runs/<RUN_ID>`. Refuse if it does not exist, or if its manifest status is `complete`. Read `cio.md`, then:
 - `python3 scripts/manifest.py RUN_DIR show` and `python3 scripts/validate_run.py RUN_DIR --stage specialists` to find which specialists are complete.
-- Re-launch **only** the missing or failed specialists (in parallel, same template, same identity, cutoff and price; logged as stage `1-resume`).
+- For a specialist interrupted mid-work whose agent is still addressable, resume it with SendMessage; otherwise re-launch **only** the missing or failed specialists (one at a time unless the run's `execution_mode` is `parallel`; same template, same identity, cutoff and price; logged as stage `1-resume`). A re-launched specialist reads its own `progress.md` and workpapers and continues at full depth.
 - Continue from the first incomplete stage. Never delete or overwrite completed specialist work. If the cutoff or price is stale for the decision, say so in the report. Do not silently change them.
 
 ## 5. Honesty rules

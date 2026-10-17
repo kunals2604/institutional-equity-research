@@ -5,7 +5,7 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 ## Run research
 - `/research-company "<Company name>" <TICKER> <EXCHANGE> [--cutoff YYYY-MM-DD]`: this session becomes the CIO and follows `.claude/agents/cio.md`.
 - Modes: `--validate-only [--probe]` (no research), `--dry-run "<Name>" <T> <EX>` (writes nothing), `--resume <T> <RUN_ID>`.
-- Never spawn a `cio` subagent. Specialists are launched by the CIO in parallel via the Agent tool: `financials`, `filings`, `management`, `industry`, `moat`, `concalls`, `valuation`, `bear-case`, `special-situations`.
+- Never spawn a `cio` subagent. Specialists are launched by the CIO via the Agent tool, **one at a time by default** (`--parallel` optional): `financials`, `filings`, `management`, `industry`, `moat`, `concalls`, `valuation`, `bear-case`, `special-situations`.
 
 ## Where things live (read the relevant file; do not rely on memory)
 - `.claude/skills/investment-constitution/SKILL.md`: **canonical** four layers, fit scale, epistemic tags, citation syntax, specialist protocol
@@ -28,7 +28,7 @@ A Claude Code multi-agent system for buy-side equity research: one CIO (the main
 python3 scripts/validate_system.py [--live-probe]   # configuration and contracts
 python3 -m unittest discover tests                   # run after changing agents, methodology or scripts
 python3 scripts/new_run.py ... [--dry-run]   ·   scripts/manifest.py   ·   scripts/validate_run.py RUN --stage specialists|final
-scripts/merge_ledgers.py · validate_scorecard.py · finalize_run.py · git_publish.py · compare_runs.py · scoreboard.py validate
-scripts/corpus.py · fetch_source.py · html_tables.py · fin_metrics.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
+scripts/merge_ledgers.py · build_scorecard.py · validate_scorecard.py · finalize_run.py · git_publish.py · compare_runs.py · scoreboard.py validate
+scripts/corpus.py · fetch_source.py · html_tables.py · fin_metrics.py · score_guides.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
 ```
 Canonical vocabularies are parsed from marked blocks (`<!-- NAME:BEGIN -->`) in the markdown. Edit them there, then run the tests.

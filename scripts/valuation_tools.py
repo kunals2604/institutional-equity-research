@@ -5,11 +5,19 @@ Subcommands (inputs are JSON files saved under RUN_DIR/calc/; see templates/valu
   wacc           --inputs F                 cost of equity (CAPM) and WACC
   dcf            --inputs F                 FCFF DCF with fade paths, terminal value via RONIC, sanity checks, sensitivity
   reverse-dcf    --inputs F --price P [--solve growth|margin]   implied growth or margin
-  scenario-irr   --inputs F                 bear/base/bull IRRs, E[IRR], asymmetry, margin of safety
+  scenario-build --inputs F                 scenario-irr inputs from scenario values TODAY (horizon value = value x (1+hurdle)^T
+                                            less the future value of interim dividends: the price converges to value)
+  scenario-irr   --inputs F                 bear/base/bull IRRs, E[IRR], asymmetry (hurdle-adjusted), margin of safety
   price-ladder   --inputs F [--scorecard S] [--prices a,b,c | --range lo:hi:step]
                                             IA1/IA2/IA4 per price (SCORING.md anchors), IA and mapped verdict per price
   decompose      --inputs F                 expected-return decomposition (EPS growth, multiple change, yield, dilution)
   sizing-ceiling --inputs F [--policy config/investment_policy.json]   position ceiling from IPS risk limits
+  robustness     --inputs F --scorecard S [--price P]   is the mapped verdict stable across the plausible ranges of the
+                                            decisive assumptions? (input to the confidence rule, SCORING.md §4)
+
+DCF inputs may carry "event_uplifts": [{"year": 2, "revenue_uplift": 0.043, "flow_through": 0.9, "label": "..."}]
+for discrete, evidenced step changes (tariff rounds, price increases, capacity additions): revenue growth in that
+year rises by the uplift and the margin from that year on absorbs flow_through x uplift.
 
 Every command prints a markdown result and, with --out, writes JSON. Definitions:
 methodology/METRIC_DEFINITIONS.md and methodology/SCORING.md.
@@ -57,6 +65,16 @@ def dcf(inp: dict, override: Optional[dict] = None) -> dict:
     n = int(p["years"])
     g = path_of(p["revenue_growth"], n)
     m = path_of(p["ebit_margin"], n)
+    events = []
+    for ev in p.get("event_uplifts") or []:
+        k, u = int(ev["year"]), float(ev["revenue_uplift"])
+        f = float(ev.get("flow_through", 0.9))
+        if not 1 <= k <= n:
+            raise ValueError("event_uplifts year %d outside 1..%d" % (k, n))
+        g[k - 1] += u
+        for j in range(k - 1, n):
+            m[j] = (m[j] + f * u) / (1 + u)
+        events.append({"year": k, "revenue_uplift": u, "flow_through": f, "label": ev.get("label", "")})
     t, r, gt = float(p["tax_rate"]), float(p["wacc"]), float(p["terminal_growth"])
     if gt >= r:
         raise ValueError("terminal_growth must be below wacc")
@@ -94,7 +112,7 @@ def dcf(inp: dict, override: Optional[dict] = None) -> dict:
     return {"rows": rows, "terminal_value": tv, "pv_terminal": pv_tv, "pv_explicit": pv_sum, "enterprise_value": ev,
             "equity_value": equity, "value_per_share": per_share, "terminal_share_of_ev": pv_tv / ev,
             "implied_exit_ev_ebit": tv / last_ebit if last_ebit else None,
-            "terminal_reinvestment_rate": gt / ronic, "warnings": warnings}
+            "terminal_reinvestment_rate": gt / ronic, "events_applied": events, "warnings": warnings}
 
 
 def dcf_sensitivity(inp: dict) -> List[dict]:
@@ -170,6 +188,9 @@ def scenarios(inp: dict, price: Optional[float] = None) -> dict:
         raise ValueError("scenario probabilities sum to %.3f" % sum(probs.values()))
     out, exp_div, exp_v = {}, [0.0] * T, 0.0
     up = down = mean_irr = 0.0
+    h = inp.get("hurdle_rate")
+    bar = P * (1 + float(h)) ** T if h is not None else P   # hurdle-adjusted asymmetry compares with the price compounded at H
+    up_h = down_h = 0.0
     for k, v in sc.items():
         V, d = _value(v["value_per_share"]), _dps(v.get("dps"), T)
         r = irr([-P] + d[:-1] + [d[-1] + V])
@@ -179,13 +200,18 @@ def scenarios(inp: dict, price: Optional[float] = None) -> dict:
         exp_div = [a + probs[k] * b for a, b in zip(exp_div, d)]
         up += probs[k] * max(total - P, 0)
         down += probs[k] * max(P - total, 0)
+        up_h += probs[k] * max(total - bar, 0)
+        down_h += probs[k] * max(bar - total, 0)
         mean_irr += probs[k] * r
     e_irr = irr([-P] + exp_div[:-1] + [exp_div[-1] + exp_v])
     iv = inp.get("intrinsic_value_today")
     base = (float(iv["low"]) + float(iv["high"])) / 2 if iv else None
     return {"price": P, "horizon_years": T, "scenarios": out, "expected_horizon_value": exp_v,
             "expected_irr": e_irr, "mean_of_scenario_irrs": mean_irr,
-            "asymmetry_ratio": (up / down) if down > 0 else float("inf"),
+            "asymmetry_ratio": (up_h / down_h) if down_h > 0 else float("inf"),
+            "asymmetry_basis": ("hurdle-adjusted: horizon value + dividends vs price x (1+hurdle)^T (SCORING.md IA4)"
+                                if h is not None else "undiscounted: no hurdle_rate in inputs (add one for scoring)"),
+            "asymmetry_ratio_undiscounted": (up / down) if down > 0 else float("inf"),
             "base_value_today": base, "margin_of_safety": (base - P) / base if base else None}
 
 
@@ -206,7 +232,7 @@ def ia1(m: Optional[float]) -> Optional[int]:
         s = 20 + (m + 0.30) / 0.20 * 19
     else:
         s = max(0.0, 19 * (1 + (m + 0.30) / 0.70))
-    return int(round(s))
+    return rl.round_half_up(s)
 
 
 def ia2(e: float, h: float) -> int:
@@ -223,7 +249,7 @@ def ia2(e: float, h: float) -> int:
         s = 20 + (e / (h - 0.04)) * 19 if h - 0.04 > 0 else 20
     else:
         s = max(0.0, 19 * (1 + e / 0.20))
-    return int(round(s))
+    return rl.round_half_up(s)
 
 
 def ia4(r: float) -> int:
@@ -240,7 +266,7 @@ def ia4(r: float) -> int:
         s = 30 + (r - 0.8) / 0.4 * 19
     else:
         s = max(0.0, r / 0.8 * 29)
-    return int(round(s))
+    return rl.round_half_up(s)
 
 
 def price_ladder(inp: dict, prices: List[float], scorecard: Optional[dict]) -> dict:
@@ -266,7 +292,7 @@ def price_ladder(inp: dict, prices: List[float], scorecard: Optional[dict]) -> d
         if scorecard and dims["IA1"] is not None:
             allv = dict(fixed, **dims)
             raw = sum(allv[k] * w for k, w in weights.items()) / 100.0
-            final = min([int(round(raw))] + caps)
+            final = min([rl.round_half_up(raw)] + caps)
             row.update({"ia_raw": raw, "ia_final": final,
                         "mapped_verdict": rl.mapped_verdict(ctx["bq"], final, ctx["conf"], ctx["gates"], ctx["layer"])})
         rows.append(row)
@@ -280,6 +306,57 @@ def price_ladder(inp: dict, prices: List[float], scorecard: Optional[dict]) -> d
                     "avoid_above": min([r["price"] for r in rows if rl.NOTCH.get(r.get("mapped_verdict"), 9) <= 1], default=None)}
     return {"hurdle_rate": h, "rows": rows, "decision_triggers": triggers,
             "note": "IA3, IA5-IA8 held at the scorecard's values; IA5 (expectations gap) is also price-sensitive, so review it near the trigger prices."}
+
+
+def scenario_build(inp: dict) -> dict:
+    """Build scenario-irr inputs from scenario values TODAY. Convention (METRIC_DEFINITIONS.md): the price converges to
+    scenario value by the horizon, so horizon value = value_today x (1+H)^T - future value of interim dividends."""
+    T = int(inp["horizon_years"])
+    H = float(inp["hurdle_rate"])
+    sc = {}
+    for k, v in inp["scenarios"].items():
+        d = _dps(v.get("dps"), T)
+        fv_div = sum(x * (1 + H) ** (T - 1 - i) for i, x in enumerate(d))
+        vt = v["value_today"] if isinstance(v["value_today"], list) else [v["value_today"], v["value_today"]]
+        sc[k] = {"probability": float(v["probability"]), "value_today": [float(x) for x in vt],
+                 "value_per_share": [round(float(x) * (1 + H) ** T - fv_div, 2) for x in vt],
+                 "dps": v.get("dps")}
+    base = inp.get("intrinsic_value_today") or {"low": sc["base"]["value_today"][0], "high": sc["base"]["value_today"][1]}
+    return {"price": float(inp["price"]), "horizon_years": T, "hurdle_rate": H, "intrinsic_value_today": base,
+            "scenarios": sc, "convention": "horizon value = value_today x (1+hurdle)^T - FV(interim dividends)"}
+
+
+def robustness(inp: dict, scorecard: dict, price: Optional[float] = None, value_shift: float = 0.15,
+               prob_shift: float = 0.10, hurdle_shift: float = 0.01) -> dict:
+    """Mapped verdict across the plausible ranges of the decisive assumptions: base value +/- value_shift,
+    probability moved prob_shift from base to bear or to bull, hurdle +/- hurdle_shift. Inputs are scenario-build
+    inputs (values TODAY). The verdict is 'robust' if every combination maps to the same verdict."""
+    P = float(price if price is not None else inp["price"])
+    rows = []
+    for vs in (-value_shift, 0.0, value_shift):
+        for tilt in ("bear", "none", "bull"):
+            for hs in (-hurdle_shift, 0.0, hurdle_shift):
+                x = json.loads(json.dumps(inp))
+                x["hurdle_rate"] = float(inp["hurdle_rate"]) + hs
+                b = x["scenarios"]["base"]
+                b["value_today"] = [v * (1 + vs) for v in (b["value_today"] if isinstance(b["value_today"], list) else [b["value_today"]] * 2)]
+                if x.get("intrinsic_value_today"):
+                    x["intrinsic_value_today"] = {"low": x["intrinsic_value_today"]["low"] * (1 + vs),
+                                                  "high": x["intrinsic_value_today"]["high"] * (1 + vs)}
+                if tilt != "none" and "base" in x["scenarios"] and tilt in x["scenarios"]:
+                    mv = min(prob_shift, x["scenarios"]["base"]["probability"])
+                    x["scenarios"]["base"]["probability"] -= mv
+                    x["scenarios"][tilt]["probability"] += mv
+                built = scenario_build(x)
+                lad = price_ladder(built, [P], scorecard)["rows"][0]
+                rows.append({"base_value_shift": vs, "probability_tilt": tilt, "hurdle_shift": hs,
+                             "expected_irr": lad["expected_irr"], "ia_final": lad.get("ia_final"),
+                             "mapped_verdict": lad.get("mapped_verdict")})
+    verdicts = sorted({r["mapped_verdict"] for r in rows})
+    ias = [r["ia_final"] for r in rows if r["ia_final"] is not None]
+    return {"price": P, "combinations": len(rows), "verdicts": verdicts, "robust": len(verdicts) == 1,
+            "ia_range": [min(ias), max(ias)] if ias else None, "rows": rows,
+            "note": "High IA confidence requires robust = true (SCORING.md §4); IA3 and IA5-IA8 held at scorecard values."}
 
 
 def decompose(inp: dict) -> dict:
@@ -342,7 +419,8 @@ def fmt(x) -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["wacc", "dcf", "reverse-dcf", "scenario-irr", "price-ladder", "decompose", "sizing-ceiling"])
+    ap.add_argument("command", choices=["wacc", "dcf", "reverse-dcf", "scenario-build", "scenario-irr", "price-ladder", "decompose",
+                                        "sizing-ceiling", "robustness"])
     ap.add_argument("--inputs", required=True)
     ap.add_argument("--price", type=float)
     ap.add_argument("--solve", choices=["growth", "margin"], default="growth")
@@ -363,8 +441,14 @@ def main(argv=None) -> int:
             if a.price is None:
                 ap.error("--price is required")
             res = reverse_dcf(inp, a.price, a.solve)
+        elif a.command == "scenario-build":
+            res = scenario_build(inp)
         elif a.command == "scenario-irr":
             res = scenarios(inp)
+        elif a.command == "robustness":
+            if not a.scorecard:
+                ap.error("--scorecard is required")
+            res = robustness(inp, rl.load_json(Path(a.scorecard)), a.price)
         elif a.command == "price-ladder":
             if a.prices:
                 prices = [float(x) for x in a.prices.split(",")]

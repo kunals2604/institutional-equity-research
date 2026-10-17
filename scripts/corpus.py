@@ -50,6 +50,20 @@ NOISE_RE = re.compile(r"intimation of (the )?schedule|schedule of analyst|tradin
                       r"change in (the )?(name|address) of (the )?(rta|registrar)|certificate under regulation 74|"
                       r"reg(ulation)? ?74\(5\)|compliance certificate|closure of trading", re.I)
 CORE_TYPES = {"annual_report", "results", "concall_transcript", "investor_ppt"}
+# A filing in the concall category (or whose FilingForge category says "transcript") is a transcript when its
+# headline or opening text describes an earnings/conference call and it is not an audio-recording or schedule notice.
+CALL_RE = re.compile(r"earnings call|conference call|investor call|analyst call|concall", re.I)
+
+
+def is_concall_transcript(doc_type: str, fm: dict, headline: str, head: str) -> bool:
+    if NOISE_RE.search(headline):
+        return False
+    category = str(fm.get("category", ""))
+    if TRANSCRIPT_RE.search(category):
+        return True
+    if doc_type == "concall":
+        return bool(CALL_RE.search(headline) or TRANSCRIPT_RE.search(head) or CALL_RE.search(head))
+    return False
 TIER = {"annual_report": 1, "results": 1, "concall_transcript": 4, "investor_ppt": 3, "corporate_action": 1,
         "insider_sast": 1, "agm_egm": 1, "board_meeting": 1, "company_update": 3, "analyst_meet": 3,
         "concall": 4, "other": 3, "third_party_report": 6}
@@ -165,11 +179,11 @@ def scan(lib: Path, ticker: str, hashes: bool = False) -> List[dict]:
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date or ""):
             continue
         doc_type = CATEGORY_TYPES.get(category, "other")
-        if TRANSCRIPT_RE.search(headline):
-            doc_type = "concall_transcript"
         size = md.stat().st_size
         with md.open(encoding="utf-8", errors="replace") as f:
             head = f.read(8000)
+        if TRANSCRIPT_RE.search(headline) or is_concall_transcript(doc_type, fm, headline, head):
+            doc_type = "concall_transcript"
         noise = bool(NOISE_RE.search(headline)) and doc_type != "concall_transcript"
         value = "core" if (doc_type in CORE_TYPES and not noise) else ("noise" if noise or size < 1500 else "supporting")
         if doc_type == "results" and re.search(r"outcome of board meeting", headline, re.I) and not re.search(r"result", head, re.I):

@@ -74,6 +74,7 @@ Order: the **head** sections, then the domain sections from the agent definition
 
 <!-- COMMON_SECTIONS_TAIL:BEGIN -->
 - Four-Layer Evidence Crosswalk
+- Method Coverage Checklist
 - Contradictions and Data Conflicts
 - Assumptions, Uncertainty and Missing Evidence
 - Questions and Dependencies for the CIO
@@ -86,11 +87,14 @@ What each must contain:
 - **Key Findings:** 5–10 findings, most decision-relevant first, each tagged and cited.
 - **Data Coverage:** a table with columns data series | periods covered | count | sources and tier | verification (full / sampled / aggregator-only) | gaps and exceptions. It must meet the Historical Depth Standard (`methodology/RESEARCH_PLAYBOOK.md` §2), or the front matter must carry a `coverage_exception:` explaining why not. `validate_report.py` counts the periods.
 - **Four-Layer Evidence Crosswalk:** exactly as specified in the constitution §5.
+- **Method Coverage Checklist:** one row for **every numbered step of the agent definition's Method**, in order: `| # | Method step | Status | Where in this report | If Partial / Not available: what was tried (sources, retries, alternatives) and why it fell short |`. Status is exactly one of **Done**, **Partial**, **Not available** or **Not applicable**. "Partial" and "Not available" are acceptable only after the retrieval protocol (`RESEARCH_PLAYBOOK.md` §1) has been exhausted, and each is a gap the CIO will try to close (`cio.md` Stage 2). `validate_report.py` counts the rows against the agent definition and rejects missing statuses, so a step cannot be skipped silently.
 - **Contradictions and Data Conflicts:** conflicts *between sources* found in your own research (values, gap, likely cause, resolution, confidence). You have not read other specialists, so do not speculate about them.
 - **Assumptions, Uncertainty and Missing Evidence:** the assumptions table and missing-evidence list from `methodology/EVIDENCE_STANDARDS.md` §5.
 - **Questions and Dependencies for the CIO:** what another domain should verify, and claims you relied on that belong to another domain. Name the claim and why it matters.
 - **Domain Conclusion:** answers to the agent's decision questions plus its formal classifications. **No** BQ or IA score, primary-layer selection, or buy/sell verdict.
 - **Source Register:** see `EVIDENCE_STANDARDS.md` §2.
+
+**Depth over brevity:** every method step must be carried out in full (see the checklist). Interruptions, rate limits or long documents never justify a shallower method; resume and finish the step.
 
 **Length:** there is **no upper limit**. Research is as deep and thorough as the evidence allows, and the depth standards are floors, not ceilings. Depth comes from evidence, not padding: do not repeat the same finding in several sections; refer back to it instead.
 

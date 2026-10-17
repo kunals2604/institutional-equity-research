@@ -145,7 +145,7 @@ Every agent uses these definitions. A ratio that means different things in diffe
 - intrinsic_value_high — High end of the defended intrinsic value range per share
 - margin_of_safety — (base value − price) ÷ base value
 - expected_irr — Annualized return implied by the probability-weighted horizon value plus dividends versus price (see below)
-- asymmetry_ratio — Probability-weighted upside ÷ probability-weighted downside versus price
+- asymmetry_ratio — Probability-weighted upside ÷ probability-weighted downside versus the price compounded at the hurdle over the horizon (IA4)
 - implied_growth — Revenue/FCF growth that equates a DCF to the price (reverse DCF)
 - implied_margin — Steady-state margin that equates a DCF to the price
 - adtv — Average daily traded value over a stated window (for example 90 trading days)
@@ -175,7 +175,8 @@ Every agent uses these definitions. A ratio that means different things in diffe
 |---|---|
 | **Base value** | Midpoint of the CIO's base-case intrinsic value range per share. Layer-specific: L1 owner-earnings/DCF; L2 scenario DCF; L3 normalized or catalyst-adjusted value, discounted for time to realization; L4 probability-weighted, dilution-adjusted value |
 | **Expected IRR (E[IRR])** | The annualized return that equates today's price with the **probability-weighted** horizon value plus probability-weighted dividends (IRR of expected cash flows). The probability-weighted mean of the scenario IRRs is reported alongside for reference, but E[IRR] is the decision metric. |
-| **Asymmetry ratio** | Σ pᵢ·max(Vᵢ − P, 0) ÷ Σ pᵢ·max(P − Vᵢ, 0), where Vᵢ is scenario horizon value per share (plus dividends) and P is price |
+| **Asymmetry ratio** | Σ pᵢ·max(Vᵢ − B, 0) ÷ Σ pᵢ·max(B − Vᵢ, 0), where Vᵢ is scenario horizon value per share plus dividends and **B = P·(1+H)^T**, the price compounded at the hurdle H over the horizon T. Comparing horizon values with today's price P instead (the pre-2.3.0 definition, still reported as `asymmetry_ratio_undiscounted`) counts a return below the hurdle as upside. |
+| **Horizon value convention** | Scenario horizon value = scenario value today × (1+H)^T − future value of interim dividends (the price converges to scenario value by the horizon). Built by `valuation_tools.py scenario-build`. |
 | **Margin of safety** | (base value − price) ÷ base value |
 | **Normalized earnings (cyclicals)** | Mid-cycle margin (average over at least one full cycle, excluding the single best and worst years, or stated otherwise) × current or normalized revenue capacity. Never peak-year earnings. |
 | **Maintenance capex** | Choose and state one method: (a) depreciation adjusted for inflation of replacement cost; (b) management disclosure (a MANAGEMENT STATEMENT, to be tested); (c) capex in no-growth years; (d) capacity-based (cost to maintain units × capacity). Report as an ESTIMATE with a range. |

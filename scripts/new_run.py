@@ -118,6 +118,8 @@ def main(argv=None) -> int:
     }
     for src, dst in (("research_brief.md", "research_brief.md"),
                      ("contradiction_log.md", "cio/contradiction_log.md"),
+                     ("gap_register.md", "cio/gap_register.md"),
+                     ("cio_analysis.md", "cio/cio_analysis.md"),
                      ("quality_control.md", rl.QC_RECORD)):
         (run_dir / dst).write_text((tpl / src).read_text(encoding="utf-8").format(**fields), encoding="utf-8")
     (run_dir / "source_register.csv").write_text((tpl / "source_register_header.csv").read_text(encoding="utf-8"), encoding="utf-8")

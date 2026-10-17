@@ -87,6 +87,10 @@ def specialist_report(name, run_id, ticker="FIXTURECO", extra="", coverage=True)
         body.append("## %s\nFixture content [INFERENCE]. %s\n" % (s, COVERAGE_TEXT.get(s, "") if coverage else ""))
     body.append(crosswalk())
     for s in rl.common_tail()[1:]:
+        if s == rl.CHECKLIST_SECTION:
+            rows = ["| %d | %s | Done | %s section |" % (i, st, s) for i, st in enumerate(rl.method_steps(name), 1)]
+            body.append("## %s\n| # | Method step | Status | Where | Gap notes |\n|---|---|---|---|---|\n%s\n" % (s, "\n".join(rows)))
+            continue
         body.append("## %s\nFixture content [JUDGMENT]. Source: https://example.invalid/fixture-ar-2025.pdf\n" % s)
     return fm + "\n".join(body) + extra
 

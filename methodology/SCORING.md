@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
-<!-- METHODOLOGY_VERSION: 2.2.0 -->
-Methodology version **2.2.0** (adds quantitative anchor guides, layer-specific IA interpretation, investment policy inputs, position-risk and decision outputs; see `docs/FRAMEWORK_CHANGES.md`). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+<!-- METHODOLOGY_VERSION: 2.3.0 -->
+Methodology version **2.3.0** (IA4 asymmetry measured against the hurdle; explicit confidence rule with a gap-closure loop and a verdict-robustness test; one rounding rule; see `docs/FRAMEWORK_CHANGES.md`). 2.2.0 added the quantitative anchor guides, layer-specific IA interpretation, investment policy inputs, position-risk and decision outputs. Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -138,7 +138,7 @@ Definitions used below:
 **IA1 Margin of safety:** ≥40 % → 90–100; 25–40 % → 75–89; 10–25 % → 60–74; −10 to 10 % → 40–59; −30 to −10 % → 20–39; < −30 % → 0–19.
 **IA2 Expected return:** E[IRR] ≥ H+8 pp → 90–100; H+4 to H+8 → 75–89; H to H+4 → 60–74; H−4 to H → 40–59; 0 to H−4 → 20–39; < 0 → 0–19.
 **IA3 Permanent-loss risk:** P(loss) remote (<5 %) → 90–100; low (5–10 %) → 75–89; 10–20 % → 55–74; moderate (20–35 %) → 35–54; elevated/high (>35 %) → 0–34. Within a band, a larger loss in the failure case means a lower score.
-**IA4 Asymmetry** (probability-weighted upside ÷ probability-weighted downside): ≥3.0 → 90–100; 2.0–3.0 → 70–89; 1.2–2.0 → 50–69; 0.8–1.2 → 30–49; <0.8 → 0–29.
+**IA4 Asymmetry** (probability-weighted upside ÷ probability-weighted downside, **measured against the price compounded at the hurdle over the horizon**, so that an outcome which merely earns the passage of time is not counted as upside): ≥3.0 → 90–100; 2.0–3.0 → 70–89; 1.2–2.0 → 50–69; 0.8–1.2 → 30–49; <0.8 → 0–29. `valuation_tools.py` reports this ratio as `asymmetry_ratio` whenever the inputs carry `hurdle_rate`, and the undiscounted ratio separately for reference only.
 **IA5 Expectations gap** (from reverse valuation): price implies worse than the bear case → 90–100; between bear and base → 70–89; ≈ base → 50–69; between base and bull → 30–49; beyond the bull case → 0–29.
 **IA6 Value-realization path:** a compounding engine or hard catalyst visible within 3 years → 80–100; a probable catalyst or slower compounding → 55–79; soft or speculative → 30–54; none → 0–29.
 **IA7 Liquidity, dilution and exit:** liquid with no expected dilution → 90–100; minor dilution or liquidity friction → 60–89; material dilution expected or thin liquidity → 30–59; exit impractical or heavy dilution likely → 0–29.
@@ -175,13 +175,17 @@ The reference position defaults to `reference_position_inr` in the manifest (₹
 
 ## 4. Confidence (reported separately from each score)
 
-| Level | Criteria |
-|---|---|
-| High | ≥75 % of the material claims behind the score are tier 1–3 and reconciled; no unresolved material contradiction; key assumptions bounded by evidence |
-| Medium | 50–75 % primary support, or one unresolved material contradiction, or one key assumption with wide plausible range |
-| Low | <50 % primary support, several unresolved contradictions, or the score hinges on an assumption with weak evidence |
+Confidence measures **how far the evidence supports the score**. It is a property of the research, so it is earned by research and never raised by assertion. **The target for every complete run is High.** A score below High obliges the CIO to run the gap-closure loop (`cio.md` Stage 3) before scoring, and to say in the report which remaining uncertainty is **closable** (evidence that exists but was not obtained) and which is **irreducible** (forecasts, competitor conduct, the rate regime).
 
-Report a **judgment band** with each score (typically ±5 for High, ±8 for Medium, ±12 for Low confidence). This is the uncertainty of the judgment, not measurement precision. Report scores as integers.
+| Level | Criteria (all of them for High) |
+|---|---|
+| High | (a) ≥75 % of the material claims behind the score are tier 1–3 and reconciled; (b) no unresolved material contradiction bearing on the score; (c) every closable gap in the specialists' Method Coverage Checklists that bears on the score has been re-attempted in a CIO follow-up (gap-closure loop) and is now closed or documented as unobtainable; (d) **IA:** `valuation_tools.py robustness` maps the same verdict across the default grid (base value ±15 %, 10 pp of probability moved to bear or bull, hurdle ±1 pp); **BQ:** every dimension stays inside its anchor band under the plausible alternative for its key assumption (the CIO states the alternative and the result) |
+| Medium | (a) is 50–75 %; or exactly one of (b)–(d) fails |
+| Low | <50 % primary support; or two or more of (b)–(d) fail; or the score hinges on an assumption with weak evidence |
+
+The report's *Confidence Assessment* section shows each criterion as met or not met, with its evidence.
+
+Report a **judgment band** with each score (typically ±5 for High, ±8 for Medium, ±12 for Low confidence). This is the uncertainty of the judgment, not measurement precision. Report scores as integers, rounded **half up** (`research_lib.round_half_up`, used by every tool and validator).
 
 ---
 

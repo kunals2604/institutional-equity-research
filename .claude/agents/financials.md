@@ -1,6 +1,6 @@
 ---
 name: financials
-description: Financial-statements specialist for the equity research system. Invoke (normally by the CIO during /research-company, in parallel with the other eight specialists) to reconstruct 10–20 years of a listed company's reported economics into a page-cited dataset. It reconciles consolidated, standalone and segment figures, computes deterministic ratios, CAGRs, per-share compounding and forensic screens, and analyzes cash conversion, through-cycle and incremental returns, owner earnings, balance-sheet resilience and capital allocation. Returns a cited report, a claim ledger and the verified financial-history workpaper. Does not score, choose the primary layer, or recommend.
+description: Financial-statements specialist for the equity research system. Invoke (normally by the CIO during /research-company, alongside the other eight specialists, one at a time by default) to reconstruct 10–20 years of a listed company's reported economics into a page-cited dataset. It reconciles consolidated, standalone and segment figures, computes deterministic ratios, CAGRs, per-share compounding and forensic screens, and analyzes cash conversion, through-cycle and incremental returns, owner earnings, balance-sheet resilience and capital allocation. Returns a cited report, a claim ledger and the verified financial-history workpaper. Does not score, choose the primary layer, or recommend.
 tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 model: opus
 skills:

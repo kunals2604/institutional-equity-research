@@ -1,5 +1,19 @@
 # Framework Change Log
 
+## v2.3.0 — 2026-10-17 — Lessons from the first full run (BHARTIARTL)
+
+| # | Change |
+|---|---|
+| 1 | **Method Coverage Checklist** in every specialist report: one row per numbered step of the agent's `## Method`, each Done / Partial / Not available / Not applicable with where it is covered and, if not done, what was tried. Validator-enforced (missing rows or statuses are errors). It makes coverage gaps visible, so they can be closed rather than discovered by the reader. |
+| 2 | **Gap-closure loop** (CIO Stage 2): every Partial / Not available step and every material missing-evidence item goes into `cio/gap_register.md`, is classified closable or irreducible, and closable gaps are sent back to the owning specialist before synthesis. |
+| 3 | **CIO compiles first, scores last:** Stage 3 is a fixed order: audit, contradiction log, follow-ups, **CIO independent analysis** (`cio/cio_analysis.md`: own reconstruction of the key numbers, base-rate check, cross-specialist tensions, what the specialists missed, the CIO's own view), then synthesis, layers and thesis disproof, and only then scoring. New report sections: CIO Independent Analysis and Confidence Assessment. |
+| 4 | **Deterministic scoring:** `build_scorecard.py` computes the scorecard from the CIO's judgments; `score_guides.py` computes the BQ1/BQ4/BQ5 guide bands. Single rounding rule: round half up (`research_lib.round_half_up`), in the builder, the validator and the price ladder. |
+| 5 | **Confidence criteria (SCORING.md §4):** High is the target and is earned by (a) ≥ 75 % tier 1–3 evidence, reconciled; (b) no unresolved material contradiction; (c) the gap-closure loop done; (d) robustness: the IA verdict is stable on the `valuation_tools.py robustness` grid (value ±15 %, probabilities ±10 pp, hurdle ±1 pp) and each BQ dimension stays in its anchor band under the plausible alternative. The report separates closable from irreducible uncertainty. |
+| 6 | **IA4 hurdle-adjusted:** asymmetry is measured against the price compounded at the hurdle over the horizon, not today's price (it was a documented CIO deviation in the BHARTIARTL run; now native). `scenario-build` and `event_uplifts` replace the run-specific scripts. |
+| 7 | **Sequential specialists by default** (`--parallel` optional): each specialist finishes and is validated before the next starts, with a `progress.md` checkpoint. Interruptions never justify reduced depth. |
+| 8 | **Robust retrieval:** `fetch_source.py` retries transient failures, falls back to curl (41 of 52 failed downloads in the first run were transient TLS errors under parallel load) and reuses documents already downloaded in the run. `corpus.py` recognises call transcripts whose headline lacks the word "transcript". |
+| 9 | **Version-aware, read-only re-validation:** `validate_run.py` judges a run by the contract of the methodology version in its manifest (the 2.3.0 checklist, sections and CIO files are not required of older runs), and never writes into a finalized run (`complete` or `insufficient_evidence`). The BHARTIARTL 2.2.0 run still passes, unchanged. |
+
 ## v2.2.2 — 2026-10-12 — Local corpus and web research at par; breadth floors
 
 | # | Change |

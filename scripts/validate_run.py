@@ -10,11 +10,16 @@
                       freshness, scorecard, final report, contradiction log,
                       QC record. Writes RUN_DIR/qc/auto_checks.json.
 
+A run is validated against the contract of the methodology version recorded in its manifest (checks added in
+2.3.0 are skipped for older runs). A finalized run (status complete or insufficient_evidence) is
+validated read-only: neither its manifest nor its QC files are rewritten.
+
 Exit code 0 only if there are no errors.
 """
 
 import argparse
 import datetime as dt
+import re
 import sys
 from pathlib import Path
 
@@ -24,7 +29,10 @@ import evidence_stats  # noqa: E402
 import reconcile_numbers  # noqa: E402
 
 
-def check_specialists(run_dir: Path, manifest: dict, results: list) -> set:
+FINALIZED = ("complete", "insufficient_evidence")  # qc_failed stays writable: it is fixed and re-validated
+
+
+def check_specialists(run_dir: Path, manifest: dict, results: list, legacy: bool = False) -> set:
     all_ids = set()
     expected = {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")}
     for name, prefix in rl.SPECIALISTS.items():
@@ -32,7 +40,7 @@ def check_specialists(run_dir: Path, manifest: dict, results: list) -> set:
         ledger = run_dir / "specialists" / ("%s_ledger.csv" % name)
         lres, ids = rl.validate_ledger(ledger, prefix)
         all_ids |= ids
-        rres = rl.validate_specialist_report(report, ids, expected)
+        rres = rl.validate_specialist_report(report, ids, expected, legacy=legacy)
         results.extend([lres, rres])
         entry = manifest.setdefault("specialists", {}).setdefault(name, {})
         if not report.exists() or not ledger.exists():
@@ -65,7 +73,14 @@ def main(argv=None) -> int:
         return 1
     manifest = rl.load_json(mpath)
     results = []
-    ids = check_specialists(run_dir, manifest, results)
+    legacy = rl.is_legacy(manifest.get("methodology_version"))
+    read_only = manifest.get("status") in FINALIZED
+    if legacy:
+        print("note: run recorded under methodology %s; validating against that contract (2.3.0 additions skipped)"
+              % manifest.get("methodology_version"))
+    if read_only:
+        print("note: run is finalized (status %s); validating read-only, nothing in the run is written" % manifest.get("status"))
+    ids = check_specialists(run_dir, manifest, results, legacy)
 
     if a.stage == "specialists":
         check_followups(run_dir, ids | rl.validate_ledger(run_dir / "cio" / "cio_ledger.csv")[1], results)
@@ -99,11 +114,12 @@ def main(argv=None) -> int:
             missing = rl.Result(str(sc_path))
             missing.error("scorecard.json missing")
             results.append(missing)
-        results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids))
+        results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids, legacy=legacy))
         # Evidence statistics (warnings) and cross-ledger numeric conflicts (must be adjudicated).
-        (run_dir / "qc").mkdir(exist_ok=True)
         stats = evidence_stats.compute(run_dir)
-        rl.write_json(run_dir / "qc" / "evidence_stats.json", stats)
+        if not read_only:
+            (run_dir / "qc").mkdir(exist_ok=True)
+            rl.write_json(run_dir / "qc" / "evidence_stats.json", stats)
         sres = rl.Result(str(run_dir / "qc" / "evidence_stats.json"))
         for w in stats["warnings"]:
             sres.warn(w)
@@ -118,13 +134,18 @@ def main(argv=None) -> int:
                 cres2.error("unadjudicated numeric conflict: %s %s %s..%s (%s) — cite these claim IDs in cio/contradiction_log.md"
                             % (c["metric"], c["period"], c["min"], c["max"], c["claim_ids"]))
         results.append(cres2)
-        for rel in ("cio/contradiction_log.md", rl.QC_RECORD):
+        files = ["cio/contradiction_log.md"] + ([] if legacy else list(rl.V23_CIO_FILES)) + [rl.QC_RECORD]
+        for rel in files:
             fp = run_dir / rel
             r = rl.Result(str(fp))
             if not fp.exists():
                 r.error("missing")
             elif rel.endswith("contradiction_log.md") and "<question>" in fp.read_text(encoding="utf-8"):
                 r.warn("contradiction log still contains the template placeholder block")
+            elif rel.endswith("gap_register.md") and not re.search(r"^\|\s*\d+\s*\|", fp.read_text(encoding="utf-8"), re.M):
+                r.warn("gap register has no rows: list every checklist gap and how it was closed, or state that none existed")
+            elif rel.endswith("cio_analysis.md") and len(fp.read_text(encoding="utf-8").split()) < 400:
+                r.warn("CIO independent analysis looks like the unfilled template (< 400 words)")
             results.append(r)
 
     errors = sum(len(r.errors) for r in results)
@@ -136,6 +157,8 @@ def main(argv=None) -> int:
     print("\n%s stage: %s  (%d errors, %d warnings, %d targets)"
           % (a.stage, "PASS" if passed else "FAIL", errors, warnings, len(results)))
 
+    if read_only:
+        return 0 if passed else 1
     manifest["status"] = {
         ("specialists", True): "specialists_complete",
         ("specialists", False): "specialists_incomplete",

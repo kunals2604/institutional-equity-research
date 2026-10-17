@@ -19,6 +19,7 @@ Standard library only; Python 3.9 compatible.
 import csv
 import datetime as dt
 import json
+import math
 import re
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -247,9 +248,76 @@ def agent_sections(agent: str) -> List[str]:
     return read_block(AGENTS_DIR / ("%s.md" % agent), "REQUIRED_SECTIONS")
 
 
+def round_half_up(x: float) -> int:
+    """The single rounding rule for every score in the system (0.5 rounds up; float noise ignored).
+    Python's built-in round() is banker's rounding, so 60.5 -> 60; scores must not depend on that."""
+    return int(math.floor(float(x) + 0.5 + 1e-9))
+
+
+CHECKLIST_SECTION = "Method Coverage Checklist"
+CHECKLIST_STATUSES = ("done", "partial", "not available", "not applicable")
+
+
+def method_steps(agent: str) -> List[str]:
+    """Top-level numbered steps of the '## Method' section of an agent definition (nested lists ignored)."""
+    path = AGENTS_DIR / ("%s.md" % agent)
+    if not path.exists():
+        return []
+    text = path.read_text(encoding="utf-8")
+    m = re.search(r"^## Method\s*$(.*?)(?=^## )", text, re.M | re.S)
+    if not m:
+        return []
+    out = []
+    for _, t in re.findall(r"^(\d+)\.\s+(.*)$", m.group(1), re.M):
+        b = re.match(r"\*\*(.+?)\*\*", t)
+        out.append((b.group(1) if b else t[:60]).strip().rstrip(".:"))
+    return out
+
+
+def check_method_checklist(agent: str, text: str, res: "Result") -> None:
+    """Every numbered method step of the agent definition must appear as a row of the Method Coverage Checklist,
+    with a status (Done | Partial | Not available | Not applicable); Partial / Not available rows must say what was
+    tried and why it fell short. This makes silent omissions impossible."""
+    steps = method_steps(agent)
+    body = section(text, CHECKLIST_SECTION)
+    if body is None or not steps:
+        return
+    rows = [l.strip() for l in body.splitlines() if l.strip().startswith("|")]
+    rows = [r for r in rows if not re.match(r"^\|\s*:?-{2,}", r)]
+    data = rows[1:] if rows else []
+    if len(data) < len(steps):
+        res.error("%s: %d rows but the agent definition has %d method steps (one row per step)"
+                  % (CHECKLIST_SECTION, len(data), len(steps)))
+    for r in data:
+        cells = [c.strip() for c in r.strip("|").split("|")]
+        low = " ".join(cells).lower()
+        status = next((st for st in CHECKLIST_STATUSES if re.search(r"\b%s\b" % st, low)), None)
+        if status is None:
+            res.error("%s row without a status (Done | Partial | Not available | Not applicable): %s" % (CHECKLIST_SECTION, r[:80]))
+        elif status in ("partial", "not available") and (len(cells) < 2 or cells[-1] in ("", "-", "—", "n/a")):
+            res.warn("%s: '%s' row must say what was tried and why it fell short (last column)" % (CHECKLIST_SECTION, cells[0][:50]))
+
+
 def methodology_version() -> str:
     m = re.search(r"<!--\s*METHODOLOGY_VERSION:\s*([\w.\-]+)\s*-->", SCORING.read_text(encoding="utf-8"))
     return m.group(1) if m else "unversioned"
+
+
+# Contract additions of methodology 2.3.0. Runs recorded under an earlier version are validated without them,
+# so a legacy run is judged by the contract it was produced under.
+V23 = (2, 3, 0)
+V23_FINAL_SECTIONS = ("CIO Independent Analysis", "Confidence Assessment")
+V23_CIO_FILES = ("cio/gap_register.md", "cio/cio_analysis.md")
+
+
+def version_tuple(v: Optional[str]) -> tuple:
+    nums = re.findall(r"\d+", str(v or ""))
+    return tuple(int(x) for x in nums[:3]) if nums else (0,)
+
+
+def is_legacy(run_version: Optional[str]) -> bool:
+    """True when a run was produced under a methodology older than 2.3.0."""
+    return version_tuple(run_version) < V23
 
 
 def _parse_table_block(path: Path, name: str) -> List[List[str]]:
@@ -567,7 +635,7 @@ FINAL_FM = ("company", "ticker", "exchange", "run_id", "as_of_date", "research_c
 
 
 def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None,
-                               expected: Optional[dict] = None, followup: bool = False) -> Result:
+                               expected: Optional[dict] = None, followup: bool = False, legacy: bool = False) -> Result:
     res = Result(str(path))
     if not path.exists():
         res.error("Report missing")
@@ -589,10 +657,13 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     if fm.get("report_status") == "partial":
         res.warn("Report status is partial")
     if not followup:
-        required = common_head() + (agent_sections(name) if name in SPECIALISTS else []) + common_tail()
+        tail = [t for t in common_tail() if not (legacy and t == CHECKLIST_SECTION)]
+        required = common_head() + (agent_sections(name) if name in SPECIALISTS else []) + tail
         check_sections(text, required, res)
         check_crosswalk(text, res)
         check_coverage(name, text, fm, res)
+        if name in SPECIALISTS and not legacy:
+            check_method_checklist(name, text, res)
     allowed = {SPECIALISTS[name], CIO_PREFIX} if (name in SPECIALISTS and not followup) else None
     if ledger_ids is not None:
         # Specialists may cite the CIO's preflight claims (e.g. price CIO-C001).
@@ -638,7 +709,7 @@ def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result) -> Non
             res.warn(msg)
 
 
-def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Optional[Set[str]]) -> Result:
+def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Optional[Set[str]], legacy: bool = False) -> Result:
     res = Result(str(path))
     if not path.exists():
         res.error("Final report missing")
@@ -648,7 +719,7 @@ def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Opt
     for k in FINAL_FM:
         if not fm.get(k):
             res.error("Front matter missing '%s'" % k)
-    check_sections(text, agent_sections("cio"), res)
+    check_sections(text, [s for s in agent_sections("cio") if not (legacy and s in V23_FINAL_SECTIONS)], res)
     insufficient = fm.get("assessment_status") == "insufficient_evidence"
     layers = canonical_layers()
     body = section(text, FINAL_LAYER_SECTION) or ""
@@ -920,7 +991,7 @@ def validate_scorecard(path: Path) -> Result:
         if unknown:
             res.error("%s: unknown gates %s" % (key, sorted(unknown)))
         caps = [gate_table[g][1] for g in hit if g in gate_table and gate_table[g][1] is not None]
-        expected_final = min([int(round(raw))] + caps)
+        expected_final = min([round_half_up(raw)] + caps)
         final = block.get("final")
         if final != expected_final:
             res.error("%s final %r but rounded weighted score with gates = %d" % (key, final, expected_final))
