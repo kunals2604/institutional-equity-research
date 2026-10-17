@@ -1,0 +1,4 @@
+Dataset OK: 534 data points, 16 fiscal years (FY2011..FY2026), 374 verified against tier-1/2.
+note: cagr_pat_attributable_5y not computed: non-positive endpoint
+note: cagr_eps_5y not computed: non-positive endpoint
+Wrote 609 metric values to research/companies/BHARTIARTL/runs/20261012T132311Z/calc/cio_recompute/fin_metrics_recompute.csv

@@ -1,0 +1,64 @@
+{
+  "_comment": "CIO revised scenario set (Stage-3 adjudication): base includes one realised tariff round in year 2 (BEAR-C084/C085); bear (no round) and bull (two rounds) unchanged; horizon convention as valuation_build_scenarios.py.",
+  "_sources": {
+    "value_today": "base: calc/cio_base_one_round.out; bear/bull: VAL-C045, VAL-C046",
+    "ke/hurdle": "CIO-C052",
+    "dps": "VAL-C047",
+    "price": "CIO-C001",
+    "probabilities": "VAL-C047"
+  },
+  "price": 1778.7,
+  "horizon_years": 5,
+  "hurdle_rate": 0.116796,
+  "intrinsic_value_today": {
+    "low": 1306,
+    "high": 1509
+  },
+  "scenarios": {
+    "bear": {
+      "probability": 0.2,
+      "value_per_share": [
+        938,
+        1216
+      ],
+      "dps": [
+        24.0,
+        24.0
+      ],
+      "value_today": [
+        627.0,
+        787.0
+      ]
+    },
+    "base": {
+      "probability": 0.55,
+      "value_per_share": [
+        2048,
+        2401
+      ],
+      "dps": [
+        27.0,
+        45.0
+      ],
+      "value_today": [
+        1306,
+        1509
+      ]
+    },
+    "bull": {
+      "probability": 0.25,
+      "value_per_share": [
+        2680,
+        3432
+      ],
+      "dps": [
+        29.0,
+        55.0
+      ],
+      "value_today": [
+        1690.0,
+        2123.0
+      ]
+    }
+  }
+}

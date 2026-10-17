@@ -9,15 +9,15 @@
   "fiscal_year_end": "03-31",
   "research_cutoff": "2026-10-12",
   "started_at": "2026-10-12T13:23:11+00:00",
-  "completed_at": null,
-  "status": "specialists_complete",
-  "assessment_status": null,
+  "completed_at": "2026-10-17T08:50:24+00:00",
+  "status": "complete",
+  "assessment_status": "complete",
   "price": {
     "value": 1778.7,
     "timestamp": "NSE close 12-Oct-2026 (NSE CM bhavcopy, CIO-C001)",
     "claim_id": "CIO-C001"
   },
-  "hurdle_rate": null,
+  "hurdle_rate": 0.116796,
   "reference_position": 5000000.0,
   "investment_policy": {
     "_purpose": "Investment Policy Statement (IPS) used by every research run; snapshotted into run_manifest.json. None of these values limit research depth - research is always as deep as the evidence allows.",
@@ -337,6 +337,11 @@
           "stage": "1-resume-4",
           "purpose": "continue after fourth API session-limit interruption",
           "at": "2026-10-14T05:17:32+00:00"
+        },
+        {
+          "stage": "3",
+          "purpose": "symmetric adversarial review of CIO draft conclusion (draft verdict AVOID)",
+          "at": "2026-10-17T08:25:11+00:00"
         }
       ]
     },
@@ -419,12 +424,29 @@
     {
       "at": "2026-10-17T08:07:55+00:00",
       "text": "Validated by CIO on return: moat PASS (2 tier-6 warnings), financials PASS (0/0), special-situations PASS (0/0), management PASS. Post-cutoff source_date scan: only specialists' own calculation dates (13-14 Oct), no post-cutoff market information. Independence note: management read the FY2026 annual report from moat's _cache copy (source document only, SHA-256 logged), not moat's analysis; accepted."
+    },
+    {
+      "at": "2026-10-17T08:50:31+00:00",
+      "text": "Hurdle adopted = cost of equity 11.68% (CIO-C052). Stage 3 adversarial review (bear-case follow-up 1) revised base to include one tariff round (CIO-C056); verdict unchanged AVOID (IA 35->38)."
     }
   ],
   "status_history": [
     {
       "status": "specialists_running",
       "at": "2026-10-12T13:28:04+00:00"
+    },
+    {
+      "status": "synthesis",
+      "at": "2026-10-17T08:09:40+00:00"
+    },
+    {
+      "status": "synthesis",
+      "at": "2026-10-17T08:49:34+00:00"
+    },
+    {
+      "status": "complete",
+      "at": "2026-10-17T08:50:24+00:00",
+      "reason": "all QC gates passed"
     }
   ]
 }

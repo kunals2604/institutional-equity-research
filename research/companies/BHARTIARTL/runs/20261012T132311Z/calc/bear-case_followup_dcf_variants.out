@@ -1,0 +1,37 @@
+price 1778.7
+
+V0 draft base
+  WACC 0.1103; value/share INR 1,215; terminal share 56%; exit EV/EBIT 8.2x
+  MoS -46.5%; E[IRR] 4.3% vs hurdle 11.68%; hurdle-adj asymmetry 0.05; IA1 15 IA2 31 IA4 2 -> IA 35.0
+
+V1 rf normalised to 6.90% (Apr-2026 level) -> Ke 11.19%
+  WACC 0.1060; value/share INR 1,341; terminal share 59%; exit EV/EBIT 8.8x
+  MoS -32.6%; E[IRR] 4.9% vs hurdle 11.19%; hurdle-adj asymmetry 0.05; IA1 18 IA2 33 IA4 2 -> IA 36.5
+
+V2 base + one realised +8% mobile round in year 2 (consolidated +4.3%)
+  WACC 0.1103; value/share INR 1,378; terminal share 56%; exit EV/EBIT 8.2x
+  MoS -29.1%; E[IRR] 5.7% vs hurdle 11.68%; hurdle-adj asymmetry 0.06; IA1 21 IA2 34 IA4 2 -> IA 37.4
+
+V3 base + two rounds (years 2 and 5)
+  WACC 0.1103; value/share INR 1,519; terminal share 57%; exit EV/EBIT 8.2x
+  MoS -17.1%; E[IRR] 6.9% vs hurdle 11.68%; hurdle-adj asymmetry 0.07; IA1 32 IA2 37 IA4 2 -> IA 40.8
+
+V4 = V3 + V1
+  WACC 0.1060; value/share INR 1,672; terminal share 60%; exit EV/EBIT 8.8x
+  MoS -6.4%; E[IRR] 7.7% vs hurdle 11.19%; hurdle-adj asymmetry 0.09; IA1 43 IA2 42 IA4 3 -> IA 44.7
+
+V5 = V4 + tax 25.17% (draft WACC tax input) instead of 27%
+  WACC 0.1060; value/share INR 1,730; terminal share 59%; exit EV/EBIT 9.0x
+  MoS -2.8%; E[IRR] 8.1% vs hurdle 11.19%; hurdle-adj asymmetry 0.10; IA1 47 IA2 44 IA4 4 -> IA 46.0
+
+V6 (bear-side check) base with sales-to-capital 1.0 (approx. FY2021-26 incremental)
+  WACC 0.1103; value/share INR 1,110; terminal share 60%; exit EV/EBIT 8.2x
+  MoS -60.2%; E[IRR] 3.3% vs hurdle 11.68%; hurdle-adj asymmetry 0.04; IA1 11 IA2 28 IA4 2 -> IA 33.6
+
+== Probability-weight test on draft values (bear/base/bull unchanged), draft Ke
+  probs (0.2, 0.55, 0.25): E[IRR] 4.5%; asym 0.05; IA 35.4
+  probs (0.15, 0.5, 0.35): E[IRR] 6.0%; asym 0.08; IA 36.2
+  probs (0.1, 0.45, 0.45): E[IRR] 7.4%; asym 0.13; IA 37.1
+
+== Draft IA check (should reproduce ~35.5)
+  MoS -43.0% E[IRR] 4.5% asym 0.05 IA 35.4

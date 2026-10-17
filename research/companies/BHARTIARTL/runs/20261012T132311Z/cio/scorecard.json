@@ -1,0 +1,457 @@
+{
+  "run_id": "20261012T132311Z",
+  "ticker": "BHARTIARTL",
+  "company": "Bharti Airtel Limited",
+  "exchange": "NSE",
+  "currency": "INR",
+  "research_cutoff": "2026-10-12",
+  "price": {
+    "value": 1778.7,
+    "timestamp": "NSE close 12-Oct-2026 (NSE CM bhavcopy)",
+    "claim_id": "CIO-C001"
+  },
+  "as_of_date": "2026-10-12",
+  "assessment_status": "complete",
+  "insufficient_evidence_reason": null,
+  "hurdle_rate": 0.116796,
+  "classifications": {
+    "reporting_reliability": "Generally reliable",
+    "governance": "Clean / Standard"
+  },
+  "layer_fit": {
+    "L1": {
+      "score": 52,
+      "rationale": "Mechanism present but unproven over a cycle: ROIC 13.9% now (3 years above WACC) vs a 7.1% 10-year median; a rational three-player structure supplies the barrier, but it failed once against Jio and is shared; CAP 5-10 years; per-share compounding moderate (revenue/share 4.4% a year, BVPS 4.7%).",
+      "confidence": "Medium"
+    },
+    "L2": {
+      "score": 30,
+      "rationale": "Core India mobile is volume-saturated; 10-year revenue CAGR 8.1% (16% over 5 years from a trough, partly inorganic and FX); high-growth pockets (homes, data centres, Africa) are small or FX-exposed.",
+      "confidence": "Medium"
+    },
+    "L3": {
+      "score": 44,
+      "rationale": "A real pricing-cycle mechanism (three industry repairs, each +14-16% ARPU with ~90% flow-through; management says INR 300 ARPU is needed for adequate returns) but undated, Soft and partly priced, from a mid-cycle base with record margins; turnaround complete; SOTP gap immaterial.",
+      "confidence": "Medium"
+    },
+    "L4": {
+      "score": 12,
+      "rationale": "Options (data centres, NBFC, Airtel Money) are worth roughly INR 29-66 a share against INR 1,779 and are shared with minorities and the promoter; the outcome distribution is not venture-shaped.",
+      "confidence": "High"
+    }
+  },
+  "primary_layer": "Layer 1 — Bedrock Compounder",
+  "secondary_layers": [
+    "Layer 3 — Cyclical / Event-Driven Opportunity"
+  ],
+  "hybrid": false,
+  "layer_price_assessments": {
+    "L1": {
+      "applicable": true,
+      "assessment": "Long-duration FCFF DCF at an 11.03% WACC with one tariff round gives INR 1,306-1,509 (point 1,378); the price implies 14.4% revenue growth for 10 years or a ~9.9% cost of equity, i.e. a CAP beyond the 5-10 years the evidence supports. E[IRR] 6.2%; if the 10.9x multiple holds, ~hurdle.",
+      "value_per_share_range": [
+        1306,
+        1509
+      ],
+      "e_irr_5y": 0.062
+    },
+    "L2": {
+      "applicable": false,
+      "assessment": "",
+      "value_per_share_range": null,
+      "e_irr_5y": null
+    },
+    "L3": {
+      "applicable": true,
+      "assessment": "The base already carries one round; with two rounds (years 2 and 5) the DCF point is INR 1,519, still 17% below the price. Earnings floor at trough multiples INR 915-1,113 (stress 685-853). No measurable normalisation gap the market is missing.",
+      "value_per_share_range": [
+        1306,
+        1519
+      ],
+      "e_irr_5y": null
+    },
+    "L4": {
+      "applicable": false,
+      "assessment": "",
+      "value_per_share_range": null,
+      "e_irr_5y": null
+    }
+  },
+  "business_quality": {
+    "dimensions": [
+      {
+        "id": "BQ1",
+        "score": 44,
+        "rationale": "Through-cycle returns are below the cost of capital: 10-year median ROIC 7.1% (constant tax) / 8.2% (reported tax) vs 11.03% WACC, a -2.8 to -3.9 pp spread (guide band 30-44); only FY2026 clears WACC on a constant-tax basis. Scored at the top of the band because ROIC reached 13.9% in FY2026 and incremental ROIC on capital added since FY2021 is 23-28%, partly a recovery from a depressed base.",
+        "claim_ids": [
+          "FIN-C024",
+          "FIN-C025",
+          "FIN-C022",
+          "MOAT-C007",
+          "CIO-C051",
+          "CIO-C052"
+        ]
+      },
+      {
+        "id": "BQ2",
+        "score": 62,
+        "rationale": "Narrow moat: an entry barrier from spectrum, network and capital in a consolidated three-private-player market (CR3 95.8%, HHI ~3,700), shared with Jio, plus a ~20% ARPU premium from customer mix. The barrier failed against a well-funded entrant in 2016 (India mobile segment result swung by -INR 18,508 cr). Airtel Business shows durable 18-25% segment returns. Industry now disciplined (three synchronised repairs).",
+        "claim_ids": [
+          "MOAT-C014",
+          "MOAT-C024",
+          "MOAT-C033",
+          "MOAT-C040",
+          "IND-C035",
+          "IND-C066",
+          "CIO-C046"
+        ]
+      },
+      {
+        "id": "BQ3",
+        "score": 58,
+        "rationale": "Reachable market about 2x revenue: India access AGR ~INR 2.9 lakh cr annualised, of which Airtel already holds 39.7%, plus homes, enterprise, data centres and Africa. India mobile volume is saturated; growth is ARPU-led (4-5% organic per management) and capex is rising into data centres, so reinvestment returns on new adjacencies are unproven.",
+        "claim_ids": [
+          "IND-C015",
+          "IND-C040",
+          "IND-C044",
+          "IND-C051",
+          "CON-C029",
+          "CON-C091",
+          "CIO-C040"
+        ]
+      },
+      {
+        "id": "BQ4",
+        "score": 72,
+        "rationale": "Quantitative guide gives 85-100 (10-year CFO/PAT 8.6x; FCF positive in 8 of 10 years), deviated one band down with reason: after spectrum, lease principal and interest, equity FCF was only 0.23x PAT over 10 years and 0.72x over 5; recurring 'exceptional' regulatory/FX charges equal 0.88x cumulative PAT; FY2025 headline PAT was ~48% one-offs. FY2026 equity FCF (INR 53,054 cr) is the first strong surplus.",
+        "claim_ids": [
+          "FIN-C030",
+          "FIN-C031",
+          "FIN-C032",
+          "FIN-C033",
+          "FIL-C033",
+          "FIL-C035",
+          "CIO-C055"
+        ]
+      },
+      {
+        "id": "BQ5",
+        "score": 70,
+        "rationale": "Net debt/EBITDA 0.79x (1.40x incl. leases; 1.29x company basis), AAA/Stable domestic rating; guide band 75-89, one band down because interest coverage was 0.42x at the FY2019 trough and survival then required INR 39,181 cr of new equity. Debt is mostly fixed-rate, long-dated DoT instalments; 24-month maturities covered 0.86x by liquid resources.",
+        "claim_ids": [
+          "FIN-C026",
+          "FIN-C027",
+          "FIN-C041",
+          "FIN-C016",
+          "FIL-C044",
+          "CIO-C039",
+          "CIO-C044"
+        ]
+      },
+      {
+        "id": "BQ6",
+        "score": 66,
+        "rationale": "Operational competence high (price war, AGR shock and 4G/5G executed; planned CEO succession), balance-sheet and dividend promises 6/6 delivered. Offsets: capex guidance overruns (median +18.6% since FY2023; 5G 'capex-neutral' claim failed), 56% share-count dilution since FY2016 to fund the trough, value-unlocking announcements withdrawn.",
+        "claim_ids": [
+          "MGT-C003",
+          "MGT-C042",
+          "CON-C200",
+          "CON-C202",
+          "CON-C204",
+          "CON-C019",
+          "SPS-C014"
+        ]
+      },
+      {
+        "id": "BQ7",
+        "score": 74,
+        "rationale": "Reporting generally reliable (unmodified audit opinions FY2017-FY2026, auditor rotation on statutory limits); governance Clean/Standard: independent audit and nomination committees, zero promoter pledges in 39 quarters. Prevents higher: the ICIL/Airtel Africa related-party swap with an unresolved corporate-opportunity question, ICIL treated as not related under Ind AS 24, the Chairman's two-company pay, holdco reliance on Airtel dividends, the 2018 Payments Bank KYC penalty.",
+        "claim_ids": [
+          "FIL-C001",
+          "FIL-C042",
+          "FIL-C022",
+          "FIL-C048",
+          "MGT-C025",
+          "MGT-C056",
+          "MGT-C057",
+          "MGT-C054"
+        ]
+      },
+      {
+        "id": "BQ8",
+        "score": 45,
+        "rationale": "Several material exposures: regulatory discretion (AGR, spectrum pricing, recurring levy re-assessments, state support for Vodafone Idea, political salience of tariffs); Africa FX and country risk now ~79% owned; founder-succession key-person risk; satellite and FWA at the edges.",
+        "claim_ids": [
+          "FIL-C058",
+          "FIL-C060",
+          "IND-C063",
+          "CIO-C037",
+          "MGT-C030",
+          "IND-C068"
+        ]
+      }
+    ],
+    "weighted_raw": 60.5,
+    "gates_triggered": [],
+    "final": 61,
+    "confidence": "Medium",
+    "band": 8,
+    "prevents_higher": "Through-cycle returns below the cost of capital (10-year median ROIC ~7-8% vs 11.03% WACC); a moat shared with Jio that failed once against a well-funded entrant; heavy per-share dilution in the last decade.",
+    "could_lower": "A renewed price war or failed tariff discipline after the Jio IPO; capex staying above ~25% of revenue into data centres at sub-WACC returns; adverse regulatory re-assessments; an Africa devaluation.",
+    "evidence_to_change": "FY2027 ROIC vs WACC; whether a tariff round arrives and holds; FY2027 capex and data-centre returns; ICIL swap documents."
+  },
+  "investment_attractiveness": {
+    "dimensions": [
+      {
+        "id": "IA1",
+        "score": 23,
+        "rationale": "Revised base value (one tariff round in year 2, adopted after the adversarial review) INR 1,306-1,509, midpoint 1,407.5, vs price INR 1,778.70: margin of safety -26%; tool anchor, no deviation. Draft base (no round) was -43%.",
+        "claim_ids": [
+          "CIO-C056",
+          "CIO-C057",
+          "BEAR-C085",
+          "CIO-C001"
+        ]
+      },
+      {
+        "id": "IA2",
+        "score": 35,
+        "rationale": "E[IRR] 6.2% over 5 years on the revised scenario set vs an 11.68% hurdle (band 0 to H-4); tool anchor, no deviation. Cross-checks: return decomposition ~8%; if today's 10.9x multiple holds, ~10-14% (CIO-C059), i.e. at best about the hurdle.",
+        "claim_ids": [
+          "CIO-C057",
+          "VAL-C048",
+          "CIO-C059",
+          "CIO-C052"
+        ]
+      },
+      {
+        "id": "IA3",
+        "score": 58,
+        "rationale": "P(permanent loss >=30% over 5 years) in the 10-20% part of the low band: needs a competitive reset (once-a-decade base rate) or a valuation bear case (20% probability, -33% to -41% incl. dividends). Lower within band because the failure-case loss is large.",
+        "claim_ids": [
+          "BEAR-C058",
+          "BEAR-C060",
+          "VAL-C050",
+          "MOAT-C014"
+        ]
+      },
+      {
+        "id": "IA4",
+        "score": 2,
+        "rationale": "DEVIATION from the tool (99): the tool compares undiscounted 5-year horizon values with today's price, so even the over-priced base case counts as upside. Measured against the price compounded at the hurdle, the probability-weighted excess/shortfall is 0.06 on the revised set (CIO-C057; VAL-C050 on the draft set); anchor band <0.8 interpolates to 2 (calc/cio_price_ladder_hurdle_adj.py). The adversarial review independently judged the deviation economically correct (BEAR-C090).",
+        "claim_ids": [
+          "CIO-C057",
+          "VAL-C050",
+          "BEAR-C090",
+          "CIO-C054"
+        ]
+      },
+      {
+        "id": "IA5",
+        "score": 30,
+        "rationale": "Reverse DCF: the price needs 14.4% revenue growth for 10 years, a 51.9% EBIT margin, or a 9.5% WACC; on the bull operating set the implied WACC is 11.3%, about the run's WACC. The price embeds roughly the bull case (band boundary 30).",
+        "claim_ids": [
+          "VAL-C042",
+          "VAL-C052",
+          "VAL-C046"
+        ]
+      },
+      {
+        "id": "IA6",
+        "score": 58,
+        "rationale": "A visible compounding engine (FY2026 equity FCF INR 53,054 cr; DPS INR 24, +50%) but the value-moving catalyst, a tariff round, is Soft, undated and partly priced (2024 round drew a -1.9% excess move).",
+        "claim_ids": [
+          "FIN-C032",
+          "SPS-C088",
+          "SPS-C086",
+          "SPS-C080"
+        ]
+      },
+      {
+        "id": "IA7",
+        "score": 80,
+        "rationale": "Liquid (90-session ADTV ~INR 1,209 cr; reference position exits in ~0.002 days; G5 not triggered). Minor dilution risk: a history of share-based transactions (ICIL swap 2.35% in Q1FY2027).",
+        "claim_ids": [
+          "CIO-C050",
+          "VAL-C013",
+          "CIO-C035",
+          "CIO-C036"
+        ]
+      },
+      {
+        "id": "IA8",
+        "score": 72,
+        "rationale": "Most material valuation inputs are primary and reconciled by the CIO (revenue base, net debt, shares, minorities via listed prices); the risk-free rate, ERP and beta rest on tier-5 sources, corroborated independently.",
+        "claim_ids": [
+          "CIO-C047",
+          "CIO-C048",
+          "CIO-C039",
+          "CIO-C049",
+          "VAL-C032"
+        ]
+      }
+    ],
+    "weighted_raw": 38.05,
+    "gates_triggered": [],
+    "final": 38,
+    "confidence": "Medium",
+    "band": 8,
+    "prevents_higher": "No margin of safety (-26% even with one tariff round in the base); E[IRR] 6.2% below an 11.68% hurdle and below the 7.38% 10-year G-Sec; the price embeds roughly the bull case and requires today's 10.9x multiple to hold just to earn about the hurdle.",
+    "could_lower": "Higher Indian rates; no tariff round through FY2028 with capex rising; a competitive reset; an Africa FX shock.",
+    "evidence_to_change": "A ~20-25% lower price (E[IRR] reaches the hurdle near INR 1,400); two tariff rounds within 24 months with no churn; evidence that capex intensity falls below 20% of revenue; a structurally lower Indian rate regime."
+  },
+  "scenarios": {
+    "bear": {
+      "probability": 0.2,
+      "value_per_share_range": [
+        627,
+        787
+      ],
+      "irr_5y": -0.079,
+      "drivers": "Tariff repair stalls; growth 9%->5%; EBIT margin flat ~32-33%; no excess return in the terminal value."
+    },
+    "base": {
+      "probability": 0.55,
+      "value_per_share_range": [
+        1306,
+        1509
+      ],
+      "irr_5y": 0.064,
+      "drivers": "Growth 12%->7% plus one realised tariff round in year 2 (+8% India mobile revenue); EBIT margin ~33.5%->37%+; terminal ROIC 14%; capex intensity elevated (sales-to-capital 1.5; at 1.0 the point falls to INR 1,266)."
+    },
+    "bull": {
+      "probability": 0.25,
+      "value_per_share_range": [
+        1690,
+        2123
+      ],
+      "irr_5y": 0.133,
+      "drivers": "Two tariff rounds plus adjacencies; growth 14%->8%; EBIT margin to 42%; terminal ROIC 18%."
+    }
+  },
+  "probability_weighted_value": 1392,
+  "expected_irr_5y": 0.062,
+  "valuation_status": "Expensive",
+  "mapped_verdict": "AVOID",
+  "verdict": "AVOID",
+  "override_reason": null,
+  "qc_status": "PASS",
+  "model": {
+    "requested": "opus",
+    "effective_cio": "claude-opus-5-5",
+    "subagents": "opus alias (frontmatter); per-subagent ID not exposed"
+  },
+  "coverage": {
+    "financial_years": 16,
+    "transcript_quarters": 40,
+    "valuation_history_years": 24,
+    "exception": "Annual reports before FY2017 not retrieved (IFRS Quarterly Report statements used for FY2011-FY2015, tier 3); Jio and Vodafone Idea 10-year margin history not retrieved; ICIL swap documents not retrieved."
+  },
+  "predictions": [
+    {
+      "id": "P1",
+      "statement": "An industry-wide headline Indian mobile tariff increase (entry/prepaid plan prices raised by >=10% by Airtel) is announced between 13-Oct-2026 and 30-Sep-2027",
+      "metric": "other:tariff_round_announced",
+      "due": "2027-09-30",
+      "probability": 0.35,
+      "claim_ids": [
+        "SPS-C071",
+        "SPS-C086",
+        "IND-C048",
+        "BEAR-C036"
+      ]
+    },
+    {
+      "id": "P2",
+      "statement": "FY2027 consolidated capex (company-reported) exceeds FY2026's INR 47,522 crore by more than 5% (i.e. > INR 49,898 crore)",
+      "metric": "capex",
+      "due": "2027-05-31",
+      "probability": 0.5,
+      "claim_ids": [
+        "CIO-C040",
+        "CON-C029",
+        "CON-C202"
+      ]
+    },
+    {
+      "id": "P3",
+      "statement": "India mobile ARPU reported for Q4FY2027 is at least INR 280",
+      "metric": "other:arpu_india_mobile",
+      "due": "2027-05-31",
+      "probability": 0.35,
+      "claim_ids": [
+        "CIO-C038",
+        "IND-C066",
+        "CON-C206"
+      ]
+    },
+    {
+      "id": "P4",
+      "statement": "Dividend per share recommended for FY2027 is at least INR 24",
+      "metric": "dps",
+      "due": "2027-05-31",
+      "probability": 0.85,
+      "claim_ids": [
+        "CON-C162",
+        "CON-C204",
+        "SPS-C088"
+      ]
+    },
+    {
+      "id": "P5",
+      "statement": "Bharti Group share of TRAI access-services AGR in QE Mar-2027 is at least 39.5%",
+      "metric": "market_share",
+      "due": "2027-07-31",
+      "probability": 0.75,
+      "claim_ids": [
+        "CIO-C046",
+        "IND-C034"
+      ]
+    },
+    {
+      "id": "P6",
+      "statement": "No equity issuance (rights, QIP, preferential or share swap) raising the fully paid share count by more than 1% between 13-Oct-2026 and 31-Mar-2028",
+      "metric": "share_count_change",
+      "due": "2028-03-31",
+      "probability": 0.75,
+      "claim_ids": [
+        "CIO-C002",
+        "CIO-C035",
+        "FIN-C036"
+      ]
+    },
+    {
+      "id": "P7",
+      "statement": "Consolidated net debt incl. leases to annualised EBITDA (company basis) is at or below 1.29x at 31-Mar-2027",
+      "metric": "other:net_debt_to_ebitda_company",
+      "due": "2027-05-31",
+      "probability": 0.55,
+      "claim_ids": [
+        "CIO-C039",
+        "CON-C154",
+        "CON-C029"
+      ]
+    }
+  ],
+  "decision_triggers": {
+    "buy_below": 1175.0,
+    "strong_buy_below": null,
+    "avoid_above": 1600.0,
+    "method": "CIO hurdle-adjusted ladder (calc/cio_price_ladder_hurdle_adj.py, step INR 25): IA1 and IA2 from valuation_tools.py anchors; IA4 from asymmetry measured against the price compounded at the 11.68% hurdle (documented deviation); IA3 and IA5-IA8 held at scorecard values. Scenario inputs calc/cio_scenarios_inputs.json (base revised to one tariff round, CIO-C056). The unadjusted tool ladder (calc/cio_price_ladder.json) gives buy_below 1,225 and avoid_above 1,975.",
+    "notes": "Hypothetical triggers, not limit orders. IA5 is also price-sensitive (at ~INR 1,400 the price implies about the base case, IA5 50-69), so the buy trigger is conservative; re-run if evidence changes."
+  },
+  "position_risk": {
+    "bear_case_loss_pct": 32.7,
+    "p_permanent_loss_band": "low",
+    "days_to_exit_reference_position": 0.0021,
+    "factor_exposures": [
+      "Indian interest rates / 10-year G-Sec (discount-rate sensitivity: +/-1 pp WACC moves base value -19%/+27%)",
+      "Indian mobile tariff conduct of Jio and Vodafone Idea (industry pricing cycle)",
+      "African currencies, notably the naira (Africa ~27% of revenue, ~79% owned)",
+      "Indian telecom regulation (AGR, spectrum, licence-fee levies)"
+    ],
+    "sizing_ceiling_pct": null,
+    "sizing_basis": "no ceiling: IPS risk limits not set (config/investment_policy.json); calc/cio_sizing.json"
+  },
+  "next_review_due": "2027-02-28"
+}

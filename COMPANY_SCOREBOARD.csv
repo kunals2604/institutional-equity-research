@@ -1,1 +1,2 @@
 company,ticker,exchange,assessment_date,latest_run_id,price,currency,price_timestamp,methodology_version,business_quality_score,investment_attractiveness_score
+Bharti Airtel Limited,BHARTIARTL,NSE,2026-10-12,20261012T132311Z,1778.7,INR,NSE close 12-Oct-2026 (NSE CM bhavcopy),2.2.0,61,38

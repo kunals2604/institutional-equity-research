@@ -1,0 +1,11 @@
+Weekly 2y: n=104 beta=0.89 R2=0.32 Blume-adjusted=0.92
+Weekly 5y: n=260 beta=0.83 R2=0.30 Blume-adjusted=0.88
+Weekly 10y: n=521 beta=0.77 R2=0.21 Blume-adjusted=0.85
+Monthly 5y: n=60 beta=0.80 R2=0.31 Blume-adjusted=0.87
+Monthly 10y: n=120 beta=0.77 R2=0.26 Blume-adjusted=0.85
+rf 7.39% beta 0.87 -> Ke 11.68%
+rf 7.39% beta 0.75 -> Ke 10.83%
+rf 7.39% beta 0.65 -> Ke 10.12%
+rf 6.90% beta 0.87 -> Ke 11.19%
+rf 6.90% beta 0.75 -> Ke 10.34%
+rf 6.90% beta 0.65 -> Ke 9.63%

@@ -1,0 +1,7 @@
+roic_reported_tax FY2017-26: [0.0494, 0.0406, None, None, None, 0.0669, 0.0899, 0.0824, 0.138, 0.1386]
+median_roic_10y=0.0824 spread_vs_wacc_pp=-2.78
+median_roic_const_tax_10y=0.0710 spread_pp=-3.93
+years_roic_const_tax_above_wacc=1 of 10
+fcf FY2017-26: [5976.9, 5327.9, -9407.3, -2588.1, 20947.4, 27616.7, 38786.1, 38846.7, 58652.3, 75515.4] positive_years=8
+cfo_to_pat_10y_cum=nan
+net_debt_to_ebitda_FY2026=0.788 interest_coverage_FY2026=3.11 interest_coverage_FY2019=0.42

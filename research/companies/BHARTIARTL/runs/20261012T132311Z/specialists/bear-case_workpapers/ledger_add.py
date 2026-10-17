@@ -4,7 +4,7 @@ import csv, json, sys, os
 COLS = ["claim_id","author","claim","tag","metric","value","unit","period","basis","source_title","source_issuer",
         "source_url_or_id","source_date","retrieved_date","locator","source_tier","primary","confidence",
         "corroborated_by","contradicted_by","formula_or_inputs","notes"]
-LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bear-case_ledger.csv")
+LEDGER = os.environ.get("BEAR_LEDGER") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bear-case_ledger.csv")
 rows = json.load(open(sys.argv[1]))
 existing = set()
 new = not os.path.exists(LEDGER)

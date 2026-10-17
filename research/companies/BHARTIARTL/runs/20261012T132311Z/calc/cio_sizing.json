@@ -1,0 +1,8 @@
+{
+  "bear_case_loss_pct": 32.70365997638725,
+  "days_to_exit_reference_position": 0.0020676536266644612,
+  "components": {},
+  "sizing_ceiling_pct": null,
+  "basis": "no ceiling: IPS risk limits not set (config/investment_policy.json)",
+  "policy_confirmed": true
+}

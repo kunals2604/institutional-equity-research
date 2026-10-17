@@ -1,44 +1,48 @@
 {
   "by_author": {
     "bear-case": {
-      "claims": 73,
+      "claims": 100,
       "tags": {
-        "FACT": 44,
-        "MANAGEMENT STATEMENT": 8,
-        "CALCULATION": 13,
-        "ESTIMATE": 7,
-        "INFERENCE": 1
+        "FACT": 51,
+        "CALCULATION": 28,
+        "INFERENCE": 3,
+        "MANAGEMENT STATEMENT": 9,
+        "ESTIMATE": 9
       },
       "tiers": {
-        "1": 37,
-        "3": 14,
-        "5": 6,
-        "6": 12,
-        "4": 4
+        "6": 16,
+        "5": 8,
+        "1": 56,
+        "3": 15,
+        "4": 5
       },
-      "primary_share": 0.7534246575342466,
-      "not_located_share": 0.0273972602739726,
-      "low_tier_fact_share": 0.18181818181818182,
+      "primary_share": 0.76,
+      "not_located_share": 0.02,
+      "low_tier_fact_share": 0.19607843137254902,
       "confidence": {
-        "H": 41,
-        "M": 25,
-        "L": 7
+        "M": 37,
+        "L": 12,
+        "H": 51
       }
     },
     "cio": {
-      "claims": 37,
+      "claims": 59,
       "tags": {
-        "FACT": 34,
-        "CALCULATION": 3
+        "FACT": 46,
+        "CALCULATION": 12,
+        "INFERENCE": 1
       },
       "tiers": {
-        "1": 37
+        "1": 55,
+        "2": 1,
+        "5": 3
       },
-      "primary_share": 1.0,
+      "primary_share": 0.9491525423728814,
       "not_located_share": 0.0,
       "low_tier_fact_share": 0.0,
       "confidence": {
-        "H": 37
+        "H": 54,
+        "M": 5
       }
     },
     "concalls": {
@@ -106,26 +110,26 @@
       }
     },
     "industry": {
-      "claims": 76,
+      "claims": 77,
       "tags": {
-        "FACT": 54,
+        "FACT": 55,
         "CALCULATION": 10,
         "MANAGEMENT STATEMENT": 10,
         "ESTIMATE": 2
       },
       "tiers": {
-        "2": 46,
+        "2": 47,
         "3": 16,
         "1": 5,
         "4": 8,
         "6": 1
       },
-      "primary_share": 0.9868421052631579,
+      "primary_share": 0.987012987012987,
       "not_located_share": 0.0,
-      "low_tier_fact_share": 0.018518518518518517,
+      "low_tier_fact_share": 0.01818181818181818,
       "confidence": {
         "M": 19,
-        "H": 55,
+        "H": 56,
         "L": 2
       }
     },
@@ -225,30 +229,30 @@
     }
   },
   "overall": {
-    "claims": 758,
+    "claims": 808,
     "tags": {
-      "FACT": 459,
-      "MANAGEMENT STATEMENT": 118,
-      "CALCULATION": 156,
-      "ESTIMATE": 20,
-      "INFERENCE": 1,
+      "FACT": 479,
+      "CALCULATION": 180,
+      "INFERENCE": 4,
+      "MANAGEMENT STATEMENT": 119,
+      "ESTIMATE": 22,
       "JUDGMENT": 4
     },
     "tiers": {
-      "1": 439,
-      "3": 77,
-      "5": 29,
-      "6": 40,
-      "4": 118,
-      "2": 55
+      "6": 44,
+      "5": 34,
+      "1": 476,
+      "3": 78,
+      "4": 119,
+      "2": 57
     },
-    "primary_share": 0.9089709762532981,
-    "not_located_share": 0.009234828496042216,
-    "low_tier_fact_share": 0.0784313725490196,
+    "primary_share": 0.9034653465346535,
+    "not_located_share": 0.008663366336633664,
+    "low_tier_fact_share": 0.07933194154488518,
     "confidence": {
-      "H": 554,
-      "M": 179,
-      "L": 25
+      "M": 196,
+      "L": 30,
+      "H": 582
     }
   },
   "thresholds": {

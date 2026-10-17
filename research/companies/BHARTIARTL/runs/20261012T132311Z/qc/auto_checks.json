@@ -1,0 +1,195 @@
+{
+  "run_id": "20261012T132311Z",
+  "checked_at": "2026-10-17T14:20:20",
+  "methodology_version": "2.2.0",
+  "passed": true,
+  "errors": 0,
+  "warnings": 13,
+  "results": [
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/financials_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/financials.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/filings_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        "row 50 (FIL-C049): FACT supported only by tier 6 source",
+        "row 60 (FIL-C059): FACT supported only by tier 6 source",
+        "row 67 (FIL-C066): FACT supported only by tier 6 source"
+      ]
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/filings.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/management_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/management.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/industry_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/industry.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/moat_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        "row 26 (MOAT-C025): FACT supported only by tier 6 source",
+        "row 57 (MOAT-C056): FACT supported only by tier 6 source"
+      ]
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/moat.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/concalls_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/concalls.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/valuation_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        "row 37 (VAL-C036): FACT supported only by tier 6 source",
+        "row 39 (VAL-C038): FACT supported only by tier 6 source",
+        "row 57 (VAL-C056): FACT supported only by tier 6 source"
+      ]
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/valuation.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/bear-case_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": [
+        "row 35 (BEAR-C034): FACT supported only by tier 6 source",
+        "row 65 (BEAR-C064): FACT supported only by tier 6 source",
+        "row 66 (BEAR-C065): FACT supported only by tier 6 source",
+        "row 67 (BEAR-C066): FACT supported only by tier 6 source",
+        "row 68 (BEAR-C067): FACT supported only by tier 6 source"
+      ]
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/bear-case.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/special-situations_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/special-situations.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/bear-case_followup_1_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/cio/cio_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/specialists/bear-case_followup_1.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/evidence_ledger.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/cio/scorecard.json",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/cio/final_report.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/qc/evidence_stats.json",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/qc/numeric_conflicts.csv",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/cio/contradiction_log.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "target": "research/companies/BHARTIARTL/runs/20261012T132311Z/cio/quality_control.md",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    }
+  ]
+}

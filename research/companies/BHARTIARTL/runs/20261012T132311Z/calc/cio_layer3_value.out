@@ -1,0 +1,3 @@
+one_round_base lo=1306 point=1378 hi=1509; price premium to point=0.291
+two_rounds_point=1519; price premium=0.171
+floor_trough_multiple=915-1113; stress=685-853 (SPS-C082)

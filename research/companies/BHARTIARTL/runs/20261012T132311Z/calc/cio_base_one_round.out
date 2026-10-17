@@ -1,0 +1,10 @@
+{
+  "lo_draft": 1144.6,
+  "lo_one_round": 1305.7,
+  "point_draft": 1214.5,
+  "point_one_round": 1377.8,
+  "hi_draft": 1342.3,
+  "hi_one_round": 1509.2,
+  "point_one_round_stc_1.0": 1265.6
+}
+base_today [1306, 1509] base_horizon [2048, 2401]
