@@ -1,0 +1,9 @@
+{
+  "solve_for": "margin",
+  "implied_value": 0.5193595230579376,
+  "meaning": "EBIT margin reached by the final explicit year (linear path from the current margin)",
+  "implied_final_year_revenue": 5447534.053678833,
+  "implied_final_year_nopat": 2065336.942211174,
+  "check_value_per_share": 1778.7000319432268,
+  "price": 1778.7
+}

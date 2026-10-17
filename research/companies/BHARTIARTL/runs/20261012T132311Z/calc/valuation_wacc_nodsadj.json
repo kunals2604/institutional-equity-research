@@ -1,0 +1,7 @@
+{
+  "cost_of_equity": 0.135496,
+  "cost_of_debt_after_tax": 0.059864,
+  "debt_weight": 0.1142,
+  "wacc": 0.1268588256,
+  "formula": "Ke = rf + beta*ERP + premium; WACC = Ke*(1-wd) + Kd*(1-t)*wd"
+}

@@ -1,0 +1,61 @@
+== 1. Market value and trailing multiples
+Market cap INR crore: 1,109,998.5
+TTM attributable NI before exceptional (Q2FY26-Q1FY27) INR crore: 29,403.3
+Pro-forma TTM NI incl. ICIL uplift INR crore: 30,137.4
+Pro-forma TTM EPS INR: 48.3
+Trailing P/E on pro-forma EPS (x): 36.8
+Approx TTM EBITDA INR crore: 126,403.6
+EV (company convention: mcap + net debt incl leases, no NCI) INR crore: 1,274,787.3
+EV/EBITDA TTM (company convention) x: 10.1
+EV/EBITDA TTM incl. book NCI (floor for minority value) x: 10.4
+FY2026 FCF after capex, spectrum, leases, interest INR crore: 54,221.5
+  as % of market cap: 4.9
+  after deducting NCI share (approx) as % of mcap: 3.9
+
+== 2. Expectations gap: consensus FY2028 EPS 82.26 (BEAR-C040)
+Model check: FY2026 EPS reconstructed (pre-exceptional, FY26 NCI share) INR: 47.5
+EBITDA growth 8%/yr -> FY2028 EBITDA INR crore 141,447, EPS INR 60.7 (-26% vs consensus)
+EBITDA growth 10%/yr -> FY2028 EBITDA INR crore 146,734, EPS INR 65.9 (-20% vs consensus)
+EBITDA growth 12%/yr -> FY2028 EBITDA INR crore 152,118, EPS INR 71.2 (-13% vs consensus)
+EBITDA growth 14%/yr -> FY2028 EBITDA INR crore 157,599, EPS INR 76.6 (-7% vs consensus)
+EBITDA CAGR FY2026-FY2028 needed to reach consensus FY2028 EPS (D&A +9%/yr, finance -3%/yr, NCI 18%) %: 16.1
+
+== 3. Three-year scenarios (horizon ~FY2029; value = FY2029 EPS x exit P/E + cumulative dividends)
+BASE-like (repair arrives, 13% EBITDA CAGR, P/E 28x)
+   FY2029 EBITDA INR crore 174,977; EPS 88.8; value+divs INR 2,569; vs price +44%; 3y IRR +13.0%
+B1 No tariff repair + capex super-cycle (9% EBITDA, D&A +11%/yr, P/E 22x)
+   FY2029 EBITDA INR crore 157,045; EPS 67.4; value+divs INR 1,560; vs price -12%; 3y IRR -4.3%
+B2 Competitive reset: B1 + India mobile ARPU -10% by FY2029 (100% flow-through), P/E 18x
+   FY2029 EBITDA INR crore 143,203; EPS 53.7; value+divs INR 1,039; vs price -42%; 3y IRR -16.4%
+B3 Correlated: B2 + Africa INR EBITDA -30% (FX) + finance cost flat, P/E 16x
+   FY2029 EBITDA INR crore 134,348; EPS 43.2; value+divs INR 751; vs price -58%; 3y IRR -25.0%
+
+== 4. Severe 2016-2019 replay on EV basis (company convention)
+EBITDA -20% vs FY2026 (97,014 cr) x 8.0x - net debt incl leases 200,000 cr -> INR 923/share (-48%)
+EBITDA -15% vs FY2026 (103,077 cr) x 8.9x - net debt incl leases 190,000 cr -> INR 1,166/share (-34%)
+EBITDA -10% vs FY2026 (109,141 cr) x 7.75x - net debt incl leases 180,000 cr -> INR 1,067/share (-40%)
+History: EBITDA change FY2016->FY2019 %: -23.0
+History: net income change FY2016->FY2019 %: -93.3
+History: revenue change FY2016->FY2019 % (96,532 -> 80,780): -16.3
+
+== 5. Dilution and quasi-debt
+Share count change FY2019 (3,998m) -> Jul-2026 %: 56.1
+Unindemnified sub-judice AGR provision (outside net debt) INR crore: 15,543.1
+  per share INR: 24.9
+Contingent liabilities + OTSC balance, 50% crystallisation, per share INR: 20.7
+  as % of price: 1.2
+Airtel share of NBFC capital INR crore: 14,000.0
+  per share INR: 22.4
+
+== 6. Mobile India pre-tax return on cumulative (gross) investment, Q4FY2026 annualised
+EBIT x4 / cumulative investment %: 9.8
+
+== 7. Sensitivity: 10% India mobile ARPU change at FY2029
+EBITDA change INR crore: 13,842.4
+EPS change INR: 13.6
+Value change at 18x INR: 245
+Value change at 22x INR: 300
+
+== 8. Indicator current values
+FY2026 capex / revenue % (475,218 / 2,109,728): 22.5
+Q4FY2026 capex / revenue % (160,656 / 553,832): 29.0

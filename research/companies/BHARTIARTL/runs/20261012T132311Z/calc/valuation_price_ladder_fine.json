@@ -1,0 +1,61 @@
+{
+  "hurdle_rate": 0.116796,
+  "rows": [
+    {
+      "price": 1280.0,
+      "margin_of_safety": -0.029352633695215118,
+      "expected_irr": 0.12073894515819839,
+      "asymmetry_ratio": 57.7078313253012,
+      "IA1": 47,
+      "IA2": 61,
+      "IA4": 100
+    },
+    {
+      "price": 1300.0,
+      "margin_of_safety": -0.045436268596702856,
+      "expected_irr": 0.11713199541978528,
+      "asymmetry_ratio": 45.7257281553398,
+      "IA1": 45,
+      "IA2": 60,
+      "IA4": 100
+    },
+    {
+      "price": 1310.0,
+      "margin_of_safety": -0.05347808604744672,
+      "expected_irr": 0.11535404973290853,
+      "asymmetry_ratio": 41.325221238938056,
+      "IA1": 44,
+      "IA2": 58,
+      "IA4": 100
+    },
+    {
+      "price": 1320.0,
+      "margin_of_safety": -0.061519903498190594,
+      "expected_irr": 0.11359274104125788,
+      "asymmetry_ratio": 37.640243902439025,
+      "IA1": 44,
+      "IA2": 57,
+      "IA4": 100
+    },
+    {
+      "price": 1700.0,
+      "margin_of_safety": -0.3671089666264576,
+      "expected_irr": 0.056709051338955686,
+      "asymmetry_ratio": 6.182405566600398,
+      "IA1": 17,
+      "IA2": 34,
+      "IA4": 100
+    },
+    {
+      "price": 1750.0,
+      "margin_of_safety": -0.40731805388017694,
+      "expected_irr": 0.050397811297699734,
+      "asymmetry_ratio": 5.261754068716094,
+      "IA1": 16,
+      "IA2": 32,
+      "IA4": 100
+    }
+  ],
+  "decision_triggers": {},
+  "note": "IA3, IA5-IA8 held at the scorecard's values; IA5 (expectations gap) is also price-sensitive, so review it near the trigger prices."
+}

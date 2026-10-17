@@ -1,0 +1,40 @@
+quarter_end,total_shares_incl_partly_paid,promoter_group_shares,promoter_group_pct,BTL_shares,BTL_pct,Pastel_shares,Pastel_pct,Viridian_shares,Viridian_pct,ICIL_shares,ICIL_pct,pledged_or_encumbered,mf_pct,source_file,extraction,notes
+Mar-2011,3797530096,2593412342,68.29,,,,,,,,,0,,Airtel-CL-35-Pattern_2011-March-31,pdftotext,Clause 35 format; pledge Nil
+Mar-2016,,,66.75,1802318492,45.09,591319300,14.79,8493000,0.21,265860986,6.65,0,,Bharti-Airtel-Limited_Shareholding-Pattern-31-03-2016 (airtel IR),pdftotext,promoter total = 45.09+21.66
+Jun-2016,,2667991778,66.74,,,591319300,14.79,8493000,0.21,,,0,,June-30-2016 (airtel IR),pdftotext,BTL split across demat rows; ICIL 212940536+52920450 rows
+Dec-2016,,2683660555,67.14,1817987269,45.48,591319300,14.79,8493000,0.21,265860986,6.65,0,,Q3 FY17 SHP (airtel IR),pdftotext,
+Mar-2017,3997400102,2683660555,67.14,1817987269,45.48,591319300,14.79,8493000,0.21,265860986,6.65,0,,BAL_BSE_Q4 SHP (airtel IR),pdftotext,
+Jun-2017,,2683660555,67.14,1817987269,45.48,591319300,14.79,8493000,0.21,265860986,6.65,0,,Q1-30-06-2017 SHP,pdftotext,
+Sep-2017,,2683781555,67.14,1818108269,45.48,591319300,14.79,8493000,0.21,265860986,6.65,0,,Q2 Sep-30 SHP,pdftotext,
+Jun-2018,,2683781555,67.14,2002818452,50.10,591319300,14.79,8493000,0.21,81150803,2.03,0,,June-30-2018 SHP,pdftotext,ICIL->BTL inter-se transfer between Sep-2017 and Jun-2018 (184.7mn)
+Sep-2018,,,67.14,2002818452,50.10,591319300,14.79,8493000,0.21,81150803,2.03,0,,Sep-30-2018 SHP,pdftotext,
+Dec-2018,,,,,,759006862,14.79,10901462,0.21,331436443,6.46,0,,Dec-2018 SHP,pdftotext (garbled),parse uncertain; check visually
+Mar-2019,3997400107,2683781555,67.14,,,,,,,,,0,,Shareholding-Pattern-March (Q4FY19),visual p.2-3,declaration item 6: no pledge
+Jun-2019,5130991182,3217581205,62.71,,,,,,,,,0,,Shareholding-Pattern-June-2019,visual p.2-3,after May-2019 rights issue at Rs220
+Sep-2019,,,62.70,2116236438,41.24,759006862,14.79,10901462,0.21,331436443,6.46,0,,Shareholding_Pattern_September2019,pdftotext,after 2019 rights issue at Rs220
+Dec-2019,,3217581205,62.70,2116236438,41.24,759006862,14.79,10901462,0.21,331436443,6.46,0,,Shareholding_Pattern_December_2019,pdftotext,
+Mar-2020,,,58.98,2116236438,38.79,759006862,13.91,10901462,0.20,331436443,6.08,0,,SHP Mar-31-2020,pdftotext,after Jan-2020 QIP/FCCB; promoter pct = 38.79+20.19
+Jun-2020,,,56.23,1966236438,36.04,759006862,13.91,10901462,0.20,331436443,6.08,0,,SHP_22072020,pdftotext,BTL sold 150mn shares (block) in Q1FY21
+Sep-2020,,,56.23,1966236438,36.04,759006862,13.91,10901462,0.20,331436443,6.08,0,,September_30_2020,pdftotext,
+Dec-2020,,,56.23,1966236438,36.04,759006862,13.91,10901462,0.20,331436443,6.08,0,,December31_2020,pdftotext,
+Mar-2021,,,55.85,1966236438,35.80,759006862,13.82,10901462,0.20,331436443,6.03,0,,March31_2021,pdftotext,
+Jun-2021,,,55.85,1966236438,35.80,759006862,13.82,10901462,0.20,331436443,6.03,0,,Shareholding-Pattern-June-30-2021,pdftotext,
+Sep-2021,,,55.85,1966236438,35.80,759006862,13.82,10901462,0.20,331436443,6.03,0,,SHPQ2,pdftotext,
+Dec-2021,,3291240679,55.93,2109640745,,814326750,,11680137,,355593047,,0,,Equity_shares_SHP_REPORT_03022022,pdftotext layout,includes partly-paid rights shares (fully paid 3067581205 + partly paid 223659474)
+Mar-2022,,3291240679,55.93,,,,,,,,,0,,SHP_REPORT (Mar-2022),pdftotext layout,
+Jun-2022,,3291240679,55.93,,,,,,,,,0,,SHP-REPORT-june2022,pdftotext layout,
+Sep-2022,5955519312,3283475106,55.13,,,,,,,,,,,september202022.pdf,visual p.4,after Google preferential allotment (Jul-2022)
+Dec-2022,5956708229,3283475106,55.12,,,,,,,,,,,december312022.pdf,visual p.4,
+Mar-2023,5967422312,3283475106,55.02,,,,,,,,,,,march312023.pdf,visual p.4,
+Sep-2023,5997632401,3283475106,54.75,,,,,,,,,,,SHP-September-30-2023.pdf,visual p.4,IR page labels this file June 30 2023 (link glitch); document title Sep-2023
+Dec-2023,,3283475106,54.57,2381025975,39.57,627228212,10.42,778675,0.01,274442244,4.56,0,,SHP-December-31-2023,pdftotext,
+Mar-2024,6047374739,3234475106,53.49,,,,,,,,,0,,SHP-March-31-2024.pdf,visual p.4-5,pledge column blank
+Jun-2024,6083160811,3234475106,53.17,2381025975,39.14,578228212,9.51,778675,0.01,274442244,4.51,0,11.01,SHP_Q1-FY2024-25,pdftotext,US$80.6mn FCCB outstanding
+Sep-2024,6085442148,3233696431,53.14,,,,,,,,,0,,BAL_SHP_Q2_24.pdf,visual p.4-5,
+Dec-2024,6088120683,3233696431,53.11,,,,,,,,,0,,BAL_SHP_Q3_24.pdf,visual p.4-5,
+Mar-2025,6094392981,3194629531,52.42,2466133527,40.47,,,,,,,0,10.97,BAL_SHP_Q4_25.pdf,"visual p.4,8",foreign promoters 728496004 (11.95%); FPI 23.22%
+Jun-2025,6094392981,3123629531,51.25,2466133527,40.47,507228212,8.32,0,0,150267792,2.47,0,,June-30-2025-SHP,pdftotext,
+Sep-2025,6094392981,3063629531,50.27,2466133527,40.47,507228212,8.32,0,0,90267792,1.48,0,11.32,SHP-Sep-30-2025,visual p.3-4,declaration: no pledge/NDU/other encumbrance
+Dec-2025,6094392981,2978329531,48.87,2466133527,40.47,456228212,7.49,0,0,55967792,0.92,0,11.36,SHP-December-31-2025,pdftotext,
+Mar-2026,6094392981,2978329531,48.87,,,,,,,,,0,,Shareholding_Pattern_BAL_01052026,visual p.2-3,declaration: no pledge/NDU/locked-in
+Jun-2026,6241154316,3125090866,50.07,2466133527,39.51,456228212,7.31,0,0,202729127,3.25,0,11.85,Shareholding-Pattern-June-30-2026,pdftotext,ICIL 202.7mn all locked-in (preferential lock-in); +146761335 shares to ICIL

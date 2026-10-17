@@ -1,0 +1,28 @@
+Rows in stats (stats=Y): 68
+Classification counts (all stats rows): Exceeded=3; Delivered=24; Mostly delivered=4; Partially delivered=5; Delayed=10; Missed=8; Abandoned/withdrawn=2; Not yet due=8; Cannot be determined=4
+Resolved n=56; on-target (Exceeded+Delivered+Mostly) n=31 (55%)
+Resolved: partially=5 (9%), delayed=10 (18%), missed+abandoned=10 (18%)
+
+By topic group (resolved): group | n | on-target | partial | delayed | missed/abandoned | on-target %
+Capex | 17 | 7 | 3 | 0 | 7 | 41%
+ARPU/tariff | 7 | 4 | 1 | 1 | 1 | 57%
+Network/5G/tech | 10 | 4 | 0 | 4 | 2 | 40%
+Corporate/M&A | 7 | 4 | 0 | 3 | 0 | 57%
+New ventures | 2 | 0 | 0 | 2 | 0 | 0%
+Homes | 5 | 4 | 1 | 0 | 0 | 80%
+Balance sheet/returns | 6 | 6 | 0 | 0 | 0 | 100%
+Industry calls | 2 | 2 | 0 | 0 | 0 | 100%
+
+By period of statement (resolved): period | n | on-target | on-target %
+FY2016-FY2019 (Jio shock) | 17 | 9 | 53%
+FY2020-FY2022 (repair/COVID) | 17 | 10 | 59%
+FY2023-FY2027 (5G/post-5G) | 22 | 12 | 55%
+
+Capex level guidance (vs stated level/range): n=11; variances % = -1.7, -1.4, 38.7, 7.3, 6.5, 6.2, 60.7, 30.2, 18.6, 7.6, 37.4
+  mean 19.1%; median 7.6%; overspend count 9 of 11
+  statements FY2016-FY2022: n=8 median 6.9%
+  statements FY2023+: n=3 median 18.6%
+Capex direction calls ('lower next year'): n=4; delivered 3; missed 1
+
+Timeline-bearing non-capex items resolved: on-time/on-target 24, delayed 10
+Not yet due: 8 (P19,P26,P65,P66,P67,P68,P69,P70); Cannot be determined: 4 (P30,P44,P53,P64)

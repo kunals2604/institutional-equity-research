@@ -1,0 +1,9 @@
+{
+  "solve_for": "growth",
+  "implied_value": 0.14416738152503972,
+  "meaning": "constant annual revenue growth over the explicit period",
+  "implied_final_year_revenue": 8460881.580630304,
+  "implied_final_year_nopat": 2285284.114928245,
+  "check_value_per_share": 1778.6996096822304,
+  "price": 1778.7
+}

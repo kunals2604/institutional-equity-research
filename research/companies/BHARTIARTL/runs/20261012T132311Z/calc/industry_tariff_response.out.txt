@@ -1,0 +1,6 @@
+Dec-2019 (pre Q3FY20 -> Q4FY20): ARPU 135 -> 154 = +14.1%
+Nov-2021 (Q2FY22 -> Q4FY22): ARPU 153 -> 178 = +16.3%
+Jul-2024 (Q1FY25 -> Q3FY25): ARPU 211 -> 245 = +16.1%
+No-hike drift FY2025Q4 -> FY2026Q4: ARPU 245 -> 257 = +4.9%
+No-hike drift Q4FY23 -> Q4FY24: ARPU 193 -> 209 = +8.3%
+Customers Mar-24 -> Mar-25: +2.7%

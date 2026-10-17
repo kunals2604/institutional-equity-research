@@ -1,0 +1,127 @@
+=== A. Annual cash conversion (INR crore) ===
+FY | PAT | PAT_attr | CFO | capex(ex-spectrum) | spectrum | lease principal | interest paid | FCF=CFO-capex | FCF after spectrum+leases | equity FCF (after interest)
+FY2011 | 5,899.2 | 6,046.7 | 18,851.3 | 10,916.9 | 16,792.5 | 0.0 | 2,159.5 | 7,934.4 | -8,858.1 | -11,017.6
+FY2012 | 4,258.1 | 4,259.4 | 22,525.2 | 15,028.4 | 0.0 | 0.0 | 3,235.2 | 7,496.8 | 7,496.8 | 4,261.6
+FY2013 | 2,266.9 | 2,275.7 | 22,769.9 | 13,146.6 | 0.0 | 0.0 | 3,433.9 | 9,623.3 | 9,623.3 | 6,189.4
+FY2014 | 3,019.4 | 2,772.7 | 26,232.6 | 11,415.9 | 6,486.0 | 0.0 | 3,762.0 | 14,816.7 | 8,330.7 | 4,568.7
+FY2015 | 5,308.3 | 5,183.5 | 27,601.8 | 14,641.1 | 6,597.0 | 0.0 | 3,388.7 | 12,960.7 | 6,363.7 | 2,975.0
+FY2016 | 6,893.0 | 6,076.7 | 27,942.3 | 19,331.3 | 8,145.2 | 259.3 | 3,289.0 | 8,611.0 | 206.5 | -3,082.5
+FY2017 | 4,241.4 | 3,799.8 | 28,279.9 | 22,303.0 | 16,547.7 | 389.9 | 5,856.6 | 5,976.9 | -10,960.7 | -16,817.3
+FY2018 | 2,183.5 | 1,099.0 | 29,853.8 | 24,525.9 | 2,765.8 | 393.2 | 4,404.1 | 5,327.9 | 2,168.9 | -2,235.2
+FY2019 | 1,687.5 | 409.5 | 20,070.2 | 29,477.5 | 1,172.0 | 507.7 | 7,617.1 | -9,407.3 | -11,087.0 | -18,704.1
+FY2020 | -30,664.2 | -32,183.2 | 18,128.7 | 20,716.8 | 1,542.4 | 4,774.0 | 10,999.3 | -2,588.1 | -8,904.5 | -19,903.8
+FY2021 | -12,364.0 | -15,083.5 | 48,205.0 | 27,257.6 | 6,324.0 | 6,420.6 | 7,129.4 | 20,947.4 | 8,202.8 | 1,073.4
+FY2022 | 8,305.2 | 4,254.9 | 55,016.6 | 27,399.9 | 17,448.2 | 7,642.7 | 13,158.8 | 27,616.7 | 2,525.8 | -10,633.0
+FY2023 | 12,287.4 | 8,345.9 | 65,324.6 | 26,538.5 | 12,368.4 | 7,598.6 | 6,689.3 | 38,786.1 | 18,819.1 | 12,129.8
+FY2024 | 8,558.0 | 7,467.0 | 78,898.2 | 40,051.5 | 12,154.7 | 7,855.2 | 14,026.3 | 38,846.7 | 18,836.8 | 4,810.5
+FY2025 | 37,481.3 | 33,556.1 | 98,332.2 | 39,679.9 | 21,348.7 | 7,153.8 | 17,547.6 | 58,652.3 | 30,149.8 | 12,602.2
+FY2026 | 33,822.8 | 26,695.2 | 122,229.6 | 46,714.2 | 854.6 | 6,719.7 | 14,887.6 | 75,515.4 | 67,941.1 | 53,053.5
+
+=== B. Cumulative conversion windows ending FY2026 ===
+ 3y (FY2024-FY2026): sumPAT 79,862.1 sumPAT_attr 67,718.3 sumCFO 299,460.0 | CFO/PAT 3.75 | FCF/PAT 2.17 | FCF after spectrum+leases/PAT 1.46 | equity FCF/PAT 0.88 | equity FCF/PAT_attr 1.04
+ 5y (FY2022-FY2026): sumPAT 100,454.7 sumPAT_attr 80,319.1 sumCFO 419,801.2 | CFO/PAT 4.18 | FCF/PAT 2.38 | FCF after spectrum+leases/PAT 1.38 | equity FCF/PAT 0.72 | equity FCF/PAT_attr 0.90
+10y (FY2017-FY2026): sumPAT 65,538.9 sumPAT_attr 38,360.7 sumCFO 564,338.8 | CFO/PAT 8.61 | FCF/PAT 3.96 | FCF after spectrum+leases/PAT 1.80 | equity FCF/PAT 0.23 | equity FCF/PAT_attr 0.40
+15y (FY2012-FY2026): sumPAT 87,284.6 sumPAT_attr 58,928.7 sumCFO 691,410.6 | CFO/PAT 7.92 | FCF/PAT 3.59 | FCF after spectrum+leases/PAT 1.72 | equity FCF/PAT 0.35 | equity FCF/PAT_attr 0.51
+
+=== C. Underlying (pre-exceptional, ex one-off tax) profit attributable, INR crore ===
+FY2019: reported PAT_attr 409.5 | one-offs total 1,930.2, attributable 1,988.1 | underlying PAT_attr -1,578.6 | underlying EPS (adj. basic shares 430.53 cr) -3.67
+FY2020: reported PAT_attr -32,183.2 | one-offs total -28,812.3, attributable -28,109.1 | underlying PAT_attr -4,074.1 | underlying EPS (adj. basic shares 507.56 cr) -8.03
+FY2021: reported PAT_attr -15,083.5 | one-offs total -13,815.1, attributable -13,926.8 | underlying PAT_attr -1,156.7 | underlying EPS (adj. basic shares 548.09 cr) -2.11
+FY2022: reported PAT_attr 4,254.9 | one-offs total 1,595.3, attributable 727.2 | underlying PAT_attr 3,527.7 | underlying EPS (adj. basic shares 554.63 cr) 6.36
+FY2023: reported PAT_attr 8,345.9 | one-offs total 812.7, attributable 190.5 | underlying PAT_attr 8,155.4 | underlying EPS (adj. basic shares 564.07 cr) 14.46
+FY2024: reported PAT_attr 7,467.0 | one-offs total -5,798.2, attributable -3,838.4 | underlying PAT_attr 11,305.4 | underlying EPS (adj. basic shares 570.34 cr) 19.82
+FY2025: reported PAT_attr 33,556.1 | one-offs total 15,944.0, attributable 15,983.2 | underlying PAT_attr 17,572.9 | underlying EPS (adj. basic shares 578.55 cr) 30.37
+FY2026: reported PAT_attr 26,695.2 | one-offs total -206.1, attributable -209.1 | underlying PAT_attr 26,904.3 | underlying EPS (adj. basic shares 580.87 cr) 46.32
+
+=== D. Owner earnings FY2026 (INR crore) ===
+low: CFO 122,229.6 - WC release 7,204.2 - lease principal 6,719.7 - interest paid 14,887.6 - maintenance capex 40,000.0 - normalised spectrum 14,000.0 = firm OE 39,418.1; x owners' share 0.750 = owner earnings 29,563.6
+base: CFO 122,229.6 - WC release 7,204.2 - lease principal 6,719.7 - interest paid 14,887.6 - maintenance capex 31,234.7 - normalised spectrum 11,643.0 = firm OE 50,540.4; x owners' share 0.789 = owner earnings 39,889.8
+high: CFO 122,229.6 - WC release 7,204.2 - lease principal 6,719.7 - interest paid 14,887.6 - maintenance capex 25,000.0 - normalised spectrum 9,000.0 = firm OE 59,418.1; x owners' share 0.800 = owner earnings 47,534.5
+reconciliation: equity FCF FY2026 (CFO - capex - spectrum - leases - interest) = 53,053.5; difference vs base firm OE arises from growth capex (cash capex 46,714.2 vs maintenance 31,234.7), WC release and spectrum cash timing
+maintenance capex cross-check: base 14.8% of FY2026 revenue; range 250,000-400,000 mn = 11.8%-19.0% of revenue
+
+=== E. Debt variants at 31-Mar (INR crore) ===
+FY2026: borrowings 121,671.4 (of which DoT deferred payment liabilities 90,643.0) | net debt (excl. leases) 94,248.6 | + other bank balances net of mobile-money trust 3,448.5 -> 90,800.1 | incl. leases 167,988.9 | net financial debt ex-DPL 3,605.6 | + non-indemnified AGR provision 15,543.1 -> quasi-debt total incl. leases 183,532.0
+   EBITDA (post-116) 119,674.5; pre-lease EBITDA proxy (EBITDA - lease interest - lease principal) 106,204.3; net debt/EBITDA 0.79x; (net debt+leases)/EBITDA 1.40x; net debt/pre-lease EBITDA 0.89x; (net debt + leases + AGR prov)/EBITDA 1.53x
+FY2025: borrowings 148,312.3 (of which DoT deferred payment liabilities 92,398.0) | net debt (excl. leases) 140,553.5 | + other bank balances net of mobile-money trust 2,466.3 -> 138,087.2 | incl. leases 205,883.3 | net financial debt ex-DPL 48,155.5 | + non-indemnified AGR provision 12,832.2 -> quasi-debt total incl. leases 218,715.5
+   EBITDA (post-116) 93,159.2; pre-lease EBITDA proxy (EBITDA - lease interest - lease principal) 79,893.7; net debt/EBITDA 1.51x; (net debt+leases)/EBITDA 2.21x; net debt/pre-lease EBITDA 1.76x; (net debt + leases + AGR prov)/EBITDA 2.35x
+
+=== F. Resilience stress test on FY2026 base (INR crore) ===
+A: revenue -20% and EBITDA margin -300bp: EBITDA 90,676.3 (-28,998.2); stressed CFO ~ 100,530.2 (EBITDA loss x (1 - 0.2517 tax shield)); stressed CFO - interest paid - lease principal - maintenance capex(base) = 47,688.2
+   net debt/stressed EBITDA 1.04x; (net debt+leases)/stressed EBITDA 1.85x
+B: revenue -20%, only access + licence costs flex (operating leverage): EBITDA 81,662.8 (-38,011.7); stressed CFO ~ 93,785.5 (EBITDA loss x (1 - 0.2517 tax shield)); stressed CFO - interest paid - lease principal - maintenance capex(base) = 40,943.5
+   net debt/stressed EBITDA 1.15x; (net debt+leases)/stressed EBITDA 2.06x
+Rate shock +200bp: floating-rate borrowings 15,952.1 -> +319.0/yr; plus refinancing of 12-month maturities 21,625.7 at +200bp -> +432.5; total ~ +751.6/yr = 1.4% of FY2026 equity FCF
+Liquidity: cash 13,722.2 + current investments 13,700.6 + unrestricted other bank balances (approx.) 3,448.5 = 30,871.3 vs gross debt maturing in 24 months 35,936.1 (cover 0.86x)
+
+=== G. Sources and uses FY2017-FY2026 (cash-flow statement, INR crore) ===
+source CFO 564,338.8 (92.1%)
+source equity_issued 65,323.1 (10.7%)
+source NCI_net_inflow 28,378.6 (4.6%)
+source net_borrowing -45,281.3 (-7.4%)
+use capex 304,664.8 (51.4%)
+use spectrum 92,526.5 (15.6%)
+use lease_principal 49,455.4 (8.3%)
+use interest_paid 102,316.1 (17.3%)
+use acquisitions 3,263.7 (0.6%)
+use dividends_owners 23,879.0 (4.0%)
+use dividends_NCI 16,991.4 (2.9%)
+total sources 612,759.2 vs listed uses 593,096.9; residual (other investing incl. JV, treasury, derivatives, FX, cash build) 19,662.3
+
+=== H. Per-share (rights-adjusted) ===
+FY2016->FY2026 (10y): year-end shares 430.70 -> 609.44 cr (CAGR 3.53%); equity FCF/share -7.16 -> 87.05; revenue CAGR 8.1%; revenue/share CAGR 4.4%
+FY2021->FY2026 (5y): year-end shares 551.88 -> 609.44 cr (CAGR 2.00%); equity FCF/share 1.94 -> 87.05; revenue CAGR 16.0%; revenue/share CAGR 13.7%
+FY2011->FY2026 (15y): year-end shares 409.17 -> 609.44 cr (CAGR 2.69%); equity FCF/share -26.93 -> 87.05; revenue CAGR 8.8%; revenue/share CAGR 5.9%
+FY2023->FY2026 (3y): year-end shares 596.74 -> 609.44 cr (CAGR 0.70%); equity FCF/share 20.33 -> 87.05; revenue CAGR 14.9%; revenue/share CAGR 14.1%
+underlying EPS FY2022 6.36 -> FY2026 46.32 (4y CAGR 64.3%)
+
+=== I. Incremental returns with a stated 25.17% tax rate (other: metric; fin_metrics NOPAT is blank in loss years) ===
+FY2026 vs FY2021: dNOPAT(25.17%) 38,160.6 / dIC(FY2020->FY2025) 136,312.0 = 28.0%
+FY2026 vs FY2023: dNOPAT(25.17%) 24,036.9 / dIC(FY2022->FY2025) 104,695.4 = 23.0%
+FY2025 vs FY2020: dNOPAT(25.17%) 28,936.0 / dIC(FY2019->FY2024) 114,430.2 = 25.3%
+FY2026 vs FY2016: dNOPAT(25.17%) 37,736.2 / dIC(FY2015->FY2025) 222,314.1 = 17.0%
+NOPAT(25.17%%) / avg IC: FY2012 6.7%; FY2013 5.4%; FY2014 7.5%; FY2015 8.9%; FY2016 8.1%; FY2017 6.7%; FY2018 4.5%; FY2019 1.8%; FY2020 3.2%; FY2021 5.3%; FY2022 7.5%; FY2023 9.1%; FY2024 9.1%; FY2025 10.6%; FY2026 13.9%
+
+=== J. Segment economics (INR crore; segment result = EBIT before exceptional incl. JV share) ===
+FY2016: India mobile rev 56,063.7 result 12,832.0 (22.9%) | Africa rev 25,133.3 result 490.9 (2.0%) | Africa share of group revenue 26.0%
+FY2017: India mobile rev 56,551.1 result 10,549.4 (18.7%) | Africa rev 21,956.8 result 1,018.9 (4.6%) | Africa share of group revenue 23.0%
+FY2018: India mobile rev 46,263.9 result 2,083.5 (4.5%) | Africa rev 19,107.3 result 3,588.4 (18.8%) | Africa share of group revenue 23.1% | capex/rev India 42.9% Africa 14.8%
+FY2019: India mobile rev 41,554.0 result -5,676.2 (-13.7%) | Africa rev 21,502.8 result 5,239.0 (24.4%) | Africa share of group revenue 26.6% | capex/rev India 56.7% Africa 23.6%
+FY2020: India mobile rev 45,966.3 result -3,137.9 (-6.8%) | Africa rev 24,217.3 result 6,448.8 (26.6%) | Africa share of group revenue 27.7% | capex/rev India 23.6% Africa 18.8%
+FY2021: India mobile rev 55,567.7 result 3,304.6 (5.9%) | Africa rev 28,863.3 result 8,245.9 (28.6%) | Africa share of group revenue 28.7% | capex/rev India 37.0% Africa 15.7%
+FY2022: India mobile rev 62,914.9 result 7,854.9 (12.5%) | Africa rev 35,061.2 result 11,676.9 (33.3%) | Africa share of group revenue 30.1% | capex/rev India 42.5% Africa 13.9%
+FY2023: India mobile rev 75,924.6 result 14,845.2 (19.6%) | Africa rev 42,266.4 result 14,147.1 (33.5%) | Africa share of group revenue 30.4% | capex/rev India 84.9% Africa 14.3%
+FY2024: India mobile rev 85,048.8 result 18,819.5 (22.1%) | Africa rev 41,184.1 result 13,582.3 (33.0%) | Africa share of group revenue 27.5% | capex/rev India 30.9% Africa 14.8%
+FY2025: India mobile rev 100,250.0 result 26,400.0 (26.3%) | Africa rev 41,879.5 result 12,473.3 (29.8%) | Africa share of group revenue 24.2% | capex/rev India 26.0% Africa 17.8% | segment EBITDA margin India 57.8% Africa 46.6% | result/segment assets India 9.2% Africa 12.8%
+FY2026: India mobile rev 112,995.4 result 35,766.1 (31.7%) | Africa rev 56,806.4 result 18,793.6 (33.1%) | Africa share of group revenue 26.9% | capex/rev India 16.2% Africa 14.5% | segment EBITDA margin India 60.2% Africa 49.4% | result/segment assets India 13.0% Africa 14.7%
+FY2016->FY2026 revenue CAGR India mobile 7.3%, Africa (INR) 8.5%
+FY2021->FY2026 revenue CAGR India mobile 15.3%, Africa (INR) 14.5%
+FY2019->FY2026 revenue CAGR India mobile 15.4%, Africa (INR) 14.9%
+
+=== K. Exceptional items history (INR crore, gain +) and share of |PBT before exceptional| ===
+FY2011 exceptional 0.0; PBT before exceptional 7,678.2
+FY2012 exceptional 0.0; PBT before exceptional 6,518.3
+FY2013 exceptional 0.0; PBT before exceptional 4,785.4
+FY2014 exceptional 53.8; PBT before exceptional 7,810.5
+FY2015 exceptional -796.0; PBT before exceptional 11,509.0
+FY2016 exceptional 2,174.1; PBT before exceptional 10,672.2
+FY2017 exceptional -1,169.7; PBT before exceptional 8,893.0
+FY2018 exceptional -793.1; PBT before exceptional 4,060.1
+FY2019 exceptional 2,928.8; PBT before exceptional -4,660.6
+FY2020 exceptional -40,234.4; PBT before exceptional -2,612.1
+FY2021 exceptional -15,914.5; PBT before exceptional 1,426.3
+FY2022 exceptional 1,698.6; PBT before exceptional 10,784.5
+FY2023 exceptional -669.8; PBT before exceptional 17,230.5
+FY2024 exceptional -7,572.3; PBT before exceptional 20,251.3
+FY2025 exceptional 7,286.8; PBT before exceptional 31,111.7
+FY2026 exceptional -3,417.5; PBT before exceptional 48,590.2
+cumulative FY2011-FY2026 exceptional items -56,425.2; FY2017-FY2026 -57,857.1
+
+=== L. Trough vs. peak (INR crore) ===
+FY2016 revenue 96,532.1 EBITDA 33,984.2 margin 35.2% CFO 27,942.3 capex 19,331.3 net debt 95,128.0
+FY2017 revenue 95,468.3 EBITDA 35,329.8 margin 37.0% CFO 28,279.9 capex 22,303.0 net debt 104,313.7
+FY2018 revenue 83,687.9 EBITDA 30,079.1 margin 35.9% CFO 29,853.8 capex 24,525.9 net debt 99,647.1
+FY2019 revenue 80,780.2 EBITDA 25,763.8 margin 31.9% CFO 20,070.2 capex 29,477.5 net debt 109,837.7
+FY2020 revenue 87,539.0 EBITDA 36,609.5 margin 41.8% CFO 18,128.7 capex 20,716.8 net debt 90,300.4
+FY2021 revenue 100,615.8 EBITDA 45,371.7 margin 45.1% CFO 48,205.0 capex 27,257.6 net debt 117,625.9
+FY2016->FY2019 revenue -16.3%, EBITDA -24.2%; India mobile revenue FY2017->FY2019 -26.5%

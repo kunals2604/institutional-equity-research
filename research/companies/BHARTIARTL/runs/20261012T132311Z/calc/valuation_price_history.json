@@ -1,0 +1,516 @@
+{
+  "inputs": {
+    "stock": "research/companies/BHARTIARTL/runs/20261012T132311Z/_cache/valuation/20261012-5ad6f012f0da-Yahoo-Finance-daily-chart-BHARTIARTL-NS-2000-2026.json",
+    "nifty500": "research/companies/BHARTIARTL/runs/20261012T132311Z/_cache/valuation/20261012-c10f350de209-Yahoo-Finance-daily-chart-Nifty-500-price-index-CRSLDX.json",
+    "nifty50": "research/companies/BHARTIARTL/runs/20261012T132311Z/_cache/valuation/20261012-6242cba6074e-Yahoo-Finance-daily-chart-Nifty-50-NSEI.json"
+  },
+  "last": {
+    "date": "2026-10-12",
+    "close": 1778.699951171875
+  },
+  "fy_end": [
+    {
+      "fy": "FY2003",
+      "date": "2003-03-31",
+      "close_adj_split_rights": 12.71,
+      "tr_index": 11.536,
+      "nifty500": null,
+      "fy_high": 16.22,
+      "fy_low": 9.35
+    },
+    {
+      "fy": "FY2004",
+      "date": "2004-03-31",
+      "close_adj_split_rights": 70.21,
+      "tr_index": 63.7342,
+      "nifty500": null,
+      "fy_high": 73.43,
+      "fy_low": 13.11
+    },
+    {
+      "fy": "FY2005",
+      "date": "2005-03-31",
+      "close_adj_split_rights": 93.46,
+      "tr_index": 84.8426,
+      "nifty500": null,
+      "fy_high": 106.28,
+      "fy_low": 56.85
+    },
+    {
+      "fy": "FY2006",
+      "date": "2006-03-31",
+      "close_adj_split_rights": 186.0,
+      "tr_index": 168.8465,
+      "nifty500": 2910.35,
+      "fy_high": 186.49,
+      "fy_low": 91.18
+    },
+    {
+      "fy": "FY2007",
+      "date": "2007-03-30",
+      "close_adj_split_rights": 344.24,
+      "tr_index": 312.494,
+      "nifty500": 3145.35,
+      "fy_high": 363.93,
+      "fy_low": 144.81
+    },
+    {
+      "fy": "FY2008",
+      "date": "2008-03-31",
+      "close_adj_split_rights": 372.33,
+      "tr_index": 338.0,
+      "nifty500": 3825.85,
+      "fy_high": 507.25,
+      "fy_low": 328.49
+    },
+    {
+      "fy": "FY2009",
+      "date": "2009-03-31",
+      "close_adj_split_rights": 281.98,
+      "tr_index": 255.98,
+      "nifty500": 2294.85,
+      "fy_high": 418.21,
+      "fy_low": 242.03
+    },
+    {
+      "fy": "FY2010",
+      "date": "2010-03-31",
+      "close_adj_split_rights": 281.69,
+      "tr_index": 256.3438,
+      "nifty500": 4313.25,
+      "fy_high": 452.07,
+      "fy_low": 244.78
+    },
+    {
+      "fy": "FY2011",
+      "date": "2011-03-31",
+      "close_adj_split_rights": 322.11,
+      "tr_index": 294.0588,
+      "nifty500": 4626.45,
+      "fy_high": 336.39,
+      "fy_low": 231.62
+    },
+    {
+      "fy": "FY2012",
+      "date": "2012-03-30",
+      "close_adj_split_rights": 304.53,
+      "tr_index": 278.7187,
+      "nifty500": 4221.8,
+      "fy_high": 397.77,
+      "fy_low": 288.81
+    },
+    {
+      "fy": "FY2013",
+      "date": "2013-03-28",
+      "close_adj_split_rights": 262.94,
+      "tr_index": 241.578,
+      "nifty500": 4438.35,
+      "fy_high": 331.08,
+      "fy_low": 218.37
+    },
+    {
+      "fy": "FY2014",
+      "date": "2014-03-31",
+      "close_adj_split_rights": 286.37,
+      "tr_index": 263.9526,
+      "nifty500": 5224.85,
+      "fy_high": 330.94,
+      "fy_low": 243.56
+    },
+    {
+      "fy": "FY2015",
+      "date": "2015-03-31",
+      "close_adj_split_rights": 354.46,
+      "tr_index": 329.731,
+      "nifty500": 6978.15,
+      "fy_high": 374.83,
+      "fy_low": 277.59
+    },
+    {
+      "fy": "FY2016",
+      "date": "2016-03-31",
+      "close_adj_split_rights": 316.16,
+      "tr_index": 295.7471,
+      "nifty500": 6452.15,
+      "fy_high": 401.28,
+      "fy_low": 261.27
+    },
+    {
+      "fy": "FY2017",
+      "date": "2017-03-31",
+      "close_adj_split_rights": 315.49,
+      "tr_index": 296.2778,
+      "nifty500": 7995.05,
+      "fy_high": 341.49,
+      "fy_low": 263.39
+    },
+    {
+      "fy": "FY2018",
+      "date": "2018-03-28",
+      "close_adj_split_rights": 359.33,
+      "tr_index": 340.5012,
+      "nifty500": 8912.1,
+      "fy_high": 489.56,
+      "fy_low": 305.35
+    },
+    {
+      "fy": "FY2019",
+      "date": "2019-03-28",
+      "close_adj_split_rights": 297.37,
+      "tr_index": 285.998,
+      "nifty500": 9601.95,
+      "fy_high": 378.39,
+      "fy_low": 257.17
+    },
+    {
+      "fy": "FY2020",
+      "date": "2020-03-31",
+      "close_adj_split_rights": 432.77,
+      "tr_index": 416.2248,
+      "nifty500": 6996.75,
+      "fy_high": 554.59,
+      "fy_low": 306.43
+    },
+    {
+      "fy": "FY2021",
+      "date": "2021-03-31",
+      "close_adj_split_rights": 507.77,
+      "tr_index": 490.1027,
+      "nifty500": 12313.7,
+      "fy_high": 597.63,
+      "fy_low": 390.37
+    },
+    {
+      "fy": "FY2022",
+      "date": "2022-03-31",
+      "close_adj_split_rights": 754.95,
+      "tr_index": 728.6872,
+      "nifty500": 14894.5,
+      "fy_high": 765.15,
+      "fy_low": 510.22
+    },
+    {
+      "fy": "FY2023",
+      "date": "2023-03-31",
+      "close_adj_split_rights": 749.0,
+      "tr_index": 726.1574,
+      "nifty500": 14557.85,
+      "fy_high": 851.2,
+      "fy_low": 640.9
+    },
+    {
+      "fy": "FY2024",
+      "date": "2024-03-28",
+      "close_adj_split_rights": 1228.6,
+      "tr_index": 1196.6023,
+      "nifty500": 20255.15,
+      "fy_high": 1236.1,
+      "fy_low": 759.65
+    },
+    {
+      "fy": "FY2025",
+      "date": "2025-03-28",
+      "close_adj_split_rights": 1733.4,
+      "tr_index": 1697.6637,
+      "nifty500": 21339.55,
+      "fy_high": 1771.1,
+      "fy_low": 1191.0
+    },
+    {
+      "fy": "FY2026",
+      "date": "2026-03-30",
+      "close_adj_split_rights": 1782.4,
+      "tr_index": 1760.2469,
+      "nifty500": 20528.05,
+      "fy_high": 2162.7,
+      "fy_low": 1686.65
+    }
+  ],
+  "tsr": {
+    "1y": {
+      "start": "2025-10-10",
+      "stock_tsr_cagr": -0.0715576368411508,
+      "stock_price_cagr": -0.08309710356897249,
+      "nifty500_price_cagr": -0.06490830145154014,
+      "nifty50_price_cagr": -0.11556098868083742
+    },
+    "3y": {
+      "start": "2023-10-12",
+      "stock_tsr_cagr": 0.24325418383625763,
+      "stock_price_cagr": 0.2323660012648432,
+      "nifty500_price_cagr": 0.07801037807248346,
+      "nifty50_price_cagr": 0.04152035599550308
+    },
+    "5y": {
+      "start": "2021-10-12",
+      "stock_tsr_cagr": 0.21839142874701412,
+      "stock_price_cagr": 0.20979396610117185,
+      "nifty500_price_cagr": 0.07106799382657103,
+      "nifty50_price_cagr": 0.044459795548948744
+    },
+    "10y": {
+      "start": "2016-10-10",
+      "stock_tsr_cagr": 0.2086440200860522,
+      "stock_price_cagr": 0.20107582800620083,
+      "nifty500_price_cagr": 0.11223326380869691,
+      "nifty50_price_cagr": 0.09889919337786979
+    },
+    "15y": {
+      "start": "2011-10-12",
+      "stock_tsr_cagr": 0.1240497624778576,
+      "stock_price_cagr": 0.1174312651175331,
+      "nifty500_price_cagr": 0.11848706204745896,
+      "nifty50_price_cagr": 0.10357330230335826
+    },
+    "20y": {
+      "start": "2006-10-12",
+      "stock_tsr_cagr": 0.11696965553181071,
+      "stock_price_cagr": 0.11157991570124093,
+      "nifty500_price_cagr": 0.1037093372370228,
+      "nifty50_price_cagr": null
+    }
+  },
+  "drawdowns_price_ge25pct": [
+    {
+      "peak_date": "2002-07-04",
+      "peak": 16.22262954711914,
+      "trough_date": "2003-01-10",
+      "trough": 9.350543975830078,
+      "depth": -0.4236110768188889,
+      "recovery_date": "2003-05-26",
+      "months_peak_to_trough": 6.2,
+      "months_trough_to_recovery": 4.5
+    },
+    {
+      "peak_date": "2004-04-23",
+      "peak": 79.73873901367188,
+      "trough_date": "2004-06-24",
+      "trough": 56.8468017578125,
+      "depth": -0.28708677286625217,
+      "recovery_date": "2004-12-01",
+      "months_peak_to_trough": 2.0,
+      "months_trough_to_recovery": 5.3
+    },
+    {
+      "peak_date": "2007-10-15",
+      "peak": 507.2501220703125,
+      "trough_date": "2012-08-29",
+      "trough": 218.3746337890625,
+      "depth": -0.5694931863243742,
+      "recovery_date": "2020-01-23",
+      "months_peak_to_trough": 58.5,
+      "months_trough_to_recovery": 88.8
+    },
+    {
+      "peak_date": "2020-02-14",
+      "peak": 554.587646484375,
+      "trough_date": "2020-03-24",
+      "trough": 396.603759765625,
+      "depth": -0.2848673022564361,
+      "recovery_date": "2020-05-19",
+      "months_peak_to_trough": 1.3,
+      "months_trough_to_recovery": 1.8
+    },
+    {
+      "peak_date": "2020-05-19",
+      "peak": 587.7647094726562,
+      "trough_date": "2020-10-19",
+      "trough": 390.37078857421875,
+      "depth": -0.3358383341448651,
+      "recovery_date": "2021-01-15",
+      "months_peak_to_trough": 5.0,
+      "months_trough_to_recovery": 2.9
+    }
+  ],
+  "drawdowns_tr_ge25pct": [
+    {
+      "peak_date": "2002-07-04",
+      "peak": 14.726775169372559,
+      "trough_date": "2003-01-10",
+      "trough": 8.488348960876465,
+      "depth": -0.42361115293389007,
+      "recovery_date": "2003-05-26"
+    },
+    {
+      "peak_date": "2004-04-23",
+      "peak": 72.38618469238281,
+      "trough_date": "2004-06-24",
+      "trough": 51.605072021484375,
+      "depth": -0.2870867246175669,
+      "recovery_date": "2004-12-01"
+    },
+    {
+      "peak_date": "2007-10-15",
+      "peak": 460.47760009765625,
+      "trough_date": "2012-08-29",
+      "trough": 200.63185119628906,
+      "depth": -0.5642961760708016,
+      "recovery_date": "2017-11-02"
+    },
+    {
+      "peak_date": "2017-11-02",
+      "peak": 460.91815185546875,
+      "trough_date": "2018-10-11",
+      "trough": 245.29197692871094,
+      "depth": -0.46781879615444666,
+      "recovery_date": "2020-01-17"
+    },
+    {
+      "peak_date": "2020-02-14",
+      "peak": 533.3795776367188,
+      "trough_date": "2020-03-24",
+      "trough": 381.4371643066406,
+      "depth": -0.2848673246982941,
+      "recovery_date": "2020-05-19"
+    },
+    {
+      "peak_date": "2020-05-19",
+      "peak": 565.287841796875,
+      "trough_date": "2020-10-19",
+      "trough": 376.7907409667969,
+      "depth": -0.33345330801898054,
+      "recovery_date": "2021-01-15"
+    }
+  ],
+  "drawdowns_nifty500_ge25pct": [
+    {
+      "peak_date": "2006-05-10",
+      "peak": 3208.85009765625,
+      "trough_date": "2006-06-14",
+      "trough": 2163.949951171875,
+      "depth": -0.3256307133971674,
+      "recovery_date": "2006-11-13"
+    },
+    {
+      "peak_date": "2008-01-04",
+      "peak": 5502.60009765625,
+      "trough_date": "2009-03-09",
+      "trough": 1966.8499755859375,
+      "depth": -0.6425598915640467,
+      "recovery_date": "2014-05-13"
+    },
+    {
+      "peak_date": "2020-01-17",
+      "peak": 10118.7001953125,
+      "trough_date": "2020-03-23",
+      "trough": 6243.0,
+      "depth": -0.3830235228342789,
+      "recovery_date": "2020-11-09"
+    }
+  ],
+  "all_time_high": {
+    "date": "2025-11-21",
+    "close": 2162.699951171875,
+    "current_vs_ath": -0.17755583699529232
+  },
+  "52w": {
+    "high_close": 2162.699951171875,
+    "low_close": 1741.0999755859375,
+    "high_intraday": 2174.5,
+    "low_intraday": 1726.300048828125
+  },
+  "beta": {
+    "nifty50_weekly_2y": {
+      "beta": 0.8431502395410314,
+      "r2": 0.2918991898766011,
+      "n": 104,
+      "start": "2024-10-12",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.894910660492491
+    },
+    "nifty50_weekly_3y": {
+      "beta": 0.8145389527052949,
+      "r2": 0.2568735234616592,
+      "n": 157,
+      "start": "2023-10-13",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.8757410983125475
+    },
+    "nifty50_weekly_5y": {
+      "beta": 0.8060055199813654,
+      "r2": 0.2891191078025736,
+      "n": 261,
+      "start": "2021-10-12",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.8700236983875149
+    },
+    "nifty500_weekly_2y": {
+      "beta": 0.6216129770599251,
+      "r2": 0.20708844710302748,
+      "n": 104,
+      "start": "2024-10-12",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.7464806946301499
+    },
+    "nifty500_weekly_5y": {
+      "beta": 0.6608457257825652,
+      "r2": 0.2258812897009675,
+      "n": 261,
+      "start": "2021-10-12",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.7727666362743186
+    },
+    "nifty50_monthly_5y": {
+      "beta": 0.7919532057810781,
+      "r2": 0.32039748356749215,
+      "n": 60,
+      "start": "2021-10-12",
+      "end": "2026-10-12",
+      "freq": "monthly",
+      "adjusted_beta_blume": 0.8606086478733224
+    },
+    "nifty500_monthly_5y": {
+      "beta": 0.72844519236881,
+      "r2": 0.3227228939685518,
+      "n": 60,
+      "start": "2021-10-12",
+      "end": "2026-10-12",
+      "freq": "monthly",
+      "adjusted_beta_blume": 0.8180582788871027
+    },
+    "nifty50_weekly_10y": {
+      "beta": 0.7570913508461837,
+      "r2": 0.2044281748286075,
+      "n": 522,
+      "start": "2016-10-12",
+      "end": "2026-10-12",
+      "freq": "weekly",
+      "adjusted_beta_blume": 0.8372512050669432
+    }
+  },
+  "adtv_20d_inr_crore_approx": 1140.8226208345861,
+  "adtv_20d_window": [
+    "2026-09-11",
+    "2026-10-12"
+  ],
+  "median_dtv_20d_inr_crore_approx": 856.3570480616455,
+  "adtv_60d_inr_crore_approx": 1183.3256865430876,
+  "adtv_60d_window": [
+    "2026-07-17",
+    "2026-10-12"
+  ],
+  "median_dtv_60d_inr_crore_approx": 996.5288940085693,
+  "adtv_90d_inr_crore_approx": 1209.086661099743,
+  "adtv_90d_window": [
+    "2026-06-04",
+    "2026-10-12"
+  ],
+  "median_dtv_90d_inr_crore_approx": 1077.19901325,
+  "adtv_250d_inr_crore_approx": 1480.6044315447803,
+  "adtv_250d_window": [
+    "2025-10-08",
+    "2026-10-12"
+  ],
+  "median_dtv_250d_inr_crore_approx": 1225.1672209547241,
+  "volatility": {
+    "stock_1y": 0.20946870614750032,
+    "stock_5y": 0.21407200341182248,
+    "nifty500_1y": 0.14233642002381855,
+    "nifty500_5y": 0.14503399601984895
+  }
+}

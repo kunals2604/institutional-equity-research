@@ -1,0 +1,35 @@
+fiscal_year,person,role,remuneration_inr,pct_increase,ratio_to_median,esop_perquisite_excluded_inr,source,locator,notes
+FY2017,Sunil Bharti Mittal,Chairman,301442108,8.22,366.27,,AR FY2017 FilingForge:AR-532454-2017,Annexure G p.78 (PDF p.81),
+FY2017,Gopal Vittal,MD & CEO (India & South Asia),92884551,49.56,112.86,31131500,AR FY2017 FilingForge:AR-532454-2017,Annexure G p.78 (PDF p.81),increase justified by external benchmarking; AGM approval 19-Aug-2016
+FY2017,Nilanjan Roy,Global CFO,25841867,15.31,,2608756,AR FY2017,Annexure G,also LTIP cash 17579393
+FY2018,Sunil Bharti Mittal,Chairman,301968769,0.17,352.44,,AR FY2018 FilingForge:AR-532454-2018,Annexure G p.099 (PDF p.102),
+FY2018,Gopal Vittal,MD & CEO (India & South Asia),126446716,36.13,147.58,43286800,AR FY2018,Annexure G (PDF p.102),
+FY2018,Nilanjan Roy,Global CFO,27962023,8.20,,5355285,AR FY2018,Annexure G (PDF p.102),
+FY2019,Sunil Bharti Mittal,Chairman,310054665,2.68,458.17,,AR FY2019 FilingForge:e52e5a27-cfee-4e32-aac2-04337c03baeb,Annexure G p.113,ratio up due to ~2700 employees transferred from BASL; NED commission nil (inadequate profits)
+FY2019,Gopal Vittal,MD & CEO (India & South Asia),135575038,7.22,200.34,73475697,AR FY2019,Annexure G p.113,
+FY2019,Nilanjan Roy,Global CFO (to 28-Feb-2019),27908606,0,,4896716,AR FY2019,Annexure G p.113,ceased 28-Feb-2019
+FY2019,Badal Bagri,CFO India & South Asia (from 1-Mar-2019),27781065,,,,AR FY2019,Annexure G p.113,
+FY2020,Sunil Bharti Mittal,Chairman,301327308,-2.81,428.94,,AR FY2020 FilingForge:49889f5f-b097-41be-8be7-8bad6d949760,Annexure G p.155,NED commission nil (inadequate profits)
+FY2020,Gopal Vittal,MD & CEO (India & South Asia),143665434,5.97,204.51,51292580,AR FY2020,Annexure G p.155,
+FY2020,Badal Bagri,CFO,28053705,0.98,39.93,6099065,AR FY2020,Annexure G p.155,
+FY2021,Sunil Bharti Mittal,Chairman,161974744,-46.25,217.77,,AR FY2021 FilingForge:3e7fff81-d3bf-4662-8dd5-8c18db7db532,Annexure F p.206,Airtel pay cut from 300m to 150m w.e.f. 1-Apr-2020 for split duties to overseas subsidiaries; total incl. subsidiaries unchanged
+FY2021,Gopal Vittal,MD & CEO,144171324,0.35,193.83,105446280,AR FY2021,Annexure F p.206,
+FY2021,Badal Bagri,CFO,32433160,16.75,43.61,14186980,AR FY2021,Annexure F p.206,
+FY2022,Sunil Bharti Mittal,Chairman,153986068,-4.93,179.96,,AR FY2022 FilingForge:1c7c2552-7d96-4a40-ae4b-afed2435fdcf,Annexure F p.194,
+FY2022,Gopal Vittal,MD & CEO,152581334,5.83,178.32,264159422,AR FY2022,Annexure F p.194,
+FY2022,Badal Bagri,CFO (resigned 8-Oct-2021),16231633,-3.85,36.25,36028853,AR FY2022,Annexure F p.194,
+FY2022,Soumen Ray,CFO (from 21-Dec-2021),12917539,,55.10,,AR FY2022,Annexure F p.194,
+FY2023,Sunil Bharti Mittal,Chairman,167729002,8.92,182.71,,AR FY2023 FilingForge:80756f27-cb0a-4847-9f7b-019ba8be2275,Annexure F p.200,plus GBP 2.20 Mn from Network i2i (UK) Ltd
+FY2023,Gopal Vittal,MD & CEO,168434184,10.39,183.48,137857311,AR FY2023,Annexure F p.200,
+FY2023,Soumen Ray,CFO,50168723,,30.68,,AR FY2023,Annexure F p.200,excludes one-time payout 33566667
+FY2024,Sunil Bharti Mittal,Chairman,322714541,n/c,372.13,,AR FY2024 FilingForge:fa581014-8329-4051-a7b5-54eddb9ab932,Annexure F p.222,restored to INR 30 crore with shareholder approval at 28th AGM 24-Aug-2023
+FY2024,Gopal Vittal,MD & CEO,185508865,10.14,213.91,108402511,AR FY2024,Annexure F p.222,
+FY2024,Soumen Ray,CFO,57060989,13.74,65.80,12270583,AR FY2024,Annexure F p.222,
+FY2025,Sunil Bharti Mittal,Chairman,325586133,0.89,390.89,,AR FY2025 FilingForge:ef981e1b-4d0f-478c-ae63-5e3f2ca4316f,Annexure F p.248,
+FY2025,Gopal Vittal,Vice Chairman & MD,202468554,9.14,243.08,229541021,AR FY2025,Annexure F p.248,
+FY2025,Soumen Ray,CFO,62481222,9.50,75.01,15365572,AR FY2025,Annexure F p.248,
+FY2026,Sunil Bharti Mittal,Chairman,333413535,2.40,381.64,,AR FY2026 Board's Report https://www.airtel.in/airtel-annual-report-2025-26/files/pdfs/Boards-Report.pdf,Annexure F p.268-269,
+FY2026,Gopal Vittal,Executive Vice Chairman,217291098,7.32,248.72,802270354,AR FY2026 Board's Report,Annexure F p.268-269,
+FY2026,Shashwat Sharma,MD & CEO Airtel India (from 1-Jan-2026),18833025,n/c,21.56,,AR FY2026 Board's Report,Annexure F p.268,3 months
+FY2026,Soumen Ray,Group CFO (KMP to 31-Dec-2025),55371789,n/c,63.38,12484433,AR FY2026 Board's Report,Annexure F,
+FY2026,Akhil Garg,CFO Airtel India (from 1-Jan-2026),6795573,n/c,7.78,6657514,AR FY2026 Board's Report,Annexure F,

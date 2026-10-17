@@ -1,0 +1,160 @@
+{
+  "hurdle_rate": 0.116796,
+  "rows": [
+    {
+      "price": 1067.0,
+      "margin_of_safety": 0.14193807800562927,
+      "expected_irr": 0.16406782740019255,
+      "asymmetry_ratio": null,
+      "IA1": 64,
+      "IA2": 78,
+      "IA4": 100
+    },
+    {
+      "price": 1156.0,
+      "margin_of_safety": 0.07036590269400884,
+      "expected_irr": 0.14476915880478913,
+      "asymmetry_ratio": null,
+      "IA1": 56,
+      "IA2": 70,
+      "IA4": 100
+    },
+    {
+      "price": 1245.0,
+      "margin_of_safety": -0.0012062726176115801,
+      "expected_irr": 0.12722122662328172,
+      "asymmetry_ratio": 102.70312499999999,
+      "IA1": 49,
+      "IA2": 64,
+      "IA4": 100
+    },
+    {
+      "price": 1334.0,
+      "margin_of_safety": -0.072778447929232,
+      "expected_irr": 0.11115423288382581,
+      "asymmetry_ratio": 33.38503649635036,
+      "IA1": 43,
+      "IA2": 56,
+      "IA4": 100
+    },
+    {
+      "price": 1423.0,
+      "margin_of_safety": -0.14435062324085243,
+      "expected_irr": 0.09635476509593419,
+      "asymmetry_ratio": 18.662610619469024,
+      "IA1": 35,
+      "IA2": 49,
+      "IA4": 100
+    },
+    {
+      "price": 1512.0,
+      "margin_of_safety": -0.21592279855247287,
+      "expected_irr": 0.08265145401321342,
+      "asymmetry_ratio": 12.25952380952381,
+      "IA1": 28,
+      "IA2": 43,
+      "IA4": 100
+    },
+    {
+      "price": 1601.0,
+      "margin_of_safety": -0.2874949738640933,
+      "expected_irr": 0.06990448331125074,
+      "asymmetry_ratio": 8.67759900990099,
+      "IA1": 21,
+      "IA2": 37,
+      "IA4": 100
+    },
+    {
+      "price": 1690.0,
+      "margin_of_safety": -0.3590671491757137,
+      "expected_irr": 0.05799862335808568,
+      "asymmetry_ratio": 6.38894523326572,
+      "IA1": 17,
+      "IA2": 34,
+      "IA4": 100
+    },
+    {
+      "price": 1779.0,
+      "margin_of_safety": -0.43063932448733416,
+      "expected_irr": 0.04683765823058777,
+      "asymmetry_ratio": 4.800257731958762,
+      "IA1": 15,
+      "IA2": 32,
+      "IA4": 99
+    },
+    {
+      "price": 1868.0,
+      "margin_of_safety": -0.5022114997989545,
+      "expected_irr": 0.03634069771058849,
+      "asymmetry_ratio": 3.6330104321907597,
+      "IA1": 14,
+      "IA2": 29,
+      "IA4": 93
+    },
+    {
+      "price": 1957.0,
+      "margin_of_safety": -0.573783675110575,
+      "expected_irr": 0.026438899059221074,
+      "asymmetry_ratio": 2.7391447368421056,
+      "IA1": 12,
+      "IA2": 27,
+      "IA4": 84
+    },
+    {
+      "price": 2046.0,
+      "margin_of_safety": -0.6453558504221955,
+      "expected_irr": 0.017073418125882672,
+      "asymmetry_ratio": 2.032685512367491,
+      "IA1": 10,
+      "IA2": 24,
+      "IA4": 71
+    },
+    {
+      "price": 2135.0,
+      "margin_of_safety": -0.7169280257338159,
+      "expected_irr": 0.008193360457196763,
+      "asymmetry_ratio": 1.4396639511201628,
+      "IA1": 8,
+      "IA2": 22,
+      "IA4": 56
+    },
+    {
+      "price": 2224.0,
+      "margin_of_safety": -0.7885002010454363,
+      "expected_irr": -0.0002452841263265097,
+      "asymmetry_ratio": 0.9899296978909367,
+      "IA1": 6,
+      "IA2": 19,
+      "IA4": 39
+    },
+    {
+      "price": 2312.0,
+      "margin_of_safety": -0.8592681946119823,
+      "expected_irr": -0.008192850505933234,
+      "asymmetry_ratio": 0.7245936503114082,
+      "IA1": 4,
+      "IA2": 18,
+      "IA4": 26
+    },
+    {
+      "price": 2401.0,
+      "margin_of_safety": -0.9308403699236028,
+      "expected_irr": -0.01586357072852558,
+      "asymmetry_ratio": 0.5462237938873452,
+      "IA1": 2,
+      "IA2": 17,
+      "IA4": 20
+    },
+    {
+      "price": 2490.0,
+      "margin_of_safety": -1.002412545235223,
+      "expected_irr": -0.023194830683991377,
+      "asymmetry_ratio": 0.41932346266075865,
+      "IA1": 0,
+      "IA2": 17,
+      "IA4": 15
+    }
+  ],
+  "decision_triggers": {},
+  "note": "IA3, IA5-IA8 held at the scorecard's values; IA5 (expectations gap) is also price-sensitive, so review it near the trigger prices."
+}

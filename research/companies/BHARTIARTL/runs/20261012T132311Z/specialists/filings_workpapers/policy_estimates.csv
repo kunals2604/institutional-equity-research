@@ -1,0 +1,17 @@
+item,fy,basis,amount_inr_mn,direction_effect_on_profit,source,locator
+borrowing_cost_capitalised_group,FY2016,consolidated,2265,raises profit (interest deferred into intangibles),AR FY2017 FilingForge:AR-532454-2017,MD l.11563
+borrowing_cost_capitalised_group,FY2017,consolidated,2750,raises,AR FY2017,MD l.11563
+borrowing_cost_capitalised_group,FY2018,consolidated,3037,raises,AR FY2018 FilingForge:AR-532454-2018,MD l.13987
+borrowing_cost_capitalised_group,FY2020,consolidated,2978,raises (PPE note; intangibles separately not located),AR FY2020 FilingForge:49889f5f,MD l.23231
+borrowing_cost_capitalised_group,FY2021,consolidated,151,raises,AR FY2022 FilingForge:1c7c2552,MD l.26281
+borrowing_cost_capitalised_group,FY2022,consolidated,2840,raises,AR FY2022,MD l.26281
+borrowing_cost_capitalised_group,FY2023,consolidated,14752,raises (5G spectrum before put to use),AR FY2023 FilingForge:80756f27,MD l.11211
+borrowing_cost_capitalised_group,FY2024,consolidated,13654,raises,AR FY2024 FilingForge:fa581014,MD l.13061
+borrowing_cost_capitalised_group,FY2025,consolidated,3958,raises,AR FY2025 FilingForge:ef981e1b,MD l.27470
+borrowing_cost_capitalised_group,FY2026,consolidated,0,none (intangibles); PPE capitalisation separately small,AR FY2026 CFS,PDF line 3012
+useful_life_change,FY2017,consolidated/standalone,9196,"lowers (network asset lives shortened: 2,920 exceptional + 6,276 in D&A)",AR FY2018 FilingForge:AR-532454-2018,MD l.9647-9655
+useful_life_change,FY2019,standalone,-2538,"raises (certain network assets 18->25 years; FY2019 depreciation lower by 2,538; +8,826 later)",AR FY2019 FilingForge:e52e5a27,MD l.9945-9999
+useful_life_change,FY2020,consolidated,11524,lowers (network assets shortened),AR FY2020 FilingForge:49889f5f,MD l.23253
+useful_life_change,FY2020,consolidated,-2188,raises (DTH CPE 5->7 years),AR FY2020,MD l.23238-23247
+useful_life_change,FY2021,consolidated,8345,lowers (network assets shortened),AR FY2021 FilingForge:3e7fff81,MD l.13788-13792
+useful_life_change,FY2022-FY2026,consolidated,0,no further change located by search,ARs FY2022-FY2026,search 'Impact on depreciation' nil

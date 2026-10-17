@@ -1,0 +1,33 @@
+FY2010 bharti=8742.73@p.65 | access_total=31153.69@p.65,66
+FY2013 bharti=8036.21@p.67 | access_total=27801.94@p.15,65,67
+FY2014 bharti=9174.97@p.81 | access_total=31922.39@p.16,81
+FY2015 bharti=10439.09@p.77 | access_total=35938.26@p.16,77
+FY2016 bharti=12032.45@p.75 | jio=2.41@p.22,28,29 | access_total=39885.55@p.15,75
+FY2017 bharti=10361.88@p.77 | jio=-1178.61@p.77 | access_total=31594.91@p.14,77
+FY2018 bharti=7086.49@p.82 | jio=6217.64@p.82 | access_total=25448.09@p.14,82
+FY2019 bharti=5920.22@p.77 | jio=9838.91@p.77 | vodafone_idea=7133.40@p.77 | access_total=26095.71@p.15,77
+FY2020 bharti=9737.00@p.78 | jio=13428.07@p.78 | vodafone_idea=7866.60@p.78 | access_total=34495.87@p.15,78
+FY2021 bharti=13049.44@p.77 | jio=16422.83@p.77 | vodafone_idea=6152.25@p.77 | access_total=38607.95@p.76,78
+FY2022 bharti=16005.16@p.78 | jio=20659.90@p.78 | vodafone_idea=7209.57@p.78 | access_total=46421.09@p.77,79
+FY2023 bharti=18500.36@p.79 | jio=22985.00@p.79 | vodafone_idea=7210.63@p.79 | access_total=51630.91@p.78,80
+FY2024 bharti=20951.91@p.79 | jio=25330.97@p.79 | vodafone_idea=7370.75@p.79 | access_total=56539.81@p.78,80
+FY2025 bharti=26324.20@p.90 | jio=29464.67@p.90 | vodafone_idea=7653.53@p.90 | access_total=66563.28@p.89,91
+FY2026 bharti=28773.59@p.92 | jio=32467.88@p.92 | vodafone_idea=8195.12@p.92 | access_total=72487.96@p.91,93
+Q1FY2027 bharti=29803.04@p.99 | jio=33226.12@p.99 | vodafone_idea=8448.09@p.99 | access_total=74456.60@p.97
+FY2009 bharti=93.92@p.25,32,33 | total=391.76@p.5,10,23
+FY2010 bharti=127.62@p.12,24,27 | total=584.32@p.3,6,11
+FY2013 bharti=188.20@p.14,28,29 | total=867.80@p.4,7,13
+FY2014 bharti=205.39@p.15,31,35 | total=904.51@p.4,7,14
+FY2015 bharti=226.02@p.29,30,33 | total=969.89@p.4,7,15
+FY2016 bharti=251.24@p.28,29,32 | total=1033.63@p.4,7,14
+FY2017 bharti=273.65@p.28,29,32 | jio=108.68@p.13,24,25 | total=1170.18@p.4,7,13
+FY2018 bharti=304.19@p.30,36 | jio=186.56@p.13,26,27 | total=1183.41@p.4,7,13
+FY2019 bharti=325.18@p.31,37 | jio=306.72@p.14,27,28 | vodafone_idea=394.84@p.31,37 | total=1161.81@p.4,7,14
+FY2020 bharti=327.81@p.31,37 | jio=387.52@p.31,37,56 | vodafone_idea=319.17@p.31,37 | total=1157.75@p.4,7,14
+FY2021 bharti=352.39@p.31,37 | jio=422.92@p.31,37,56 | vodafone_idea=283.71@p.31,37 | total=1180.96@p.4,7,14
+FY2022 bharti=360.33@p.30,36 | jio=403.99@p.30,36,56 | vodafone_idea=260.77@p.30,36 | total=1142.09@p.4,7,13
+FY2023 bharti=370.91@p.32,33,38 | jio=430.23@p.32,38,58 | vodafone_idea=236.75@p.32,38 | total=1143.93@p.4,11,15
+FY2024 bharti=385.76@p.32,33,38 | jio=469.73@p.32,38,58 | vodafone_idea=219.82@p.32,38 | total=1165.49@p.4,10,15
+FY2025 bharti=391.00@p.32,38 | jio=475.34@p.32,33,38 | vodafone_idea=205.36@p.32,38,40 | total=1163.76@p.4,10,15
+FY2026 bharti=481.48@p.33,34,39 | jio=509.21@p.33,34,39 | vodafone_idea=198.48@p.33,39,41 | total=1282.33@p.4,11,16
+Q1FY2027 bharti=490.62@p.35,36,41 | jio=517.63@p.35,41,71 | vodafone_idea=198.82@p.35,41,43 | total=1300.25@p.4,12,17

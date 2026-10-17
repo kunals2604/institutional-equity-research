@@ -1,0 +1,14 @@
+# Findings log (memory aid; figures cited by ledger IDs)
+- FY2026 consolidated: rev 210,973 cr (C001); EBITDA KPI 121,268 cr, 57.5% (C002); PAT attrib 26,695 cr (C003). Q1FY27 attrib 8,167 cr (C004).
+- Net debt ex-lease 91,049 cr incl DPL 88,713 cr; leases 73,740; incl leases 164,789 (C005). AGR DPL 34,386 cr (C025), spectrum DPL 54,327 (C026); sub-judice AGR provision 34,704 (unindemnified ~15,543) outside net debt (C027). Contingent 19,184 cr (C028). OTSC 6,607 contingent (C029).
+- ARPU 245->250->256->259->257 (C006); no tariff hike since Jul-2024 (MGT stmt C031). Churn 2.4% (C007). Capex FY26 47,522 cr; Q4 16,066 (C008).
+- Company EV/EBITDA 9.77x, P/E 38.8x at Mar-26 (C009). Price flat 18 months (C024). Drawdowns -50% 2007-12, -44% 2017-18; flat 2008-2018 (C023).
+- Dilution: FY2020 rights @220 + QIP @445 (C021); 2021 rights call 15,696 cr (C022); ICIL swap 146.8m shares @1,923 (C013).
+- NBFC 20,000 cr (70% Airtel) (C012); Indus rev/tower -2.9% (C014); TRAI caps 40->35% (C015).
+- Trough FY2016->FY2019: rev 96,532->80,780; EBITDA 34,168->26,294; NI 6,077->410; FY2020 loss -32,183 (C016-C020).
+- DoT denied AGR parity 30-Mar-2026 (C033); Vi relief 87,695 cr frozen; reassessed ~64,046 (C034).
+- Jio IPO: DRHP 19-Jun-2026, fresh issue ~37,700 cr, listing ~late Oct 2026 (tier 6 leads; not yet ledgered).
+- Vi: seeking 25,000 cr bank debt, capex 50-55k cr/3y (tier 6 leads).
+- To do: Singtel/promoter sales; ratings; short-seller search; CCI/TRAI/SEBI; Starlink; Airtel Africa naira; consensus; calc scenarios.
+- C035-C046 recorded: Q1FY27 ARPU 264, mgmt ARPU 4-5% p.a., capex 1GW DC, ARPU300 promise, ARPU 104 trough, consensus EPS 62.75/82.26 TP 2318, Moody's Ba1 2019, S&P BBB+ 2026, Jio IPO, no tariff hike, Vi funding, Starlink
+- C053-C062: calc results recorded (scenarios.out). Next: write report.

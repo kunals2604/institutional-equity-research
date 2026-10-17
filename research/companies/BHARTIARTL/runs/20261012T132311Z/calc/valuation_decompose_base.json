@@ -1,0 +1,8 @@
+{
+  "eps_growth": 0.15,
+  "annual_multiple_change": -0.06072697181946807,
+  "annual_dilution": 0.005,
+  "dividend_yield": 0.015,
+  "approx_annual_return": 0.08976316249557358,
+  "formula": "(1+EPS growth)*(1+annualized multiple change)*(1-dilution) - 1 + dividend yield"
+}

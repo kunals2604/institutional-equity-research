@@ -1,0 +1,70 @@
+{
+  "annual_reports": [
+    "FY2017",
+    "FY2018",
+    "FY2019",
+    "FY2020",
+    "FY2021",
+    "FY2022",
+    "FY2023",
+    "FY2024",
+    "FY2025"
+  ],
+  "results_quarters": [
+    "Q3FY2019",
+    "Q4FY2019",
+    "Q1FY2020",
+    "Q2FY2020",
+    "Q3FY2020",
+    "Q4FY2020",
+    "Q1FY2021",
+    "Q2FY2021",
+    "Q3FY2021",
+    "Q4FY2021",
+    "Q1FY2022",
+    "Q2FY2022",
+    "Q3FY2022",
+    "Q4FY2022",
+    "Q1FY2023",
+    "Q2FY2023",
+    "Q3FY2023",
+    "Q4FY2023",
+    "Q1FY2024",
+    "Q2FY2024",
+    "Q3FY2024",
+    "Q4FY2024",
+    "Q1FY2025",
+    "Q2FY2025",
+    "Q3FY2025",
+    "Q4FY2025",
+    "Q1FY2026",
+    "Q3FY2026",
+    "Q4FY2026",
+    "Q1FY2027"
+  ],
+  "transcript_quarters": [
+    "Q2FY2023",
+    "Q3FY2023",
+    "Q4FY2023",
+    "Q1FY2024",
+    "Q2FY2024",
+    "Q3FY2024",
+    "Q4FY2024",
+    "Q2FY2025",
+    "Q3FY2025",
+    "Q4FY2025",
+    "Q1FY2026",
+    "Q2FY2026",
+    "Q3FY2026",
+    "Q1FY2027"
+  ],
+  "presentation_quarters": [
+    "Q3FY2022",
+    "Q1FY2025"
+  ],
+  "gaps": {
+    "annual_reports": 1,
+    "transcript_quarters": 0,
+    "results_quarters": 0
+  }
+}

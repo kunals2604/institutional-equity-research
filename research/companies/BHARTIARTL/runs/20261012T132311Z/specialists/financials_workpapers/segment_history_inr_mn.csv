@@ -1,0 +1,12 @@
+period,msi_revenue,msa_revenue,msi_result,msa_result,msi_capex,msa_capex,msi_da,msa_da,msi_assets,msa_assets,group_revenue,group_segment_results,source,locator
+FY2016,560637,251333,128320,4909,,,,,,,965321,176881,AR FY2017 (FilingForge:AR-532454-2017),segment note 35 MD lines 13258-13270 (col order India/South Asia/Africa)
+FY2017,565511,219568,105494,10189,,,,,,,954683,167223,AR FY2018 (FilingForge:AR-532454-2018),segment note 36 MD lines 15912-15917
+FY2018,462639,191073,20835,35884,198280,28366,,,,,826388,121457,AR FY2019 (FilingForge:e52e5a27-cfee-4e32-aac2-04337c03baeb),segment note MD lines 24644-24655 (restated comparatives; group revenue 826388 in segment table vs 836879 reported)
+FY2019,415540,215028,-56762,52390,235770,50846,,,,,807802,53016,AR FY2020 (FilingForge:49889f5f-b097-41be-8be7-8bad6d949760),segment note MD lines 25291-25305
+FY2020,459663,242173,-31379,64488,108373,45417,,,,,875390,100684,AR FY2021 (FilingForge:3e7fff81-d3bf-4662-8dd5-8c18db7db532) / AR FY2020,segment note MD lines 15734-15744 (FY2021 AR); revenue/results also AR FY2020 MD 25249-25252
+FY2021,555677,288633,33046,82459,205496,45429,,,,,1006158,166413,AR FY2021 (FilingForge:3e7fff81-d3bf-4662-8dd5-8c18db7db532),segment note MD lines 15678-15690 (continuing ops)
+FY2022,629149,350612,78549,116769,267538,48891,,,,,1165469,274428,AR FY2023 (FilingForge:80756f27-cb0a-4847-9f7b-019ba8be2275),segment note MD lines 12906-12917 (restated comparatives)
+FY2023,759246,422664,148452,141471,644936,60400,,,,,1391448,360533,AR FY2024 (FilingForge:fa581014-8329-4051-a7b5-54eddb9ab932),segment note MD lines 14871-14881 (India capex incl. 5G spectrum)
+FY2024,850488,411841,188195,135823,262833,61028,,,,,1499824,422177,AR FY2024 (FilingForge:fa581014-8329-4051-a7b5-54eddb9ab932),segment note MD lines 14831-14842
+FY2025,1002500,418795,264000,124733,260916,74521,315093,70260,2856265,975878,1729852,523819,AR FY2026 Consolidated FS (airtel.in),note 34 printed p.498
+FY2026,1129954,568064,357661,187936,183351,82375,322687,92761,2742633,1280212,2109728,689212,AR FY2026 Consolidated FS (airtel.in),note 34 printed p.497

@@ -1,0 +1,64 @@
+{
+  "_comment": "SENSITIVITY: probabilities 30/50/20",
+  "_sources": {
+    "value_today": "VAL-C044, VAL-C045, VAL-C046",
+    "ke/hurdle": "VAL-C026",
+    "dps": "VAL-C039 (FY2026 INR 24) and VAL-C047",
+    "price": "CIO-C001",
+    "probabilities": "VAL-C047"
+  },
+  "price": 1778.7,
+  "horizon_years": 5,
+  "hurdle_rate": 0.116796,
+  "intrinsic_value_today": {
+    "low": 1145.0,
+    "high": 1342.0
+  },
+  "scenarios": {
+    "bear": {
+      "probability": 0.3,
+      "value_per_share": [
+        938,
+        1216
+      ],
+      "dps": [
+        24.0,
+        24.0
+      ],
+      "value_today": [
+        627.0,
+        787.0
+      ]
+    },
+    "base": {
+      "probability": 0.5,
+      "value_per_share": [
+        1768,
+        2110
+      ],
+      "dps": [
+        27.0,
+        45.0
+      ],
+      "value_today": [
+        1145.0,
+        1342.0
+      ]
+    },
+    "bull": {
+      "probability": 0.2,
+      "value_per_share": [
+        2680,
+        3432
+      ],
+      "dps": [
+        29.0,
+        55.0
+      ],
+      "value_today": [
+        1690.0,
+        2123.0
+      ]
+    }
+  }
+}

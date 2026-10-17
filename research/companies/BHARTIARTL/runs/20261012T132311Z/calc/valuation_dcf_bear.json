@@ -1,0 +1,253 @@
+{
+  "rows": [
+    {
+      "year": 1,
+      "revenue": 2398537.37,
+      "growth": 0.09,
+      "ebit_margin": 0.32,
+      "nopat": 560298.329632,
+      "reinvestment": 165036.9750000001,
+      "fcff": 395261.35463199986,
+      "discount_factor": 0.9490297571522038,
+      "pv": 375114.78739805793
+    },
+    {
+      "year": 2,
+      "revenue": 2603745.5672111115,
+      "growth": 0.08555555555555555,
+      "ebit_margin": 0.3211111111111111,
+      "nopat": 610346.8914605869,
+      "reinvestment": 171006.83100925953,
+      "fcff": 439340.06045132736,
+      "discount_factor": 0.8547507494841069,
+      "pv": 375526.2459491649
+    },
+    {
+      "year": 3,
+      "revenue": 2814938.263218235,
+      "growth": 0.0811111111111111,
+      "ebit_margin": 0.32222222222222224,
+      "nopat": 662136.033692556,
+      "reinvestment": 175993.91333926975,
+      "fcff": 486142.1203532862,
+      "discount_factor": 0.769837656024594,
+      "pv": 374250.5104275999
+    },
+    {
+      "year": 4,
+      "revenue": 3030750.196731633,
+      "growth": 0.07666666666666666,
+      "ebit_margin": 0.32333333333333336,
+      "nopat": 715358.0714352231,
+      "reinvestment": 179843.2779278315,
+      "fcff": 535514.7935073916,
+      "discount_factor": 0.6933600432537098,
+      "pv": 371304.5603892865
+    },
+    {
+      "year": 5,
+      "revenue": 3249637.7109400285,
+      "growth": 0.07222222222222222,
+      "ebit_margin": 0.3244444444444445,
+      "nopat": 769658.6382933074,
+      "reinvestment": 182406.2618403296,
+      "fcff": 587252.3764529778,
+      "discount_factor": 0.6244799092621002,
+      "pv": 366727.31076130824
+    },
+    {
+      "year": 6,
+      "revenue": 3469890.9335704083,
+      "growth": 0.06777777777777778,
+      "ebit_margin": 0.32555555555555554,
+      "nopat": 824638.8575348606,
+      "reinvestment": 183544.3521919831,
+      "fcff": 641094.5053428775,
+      "discount_factor": 0.5624425013618842,
+      "pv": 360578.79719440785
+    },
+    {
+      "year": 7,
+      "revenue": 3689650.6926965336,
+      "growth": 0.06333333333333334,
+      "ebit_margin": 0.32666666666666666,
+      "nopat": 879858.7018517001,
+      "reinvestment": 183133.13260510447,
+      "fcff": 696725.5692465956,
+      "discount_factor": 0.5065680458992022,
+      "pv": 352938.9101412573
+    },
+    {
+      "year": 8,
+      "revenue": 3906930.122377552,
+      "growth": 0.05888888888888889,
+      "ebit_margin": 0.3277777777777778,
+      "nopat": 934841.557615562,
+      "reinvestment": 181066.19140084874,
+      "fcff": 753775.3662147133,
+      "discount_factor": 0.456244299648025,
+      "pv": 343905.71405056544
+    },
+    {
+      "year": 9,
+      "revenue": 4119640.7623736635,
+      "growth": 0.05444444444444445,
+      "ebit_margin": 0.3288888888888889,
+      "nopat": 989079.973259668,
+      "reinvestment": 177258.86666342616,
+      "fcff": 811821.1065962418,
+      "discount_factor": 0.41091984116727465,
+      "pv": 333593.40017876885
+    },
+    {
+      "year": 10,
+      "revenue": 4325622.800492347,
+      "growth": 0.05,
+      "ebit_margin": 0.33,
+      "nopat": 1042042.5326386064,
+      "reinvestment": 171651.69843223644,
+      "fcff": 870390.8342063699,
+      "discount_factor": 0.3700980286114335,
+      "pv": 322129.93186123855
+    }
+  ],
+  "terminal_value": 9853924.40894854,
+  "pv_terminal": 3461033.7018421413,
+  "pv_explicit": 3576070.168351655,
+  "enterprise_value": 7037103.870193796,
+  "equity_value": 4374906.870193796,
+  "value_per_share": 700.9945313561602,
+  "terminal_share_of_ev": 0.49182643395411857,
+  "implied_exit_ev_ebit": 6.903139356814704,
+  "terminal_reinvestment_rate": 0.40909090909090906,
+  "warnings": [
+    "terminal ROIC below WACC: terminal growth destroys value"
+  ],
+  "sensitivity": [
+    {
+      "wacc": 0.1003,
+      "terminal_growth": 0.034999999999999996,
+      "value_per_share": 866.170765553263
+    },
+    {
+      "wacc": 0.1003,
+      "terminal_growth": 0.04,
+      "value_per_share": 876.9983614276894
+    },
+    {
+      "wacc": 0.1003,
+      "terminal_growth": 0.045,
+      "value_per_share": 889.256249189278
+    },
+    {
+      "wacc": 0.1003,
+      "terminal_growth": 0.049999999999999996,
+      "value_per_share": 903.3709572338026
+    },
+    {
+      "wacc": 0.1003,
+      "terminal_growth": 0.055,
+      "value_per_share": 919.9573267145535
+    },
+    {
+      "wacc": 0.10529999999999999,
+      "terminal_growth": 0.034999999999999996,
+      "value_per_share": 775.0550822793272
+    },
+    {
+      "wacc": 0.10529999999999999,
+      "terminal_growth": 0.04,
+      "value_per_share": 780.9996653056869
+    },
+    {
+      "wacc": 0.10529999999999999,
+      "terminal_growth": 0.045,
+      "value_per_share": 787.4676066025961
+    },
+    {
+      "wacc": 0.10529999999999999,
+      "terminal_growth": 0.049999999999999996,
+      "value_per_share": 794.6008659179432
+    },
+    {
+      "wacc": 0.10529999999999999,
+      "terminal_growth": 0.055,
+      "value_per_share": 802.5978482274061
+    },
+    {
+      "wacc": 0.1103,
+      "terminal_growth": 0.034999999999999996,
+      "value_per_share": 696.0243569189306
+    },
+    {
+      "wacc": 0.1103,
+      "terminal_growth": 0.04,
+      "value_per_share": 698.5222873391702
+    },
+    {
+      "wacc": 0.1103,
+      "terminal_growth": 0.045,
+      "value_per_share": 700.9945313561602
+    },
+    {
+      "wacc": 0.1103,
+      "terminal_growth": 0.049999999999999996,
+      "value_per_share": 703.4346993173508
+    },
+    {
+      "wacc": 0.1103,
+      "terminal_growth": 0.055,
+      "value_per_share": 705.8340906651111
+    },
+    {
+      "wacc": 0.1153,
+      "terminal_growth": 0.034999999999999996,
+      "value_per_share": 626.8218190691305
+    },
+    {
+      "wacc": 0.1153,
+      "terminal_growth": 0.04,
+      "value_per_share": 626.8789301440152
+    },
+    {
+      "wacc": 0.1153,
+      "terminal_growth": 0.045,
+      "value_per_share": 626.5816415678112
+    },
+    {
+      "wacc": 0.1153,
+      "terminal_growth": 0.049999999999999996,
+      "value_per_share": 625.848544538584
+    },
+    {
+      "wacc": 0.1153,
+      "terminal_growth": 0.055,
+      "value_per_share": 624.5712289933925
+    },
+    {
+      "wacc": 0.12029999999999999,
+      "terminal_growth": 0.034999999999999996,
+      "value_per_share": 565.7198484436664
+    },
+    {
+      "wacc": 0.12029999999999999,
+      "terminal_growth": 0.04,
+      "value_per_share": 564.0513446963694
+    },
+    {
+      "wacc": 0.12029999999999999,
+      "terminal_growth": 0.045,
+      "value_per_share": 561.837614104228
+    },
+    {
+      "wacc": 0.12029999999999999,
+      "terminal_growth": 0.049999999999999996,
+      "value_per_share": 558.962320925099
+    },
+    {
+      "wacc": 0.12029999999999999,
+      "terminal_growth": 0.055,
+      "value_per_share": 555.2734982553867
+    }
+  ]
+}

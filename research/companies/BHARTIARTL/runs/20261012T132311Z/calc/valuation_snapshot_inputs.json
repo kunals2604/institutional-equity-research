@@ -1,0 +1,33 @@
+{
+  "_comment": "Capital-structure snapshot and multiple-history inputs (INR million unless stated). Every input cites a ledger claim.",
+  "_sources": {
+    "price": "CIO-C001 (re-verified VAL-C001)", "shares_fully_paid": "VAL-C002", "shares_partly_paid": "VAL-C002", "call_unpaid_per_pp_share": "VAL-C002",
+    "net_debt_incl_leases_jun26": "VAL-C006", "net_debt_excl_leases_jun26": "VAL-C006", "lease_liabilities_jun26": "VAL-C006", "deferred_payment_liability_jun26": "VAL-C006",
+    "nci_book_jun26": "VAL-C007", "equity_parent_jun26": "VAL-C007",
+    "fy26": "VAL-C009", "q1fy27": "VAL-C008", "q1fy26": "VAL-C010",
+    "africa": "VAL-C004; VAL-C034", "indus": "VAL-C035; VAL-C036", "hexacom": "VAL-C035; VAL-C036", "other_nci_estimate": "VAL-C037",
+    "ev_ebitda_history": "VAL-C030", "pe_history": "VAL-C031", "fy10_inputs": "VAL-C030"
+  },
+  "price": 1778.70,
+  "shares_fully_paid": 6240504481,
+  "shares_partly_paid": 649835,
+  "call_unpaid_per_pp_share": 401.25,
+  "net_debt_incl_leases_jun26": 1572396,
+  "net_debt_excl_leases_jun26": 818521,
+  "lease_liabilities_jun26": 753875,
+  "deferred_payment_liability_jun26": 887130,
+  "nci_book_jun26": 388316,
+  "equity_parent_jun26": 1618151,
+  "fy26": {"revenue": 2109728, "ebitda": 1212676, "ebitdaal": 1079460, "ebit": 680996, "ni_pre_exc": 269042, "capex": 475218, "eps_basic": 45.96, "eps_diluted": 44.37},
+  "q1fy27": {"revenue": 585391, "ebitda": 335986, "ebitdaal": 298396, "ebit": 192816, "ni_pre_exc": 80572, "capex": 133860},
+  "q1fy26": {"revenue": 494626, "ebitda": 281668, "ebitdaal": 249945, "ebit": 156209, "ni_pre_exc": 59479, "capex": 83070},
+  "africa": {"price_gbp_pence": 289.8, "gbpinr": 126.7373, "icil_swap_shares": 595204251, "icil_stake_pct": 0.1631, "airtel_effective_stake": 0.7911},
+  "indus": {"price": 375.65, "mcap_inr_crore_screener": 99652, "screener_price": 376, "airtel_stake": 0.512},
+  "hexacom": {"price": 1521.30, "shares": 500000000, "airtel_stake": 0.70},
+  "other_nci_estimate_inr_mn": 95760,
+  "ev_ebitda_history": {"FY2011": 9.75, "FY2012": 8.14, "FY2013": 7.02, "FY2014": 6.75, "FY2015": 7.13, "FY2016": 6.73, "FY2017": 6.65, "FY2018": 8.52, "FY2019": 9.36, "FY2020": 10.49, "FY2021": 9.38, "FY2022": 10.16, "FY2023": 8.99, "FY2024": 10.37, "FY2025": 11.83, "FY2026": 10.33},
+  "pe_history": {"FY2012": 30.0, "FY2013": 48.65, "FY2014": 45.44, "FY2015": 30.36, "FY2016": 25.57, "FY2017": 36.81, "FY2018": 145.10, "FY2019": 325.18, "FY2020": null, "FY2021": null, "FY2022": 95.33, "FY2023": 48.92, "FY2024": 91.89, "FY2025": 29.37, "FY2026": 38.83},
+  "fy10_inputs": {"price_adj_yahoo": 281.69, "rights_adj_factor": 0.901257, "shares_mn": 3797.53, "net_debt": 23920, "ebitda": 168149, "net_income": 89768},
+  "fy11_inputs": {"net_income": 60467, "mcap_bn": 1358},
+  "fy12_inputs": {"net_income": 42594, "mcap_bn": 1279}
+}

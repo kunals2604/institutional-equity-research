@@ -1,0 +1,9 @@
+Tariff +10%, subscriber loss 0%: mobile revenue +112995 mn (+10.0%), EBITDA +101696 mn (+14.9% of mobile EBITDA, +8.4% of consolidated EBITDA)
+Tariff +10%, subscriber loss 2%: mobile revenue +88136 mn (+7.8%), EBITDA +79323 mn (+11.7% of mobile EBITDA, +6.5% of consolidated EBITDA)
+Tariff +15%, subscriber loss 2%: mobile revenue +143504 mn (+12.7%), EBITDA +129154 mn (+19.0% of mobile EBITDA, +10.7% of consolidated EBITDA)
+Tariff +5%, subscriber loss 0%: mobile revenue +56498 mn (+5.0%), EBITDA +50848 mn (+7.5% of mobile EBITDA, +4.2% of consolidated EBITDA)
+African currencies -10% vs reporting currency: consolidated revenue -2.7%, EBITDA -2.3% (translation only; Africa = 27% of revenue, 23% of EBITDA)
+African currencies -25% vs reporting currency: consolidated revenue -6.7%, EBITDA -5.8% (translation only; Africa = 27% of revenue, 23% of EBITDA)
+INR -10% vs USD with 40% import content in India capex (assumption): capex +15862 mn = 1.9% of India ex-tower EBITDA
+INR -10% vs USD with 60% import content in India capex (assumption): capex +23792 mn = 2.9% of India ex-tower EBITDA
+Licence fee +/-1 pp of AGR on India ex-tower revenue: 14037 mn = 1.7% of India ex-tower EBITDA

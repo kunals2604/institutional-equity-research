@@ -1,0 +1,30 @@
+{
+  "price": 1778.7,
+  "horizon_years": 5,
+  "scenarios": {
+    "bear": {
+      "probability": 0.3,
+      "horizon_value": 1077.0,
+      "dividends": 120.0,
+      "irr": -0.07887311681099243
+    },
+    "base": {
+      "probability": 0.5,
+      "horizon_value": 1939.0,
+      "dividends": 180.0,
+      "irr": 0.03680235383920364
+    },
+    "bull": {
+      "probability": 0.2,
+      "horizon_value": 3056.0,
+      "dividends": 210.0,
+      "irr": 0.13288821336664247
+    }
+  },
+  "expected_horizon_value": 1903.8,
+  "expected_irr": 0.03196025062762194,
+  "mean_of_scenario_irrs": 0.021316884549632587,
+  "asymmetry_ratio": 2.6795599106068413,
+  "base_value_today": 1243.5,
+  "margin_of_safety": -0.43039806996381186
+}

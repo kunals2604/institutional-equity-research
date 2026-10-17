@@ -1,0 +1,15 @@
+# Web findings log (special-situations) — retrieved 2026-10-12
+- ICIL share swap: board approved 13-May-2026 (Bloomberg 2026-05-13 headline; w.media); EGM 12-Jun-2026 ~99.99% approval (bharti.com press release; developingtelecoms); completed Q1FY27: 146,761,335 Airtel shares @ Rs1,923 to ICIL for 595,204,251 AAF shares (16.31%); Airtel effective stake 62.62% -> 78.93% (Q1FY27 results note 3, p.4). ICIL ~3.25% of Airtel post issue (press). Company: "cashless and leverage-neutral".
+- Airtel Money IPO (LSE, ticker AMC): ITF 23-Sep-2026; priced 1-Oct-2026 at GBP1.96; mcap ~GBP5.3bn (~US$7.0bn); 270m existing shares sold by minority holders + 27m over-allotment (Mastercard Asia/Pacific); no primary; Airtel Africa not selling except via over-allotment(?) ; Airtel Africa ~78% before (Reuters via theindustryspread); conditional dealings 9-Oct-2026; admission/unconditional 14-Oct-2026; IFC cornerstone 34,285,714 sh GBP67.2m; lock-ups 180d company/sellers, 365d directors; free float 16.5-17.5%; earlier delayed from H1 2026 (Iran conflict, mobileworldlive). Press-reported target US$8-9bn vs priced US$7bn. Sources: dabafinance 2026-10-01; tipranks 2026-10-01; theindustryspread; investing.com; newsdrum.
+- AAF price (Yahoo AAF.L): 309.6p 8-Oct-2026 -> 290.2p 9-Oct-2026 -> 290.1p 12-Oct-2026. GBPINR 126.74 (12-Oct-2026 Yahoo).
+- AAF TVR 1-Sep-2026 (NGX doc 47873): issued 3,635,772,073 incl 6,136,678 treasury; voting 3,629,635,395 (as at 31-Aug-2026).
+- Airtel Africa buyback: up to US$110m initial tranche announced 22-May-2026 ends by 27-Nov-2026; 10.2m sh for $46.6m by 30-Jun-2026 (IR pack Q1FY27 p.19).
+- Nxtra: 30-Mar-2026 airtel.in press release: US$1bn: Alpha Wave 435m, Carlyle 240m, Anchorage 35m, rest Airtel (~290m by subtraction); ~US$3.1bn post-closing valuation; subject to regulatory approvals; ~300MW -> 1GW, ~25% share target. Airtel pre-deal 75.96% (FY26 AR NCI 24.04%).
+- Indus: FY26 AR note 4(g): bought Rs12,178m open market, stake 50% -> 51.256%. Board Nov-2025 approved up to 5% more (press). Indus shares 2,638,162,757 post-2024 buyback (BSE filing via search). Vodafone exited Jan-2025 (press).
+- DTH/Tata Play: talks disclosed Feb-2025; terminated 3-May-2025 filing (press).
+- AGR: SC dismissed waiver pleas May-2025; Vi relief: Cabinet 31-Dec-2025 freeze Rs87,695cr (press); DoT 30-Mar-2026 refused parity to Airtel/TTSL, ~Rs10,000cr payable by 31-Mar-2026 (outlookbusiness, foxmandal). Q4FY26 Rs31,607m charge regulatory levies (results note 4).
+- Singtel/Pastel block sales: May-2025 ~71m sh @ Rs1,814 (stake 29.5->28.3% of BTL? press); Nov-2025 ~0.8% ~US$1.2bn (press). None found in 2026.
+- TCIL holds 15% Hexacom; reports of OFS for full exit (sahi.com 2026, unconfirmed).
+- AMC BV put option: minority approved 12-month deferral of exercisable date (FY26 AR note 4(e)).
+- Airtel Money Limited NBFC: RBI licence 13-Feb-2026; Group 70% / Bharti Enterprises (promoter) 30% (FY26 AR note 4(f)).
+- Tariff: no headline hike since Jul-2024; Q1FY27 call: management says architecture repair needed, cannot do it single-handedly; "4% or 5%" ARPU growth over 5-7 years with sensible architecture.

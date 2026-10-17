@@ -1,0 +1,8 @@
+{
+  "price_compounded_at_ke_5y": 3090.095872686202,
+  "hurdle_adjusted_asymmetry": 0.06279585066064242,
+  "prob_weighted_shortfall_vs_hurdle": 883.8673251302855,
+  "prob_weighted_excess_vs_hurdle": 55.50320055270288,
+  "bear_loss_pct_vs_price_incl_divs": -0.32703659976387256,
+  "bear_low_loss_pct": -0.4051835610277169
+}

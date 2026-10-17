@@ -1,0 +1,11 @@
+{
+  "_comment": "One cost-of-capital set for run 20261012T132311Z. Ke = G-Sec (dated) - India sovereign default spread (to avoid double-counting country risk already in Damodaran's total ERP) + beta x total ERP.",
+  "_sources": {"risk_free_rate": "VAL-C023", "beta": "VAL-C022", "equity_risk_premium": "VAL-C024", "additional_premium": "VAL-C024 (minus India default spread 1.87%)", "cost_of_debt_pretax": "VAL-C025", "tax_rate": "VAL-C025", "debt_weight": "VAL-C006; VAL-C003; VAL-C032"},
+  "risk_free_rate": 0.0739,
+  "beta": 0.87,
+  "equity_risk_premium": 0.0708,
+  "additional_premium": -0.0187,
+  "cost_of_debt_pretax": 0.080,
+  "tax_rate": 0.2517,
+  "debt_weight": 0.1142
+}

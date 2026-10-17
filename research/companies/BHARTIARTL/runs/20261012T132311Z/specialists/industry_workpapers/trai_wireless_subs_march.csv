@@ -1,0 +1,18 @@
+fy,date,basis,bharti,jio,vodafone,idea,vodafone_idea,bsnl,mtnl,rcom,aircel,tata,telenor,total,report,notes
+FY2009,Mar-09,wireless GSM+CDMA (mn),93.92,,68.77,35.12,,52.15,4.46,72.67,18.48,38.89,,391.76,FY2009,Bharti share 23.97% as published
+FY2010,Mar-10,wireless (mn),127.62,,100.86,63.82,,69.45,5.09,102.42,,65.94,,584.32,FY2010,Aircel/Tata row ambiguous; total includes others
+FY2013,Mar-13,wireless (mn),188.20,,152.35,121.61,,101.21,5.00,122.97,60.07,66.42,,867.80,FY2013,
+FY2014,Mar-14,wireless (mn),205.39,,166.56,135.79,,94.65,3.37,,70.15,63.00,35.61,904.51,FY2014,Reliance row value not captured in text extraction
+FY2015,Mar-15,wireless (mn),226.02,,183.80,157.81,,77.22,3.51,,81.40,66.32,45.62,969.89,FY2015,Reliance row value not captured
+FY2016,Mar-16,wireless (mn),251.24,,197.95,175.07,,86.35,3.56,102.41,87.09,60.10,52.45,1033.63,FY2016,
+FY2017,Mar-17,wireless (mn),273.65,108.68,209.06,195.37,,100.99,3.63,83.50,90.90,48.99,50.49,1170.18,FY2017,
+FY2018,Mar-18,wireless (mn),304.19,186.56,222.70,211.21,,111.68,3.56,0.19,74.15,31.19,37.98,1183.41,FY2018,
+FY2019,Mar-19,wireless (mn),325.18,306.72,,,394.84,115.74,3.45,0.019,,15.85,,1161.81,FY2019,
+FY2020,Mar-20,wireless (mn),327.81,387.52,,,319.17,119.87,3.36,0.02,,,,1157.75,FY2020,Bharti includes Tata Tele subscribers (TRAI note)
+FY2021,Mar-21,wireless (mn),352.39,422.92,,,283.71,118.63,3.30,0.00,,,,1180.96,FY2021,Bharti includes Tata Tele subscribers (TRAI note)
+FY2022,Mar-22,wireless (mn),360.33,403.99,,,260.77,113.74,3.25,0.003,,,,1142.09,FY2022,
+FY2023,Mar-23,wireless (mn),370.91,430.23,,,236.75,103.68,2.35,0.003,,,,1143.93,FY2023,
+FY2024,Mar-24,wireless (mn),385.76,469.73,,,219.82,88.25,1.93,0.00003,,,,1165.49,FY2024,
+FY2025,Mar-25,wireless mobile+FWA (mn),391.00,475.34,,,205.36,91.06,1.00,0.00,,,,1163.76,FY2025,mobile-only (p.40): Bharti 389.80 Jio 469.76
+FY2026,Mar-26,wireless mobile+FWA incl. Bharti M2M (mn),481.48,509.21,,,198.48,92.94,0.21,0.00,,,,1282.33,FY2026,DEFINITION BREAK: Bharti began including M2M in FY2025-26; other operators always included M2M (YIR 2025-26 p.7 note)
+Q1FY2027,Jun-26,wireless mobile+FWA incl. M2M (mn),490.62,517.63,,,198.82,93.01,0.17,0.00,,,,1300.25,Q1FY2027,
