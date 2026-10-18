@@ -1,0 +1,334 @@
+{
+  "_comment": "ILLUSTRATIVE SCHEMA EXAMPLE ONLY — not research on any real company. Validated by scripts/validate_scorecard.py.",
+  "run_id": "20260101-0900",
+  "ticker": "EXAMPLE",
+  "company": "Example Industries Ltd (illustrative)",
+  "exchange": "NSE",
+  "currency": "INR",
+  "research_cutoff": "2026-01-01",
+  "price": {
+    "value": 1000.0,
+    "timestamp": "2026-01-01 15:30 IST close",
+    "claim_id": "CIO-C001"
+  },
+  "as_of_date": "2026-01-01",
+  "assessment_status": "complete",
+  "insufficient_evidence_reason": null,
+  "hurdle_rate": 0.12,
+  "classifications": {
+    "reporting_reliability": "Generally reliable",
+    "governance": "Clean / Standard"
+  },
+  "layer_fit": {
+    "L1": {
+      "score": 66,
+      "rationale": "Through-cycle ROCE above cost of capital for 8 of 10 years; incremental returns lower but positive; narrow moat evidenced in pricing.",
+      "confidence": "Medium"
+    },
+    "L2": {
+      "score": 48,
+      "rationale": "Mid-teens growth largely industry-driven; limited share gains; reinvestment runway moderate.",
+      "confidence": "Medium"
+    },
+    "L3": {
+      "score": 35,
+      "rationale": "Mild cyclicality; no identified catalyst with a realisation mechanism.",
+      "confidence": "High"
+    },
+    "L4": {
+      "score": 12,
+      "rationale": "No separable option with evidence of product-market fit.",
+      "confidence": "High"
+    }
+  },
+  "primary_layer": "Layer 1 — Bedrock Compounder",
+  "secondary_layers": [
+    "Layer 2 — High-Growth Business"
+  ],
+  "hybrid": false,
+  "layer_price_assessments": {
+    "L1": {
+      "applicable": true,
+      "assessment": "Long-duration owner-earnings value range 850–1,050; price implies a competitive-advantage period above the evidenced durability.",
+      "value_per_share_range": [
+        850,
+        1050
+      ],
+      "e_irr_5y": 0.09
+    },
+    "L2": {
+      "applicable": true,
+      "assessment": "Growth-scenario value requires share gains not yet evidenced.",
+      "value_per_share_range": [
+        700,
+        1200
+      ],
+      "e_irr_5y": 0.08
+    },
+    "L3": {
+      "applicable": false,
+      "assessment": "",
+      "value_per_share_range": null,
+      "e_irr_5y": null
+    },
+    "L4": {
+      "applicable": false,
+      "assessment": "",
+      "value_per_share_range": null,
+      "e_irr_5y": null
+    }
+  },
+  "business_quality": {
+    "dimensions": [
+      {
+        "id": "BQ1",
+        "score": 72,
+        "rationale": "Mid-cycle ROCE ~18% vs ~12% cost of capital.",
+        "claim_ids": [
+          "FIN-C010"
+        ]
+      },
+      {
+        "id": "BQ2",
+        "score": 68,
+        "rationale": "Narrow distribution advantage; rational oligopoly.",
+        "claim_ids": [
+          "MOAT-C004",
+          "IND-C012"
+        ]
+      },
+      {
+        "id": "BQ3",
+        "score": 60,
+        "rationale": "Runway ~5–7 years at current reinvestment rate.",
+        "claim_ids": [
+          "IND-C003"
+        ]
+      },
+      {
+        "id": "BQ4",
+        "score": 75,
+        "rationale": "5y cumulative CFO/PAT ~1.0.",
+        "claim_ids": [
+          "FIN-C021"
+        ]
+      },
+      {
+        "id": "BQ5",
+        "score": 80,
+        "rationale": "Net cash; no maturities before FY29.",
+        "claim_ids": [
+          "FIN-C030"
+        ]
+      },
+      {
+        "id": "BQ6",
+        "score": 65,
+        "rationale": "Reliable core delivery; one value-destructive acquisition.",
+        "claim_ids": [
+          "MGT-C015",
+          "CON-C040"
+        ]
+      },
+      {
+        "id": "BQ7",
+        "score": 70,
+        "rationale": "Standard governance; modest related-party flows at disclosed terms.",
+        "claim_ids": [
+          "FIL-C022"
+        ]
+      },
+      {
+        "id": "BQ8",
+        "score": 55,
+        "rationale": "Top-3 customer concentration ~40% of revenue.",
+        "claim_ids": [
+          "FIL-C008"
+        ]
+      }
+    ],
+    "weighted_raw": 69.0,
+    "gates_triggered": [],
+    "final": 69,
+    "confidence": "Medium",
+    "band": 8,
+    "prevents_higher": "Incremental returns declining; moat narrow.",
+    "could_lower": "Customer concentration event; further value-destructive M&A.",
+    "evidence_to_change": "Next two years of incremental ROCE; outcome of acquisition integration."
+  },
+  "investment_attractiveness": {
+    "dimensions": [
+      {
+        "id": "IA1",
+        "score": 45,
+        "rationale": "Price ~5% above base value midpoint.",
+        "claim_ids": [
+          "VAL-C040",
+          "CIO-C001"
+        ]
+      },
+      {
+        "id": "IA2",
+        "score": 50,
+        "rationale": "E[IRR] ~10% vs 12% hurdle.",
+        "claim_ids": [
+          "VAL-C055"
+        ]
+      },
+      {
+        "id": "IA3",
+        "score": 60,
+        "rationale": "Low-to-moderate permanent-loss probability.",
+        "claim_ids": [
+          "BEAR-C012"
+        ]
+      },
+      {
+        "id": "IA4",
+        "score": 45,
+        "rationale": "Upside/downside ~1.1.",
+        "claim_ids": [
+          "VAL-C056"
+        ]
+      },
+      {
+        "id": "IA5",
+        "score": 50,
+        "rationale": "Price implies roughly base-case.",
+        "claim_ids": [
+          "VAL-C060"
+        ]
+      },
+      {
+        "id": "IA6",
+        "score": 55,
+        "rationale": "Compounding engine visible; no hard catalyst.",
+        "claim_ids": [
+          "SPS-C005"
+        ]
+      },
+      {
+        "id": "IA7",
+        "score": 85,
+        "rationale": "Liquid large-cap; no dilution expected.",
+        "claim_ids": [
+          "CIO-C004"
+        ]
+      },
+      {
+        "id": "IA8",
+        "score": 70,
+        "rationale": "~70% of valuation inputs primary-sourced.",
+        "claim_ids": [
+          "CIO-C020"
+        ]
+      }
+    ],
+    "weighted_raw": 53.25,
+    "gates_triggered": [],
+    "final": 53,
+    "confidence": "Medium",
+    "band": 8,
+    "prevents_higher": "No margin of safety; E[IRR] below hurdle.",
+    "could_lower": "Margin normalisation lower than base case.",
+    "evidence_to_change": "A 15–20% lower price, or evidence of renewed share gains."
+  },
+  "scenarios": {
+    "bear": {
+      "probability": 0.25,
+      "value_per_share_range": [
+        600,
+        750
+      ],
+      "irr_5y": -0.03,
+      "drivers": "Margin normalisation and de-rating."
+    },
+    "base": {
+      "probability": 0.5,
+      "value_per_share_range": [
+        850,
+        1050
+      ],
+      "irr_5y": 0.09,
+      "drivers": "Industry growth, stable margins."
+    },
+    "bull": {
+      "probability": 0.25,
+      "value_per_share_range": [
+        1250,
+        1500
+      ],
+      "irr_5y": 0.17,
+      "drivers": "Share gains and operating leverage."
+    }
+  },
+  "probability_weighted_value": 980,
+  "expected_irr_5y": 0.08,
+  "valuation_status": "Fair-to-Full",
+  "mapped_verdict": "HOLD / NEUTRAL",
+  "verdict": "HOLD / NEUTRAL",
+  "override_reason": null,
+  "qc_status": "PENDING",
+  "model": {
+    "requested": "opus",
+    "effective_cio": "unverified",
+    "subagents": "opus alias (frontmatter); per-subagent ID not exposed"
+  },
+  "coverage": {
+    "financial_years": 15,
+    "transcript_quarters": 20,
+    "valuation_history_years": 12,
+    "exception": null
+  },
+  "predictions": [
+    {
+      "id": "P1",
+      "statement": "FY2027 consolidated revenue growth >= 12%",
+      "metric": "revenue_growth",
+      "due": "2027-06-30",
+      "probability": 0.6,
+      "claim_ids": [
+        "FIN-C010"
+      ]
+    },
+    {
+      "id": "P2",
+      "statement": "FY2027 ROCE stays >= 18%",
+      "metric": "roce",
+      "due": "2027-06-30",
+      "probability": 0.7,
+      "claim_ids": [
+        "FIN-C022"
+      ]
+    },
+    {
+      "id": "P3",
+      "statement": "No equity dilution above 2% by 2028-03-31",
+      "metric": "share_count_change",
+      "due": "2028-03-31",
+      "probability": 0.8,
+      "claim_ids": [
+        "FIN-C050"
+      ]
+    }
+  ],
+  "decision_triggers": {
+    "buy_below": 820,
+    "strong_buy_below": null,
+    "avoid_above": 1350,
+    "method": "valuation_tools.py price-ladder with IA3, IA5-IA8 held constant",
+    "notes": "Hypothetical triggers; re-run before acting."
+  },
+  "position_risk": {
+    "bear_case_loss_pct": 28.0,
+    "p_permanent_loss_band": "low",
+    "days_to_exit_reference_position": 0.4,
+    "factor_exposures": [
+      "domestic consumption",
+      "input commodity prices"
+    ],
+    "sizing_ceiling_pct": null,
+    "sizing_basis": "no ceiling: IPS risk limits not set"
+  },
+  "next_review_due": "2026-07-01"
+}

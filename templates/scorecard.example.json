@@ -1,5 +1,5 @@
 {
-  "_comment": "ILLUSTRATIVE SCHEMA EXAMPLE ONLY — not research on any real company. Validated by scripts/validate_scorecard.py.",
+  "_comment": "ILLUSTRATIVE SCHEMA EXAMPLE ONLY — not research on any real company. Methodology 3.0.0: the CIO writes the judgments (dimension scores with their own confidence, decision drivers, scenarios ...); build_scorecard.py computes effective scores, weights, finals, decision and the mapped verdict.",
   "run_id": "20260101-0900",
   "ticker": "EXAMPLE",
   "company": "Example Industries Ltd (illustrative)",
@@ -86,7 +86,9 @@
         "rationale": "Mid-cycle ROCE ~18% vs ~12% cost of capital.",
         "claim_ids": [
           "FIN-C010"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 72.0
       },
       {
         "id": "BQ2",
@@ -95,7 +97,9 @@
         "claim_ids": [
           "MOAT-C004",
           "IND-C012"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 65.3
       },
       {
         "id": "BQ3",
@@ -103,7 +107,9 @@
         "rationale": "Runway ~5–7 years at current reinvestment rate.",
         "claim_ids": [
           "IND-C003"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 58.5
       },
       {
         "id": "BQ4",
@@ -111,7 +117,9 @@
         "rationale": "5y cumulative CFO/PAT ~1.0.",
         "claim_ids": [
           "FIN-C021"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 75.0
       },
       {
         "id": "BQ5",
@@ -119,7 +127,9 @@
         "rationale": "Net cash; no maturities before FY29.",
         "claim_ids": [
           "FIN-C030"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 80.0
       },
       {
         "id": "BQ6",
@@ -128,7 +138,9 @@
         "claim_ids": [
           "MGT-C015",
           "CON-C040"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 62.75
       },
       {
         "id": "BQ7",
@@ -136,7 +148,9 @@
         "rationale": "Standard governance; modest related-party flows at disclosed terms.",
         "claim_ids": [
           "FIL-C022"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 70.0
       },
       {
         "id": "BQ8",
@@ -144,17 +158,21 @@
         "rationale": "Top-3 customer concentration ~40% of revenue.",
         "claim_ids": [
           "FIL-C008"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 54.25
       }
     ],
-    "weighted_raw": 69.0,
     "gates_triggered": [],
-    "final": 69,
     "confidence": "Medium",
     "band": 8,
     "prevents_higher": "Incremental returns declining; moat narrow.",
     "could_lower": "Customer concentration event; further value-destructive M&A.",
-    "evidence_to_change": "Next two years of incremental ROCE; outcome of acquisition integration."
+    "evidence_to_change": "Next two years of incremental ROCE; outcome of acquisition integration.",
+    "weight_profile": "L1",
+    "weighted_raw": 67.4,
+    "base_profile_raw": 68.01,
+    "final": 67
   },
   "investment_attractiveness": {
     "dimensions": [
@@ -165,7 +183,9 @@
         "claim_ids": [
           "VAL-C040",
           "CIO-C001"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 45.0
       },
       {
         "id": "IA2",
@@ -173,7 +193,9 @@
         "rationale": "E[IRR] ~10% vs 12% hurdle.",
         "claim_ids": [
           "VAL-C055"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 50.0
       },
       {
         "id": "IA3",
@@ -181,7 +203,9 @@
         "rationale": "Low-to-moderate permanent-loss probability.",
         "claim_ids": [
           "BEAR-C012"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 58.5
       },
       {
         "id": "IA4",
@@ -189,7 +213,9 @@
         "rationale": "Upside/downside ~1.1.",
         "claim_ids": [
           "VAL-C056"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 45.0
       },
       {
         "id": "IA5",
@@ -197,7 +223,9 @@
         "rationale": "Price implies roughly base-case.",
         "claim_ids": [
           "VAL-C060"
-        ]
+        ],
+        "confidence": "Low",
+        "effective_score": 50.0
       },
       {
         "id": "IA6",
@@ -205,7 +233,9 @@
         "rationale": "Compounding engine visible; no hard catalyst.",
         "claim_ids": [
           "SPS-C005"
-        ]
+        ],
+        "confidence": "Medium",
+        "effective_score": 54.25
       },
       {
         "id": "IA7",
@@ -213,7 +243,9 @@
         "rationale": "Liquid large-cap; no dilution expected.",
         "claim_ids": [
           "CIO-C004"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 85.0
       },
       {
         "id": "IA8",
@@ -221,17 +253,21 @@
         "rationale": "~70% of valuation inputs primary-sourced.",
         "claim_ids": [
           "CIO-C020"
-        ]
+        ],
+        "confidence": "High",
+        "effective_score": 70.0
       }
     ],
-    "weighted_raw": 53.25,
     "gates_triggered": [],
-    "final": 53,
     "confidence": "Medium",
     "band": 8,
     "prevents_higher": "No margin of safety; E[IRR] below hurdle.",
     "could_lower": "Margin normalisation lower than base case.",
-    "evidence_to_change": "A 15–20% lower price, or evidence of renewed share gains."
+    "evidence_to_change": "A 15–20% lower price, or evidence of renewed share gains.",
+    "weight_profile": "L1",
+    "weighted_raw": 53.26,
+    "base_profile_raw": 52.91,
+    "final": 53
   },
   "scenarios": {
     "bear": {
@@ -265,8 +301,6 @@
   "probability_weighted_value": 980,
   "expected_irr_5y": 0.08,
   "valuation_status": "Fair-to-Full",
-  "mapped_verdict": "HOLD / NEUTRAL",
-  "verdict": "HOLD / NEUTRAL",
   "override_reason": null,
   "qc_status": "PENDING",
   "model": {
@@ -330,5 +364,113 @@
     "sizing_ceiling_pct": null,
     "sizing_basis": "no ceiling: IPS risk limits not set"
   },
-  "next_review_due": "2026-07-01"
+  "next_review_due": "2026-07-01",
+  "methodology_version": "3.0.0",
+  "price_metrics": {
+    "margin_of_safety": -0.0526,
+    "expected_irr": 0.08,
+    "hurdle_rate": 0.12,
+    "asymmetry_ratio": 0.7,
+    "robust": true,
+    "robustness_verdicts": [
+      "HOLD / NEUTRAL"
+    ],
+    "source": "illustrative; in a run, build_scorecard.py computes these from scenario_inputs at the price"
+  },
+  "scenario_inputs": null,
+  "decision_drivers": [
+    {
+      "driver": "Mid-cycle EBITDA margin",
+      "market_implied": "about 17 % sustained (reverse DCF)",
+      "our_view": "15–16 % through the cycle",
+      "claim_ids": [
+        "FIN-C031",
+        "VAL-C044"
+      ],
+      "confidence": "Medium",
+      "value_at_stake": "about ±INR 120 per share for ±1 pp of margin (valuation sensitivity)",
+      "signpost": "H1 FY2027 margin against 16 %"
+    },
+    {
+      "driver": "Revenue growth from share gains",
+      "market_implied": "12 % a year for 5 years",
+      "our_view": "9–10 %: industry growth with stable share",
+      "claim_ids": [
+        "IND-C012"
+      ],
+      "confidence": "Medium",
+      "value_at_stake": "about ±INR 90 per share for ±2 pp of growth",
+      "signpost": "Quarterly market-share data"
+    },
+    {
+      "driver": "Returns on the new capacity",
+      "market_implied": "Group-level ROCE maintained",
+      "our_view": "Incremental ROCE below the group average during ramp-up",
+      "claim_ids": [
+        "FIN-C040"
+      ],
+      "confidence": "Low",
+      "value_at_stake": "about INR 60 per share",
+      "signpost": "Utilization of the new plant by FY2027"
+    }
+  ],
+  "decision": {
+    "layer_codes": [
+      "L1"
+    ],
+    "weight_profile": "L1",
+    "must_pass": [
+      {
+        "test": "BQ7 >= 50",
+        "kind": "business",
+        "effective": 70.0,
+        "passed": true,
+        "why": "No buy where governance or reporting raises material concerns"
+      },
+      {
+        "test": "IA2 >= 60",
+        "kind": "price",
+        "effective": 50.0,
+        "passed": false,
+        "why": "The expected return must at least reach the hurdle"
+      },
+      {
+        "test": "IA3 >= 45",
+        "kind": "price",
+        "effective": 58.5,
+        "passed": true,
+        "why": "Permanent-loss risk must not be elevated (Layer 4 carries it by construction)"
+      },
+      {
+        "test": "BQ1 >= 60",
+        "kind": "business",
+        "effective": 72.0,
+        "passed": true,
+        "why": "A compounder must earn above its cost of capital through the cycle"
+      },
+      {
+        "test": "BQ2 >= 60",
+        "kind": "business",
+        "effective": 65.3,
+        "passed": true,
+        "why": "A compounder needs an evidenced advantage"
+      },
+      {
+        "test": "BQ6 >= 55",
+        "kind": "business",
+        "effective": 62.75,
+        "passed": true,
+        "why": "A compounder needs a capable allocator"
+      }
+    ],
+    "buy_permitted_at_confidence": true,
+    "required_margin_of_safety": 0.1,
+    "margin_of_safety": -0.0526,
+    "edge_over_hurdle": -0.039999999999999994,
+    "conviction": "Low",
+    "conviction_points": 2,
+    "verdict_path": "IA 45-64"
+  },
+  "mapped_verdict": "HOLD / NEUTRAL",
+  "verdict": "HOLD / NEUTRAL"
 }

@@ -28,10 +28,12 @@ import research_lib as rl  # noqa: E402
 import scoreboard as sb  # noqa: E402
 
 ROOT = rl.ROOT
-# Agent frontmatter keys verified against the Claude Code 2.1.296 agent schema.
+# Agent frontmatter keys verified against the Claude Code agent schema (code.claude.com/docs/en/sub-agents,
+# checked 2026-10-17: `effort` accepts low | medium | high | xhigh | max and overrides the session effort).
 AGENT_KEYS = {"name", "description", "tools", "disallowedTools", "model", "skills", "maxTurns",
               "permissionMode", "color", "memory", "background", "initialPrompt", "hooks",
-              "mcpServers", "omitClaudeMd", "autoCompactWindow"}
+              "mcpServers", "omitClaudeMd", "autoCompactWindow", "effort", "isolation", "experimental"}
+EFFORT_LEVELS = {"low", "medium", "high", "xhigh", "max"}
 SKILL_KEYS = {"name", "description", "when_to_use", "argument-hint", "allowed-tools",
               "disable-model-invocation", "model", "user-invocable", "context", "agent", "arguments"}
 MODEL_ALIASES = {"opus", "sonnet", "haiku", "fable", "inherit"}
@@ -97,7 +99,7 @@ def operative_markdown():
 
 
 def check_agents(rep):
-    expected = set(rl.SPECIALISTS) | {"cio"}
+    expected = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR}
     files = sorted(rl.AGENTS_DIR.glob("*.md"))
     names = {}
     for f in files:
@@ -115,6 +117,10 @@ def check_agents(rep):
         model = fm.get("model", "")
         rep.add("model valid (%s): %s" % (model, f.name), model in MODEL_ALIASES or model.startswith("claude-"))
         rep.add("model is the Opus alias: %s" % f.name, model == "opus", "model=%r" % model)
+        effort = fm.get("effort", "")
+        rep.add("effort valid (%s): %s" % (effort or "unset", f.name), not effort or effort in EFFORT_LEVELS)
+        rep.add("agent inherits the session's reasoning effort, not hard-coded (owner policy): %s" % f.name,
+                not effort, "effort=%r" % effort)
         tools = [t.strip() for t in fm.get("tools", "").split(",") if t.strip()] if isinstance(fm.get("tools"), str) else fm.get("tools") or []
         unknown_tools = [t for t in tools if t not in KNOWN_TOOLS and not t.startswith("mcp__")]
         rep.add("tool names recognised: %s" % f.name, not unknown_tools, str(unknown_tools) if unknown_tools else "")
@@ -138,8 +144,23 @@ def check_agents(rep):
             rep.add("specialist references all four layers: %s" % name, all(x in text for x in ("L1", "L2", "L3", "L4")))
             rep.add("specialist defines a minimum evidence set: %s" % name, "## Minimum evidence set" in text)
             rep.add("specialist reads the sector playbooks: %s" % name, "SECTOR_PLAYBOOKS.md" in text)
-    rep.add("exactly the ten expected agents", set(names) == expected,
-            "found %s" % sorted(names))
+            rep.add("specialist defines SME enhanced scrutiny: %s" % name, "## SME enhanced scrutiny" in text)
+            try:
+                rep.add("specialist has a numbered Method: %s" % name, len(rl.method_steps(name)) >= 8,
+                        "%d steps" % len(rl.method_steps(name)))
+            except ValueError as exc:
+                rep.add("specialist has a numbered Method: %s" % name, False, str(exc))
+        elif name == rl.AUDITOR:
+            rep.add("auditor cannot spawn agents", tools and "Agent" not in tools, "tools=%s" % tools)
+            rep.add("auditor declares claim prefix", "`%s`" % rl.AUDITOR_PREFIX in text)
+            rep.add("auditor declares output path", "RUN_DIR/%s" % rl.AUDIT_REPORT in text)
+            try:
+                rep.add("auditor required sections block", len(rl.agent_sections(rl.AUDITOR)) >= 6)
+            except ValueError as exc:
+                rep.add("auditor required sections block", False, str(exc))
+            rep.add("auditor is forbidden from editing other files", "never edit" in text.lower())
+    rep.add("exactly the %d expected agents (CIO, %d specialists, auditor)" % (len(expected), len(rl.SPECIALISTS)),
+            set(names) == expected, "found %s" % sorted(names))
     dups = {n: fs for n, fs in names.items() if len(fs) > 1}
     rep.add("agent names unique", not dups, str(dups) if dups else "")
     # Duplicate definitions elsewhere (outside archive / legacy runs).

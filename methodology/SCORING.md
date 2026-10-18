@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
-<!-- METHODOLOGY_VERSION: 2.3.0 -->
-Methodology version **2.3.0** (IA4 asymmetry measured against the hurdle; explicit confidence rule with a gap-closure loop and a verdict-robustness test; one rounding rule; see `docs/FRAMEWORK_CHANGES.md`). 2.2.0 added the quantitative anchor guides, layer-specific IA interpretation, investment policy inputs, position-risk and decision outputs. Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+<!-- METHODOLOGY_VERSION: 3.0.0 -->
+Methodology version **3.0.0**: the decision is made the way an institutional fund manager makes it (§0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, explicit decision drivers and a conviction measure. 2.4.0 added the scuttlebutt specialist, the independent audit and the document map; 2.3.0 the hurdle-adjusted IA4, the confidence rule and the robustness test; 2.2.0 the quantitative anchor guides. Scorecards without `methodology_version` ≥ 3.0.0 are validated by the 2.x rules (fixed base weights, the 2.x verdict mapping). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -16,11 +16,26 @@ IA is **not** derived from BQ. A great business can have a low IA, and an imperf
 
 ---
 
-## 1. Why fixed weights
+## 0. How the decision is made (not a formula)
 
-A score of 82 must mean roughly the same thing for every company. The dimensions and weights are therefore **fixed across companies**. They are not re-weighted per archetype, because per-company weights let any conclusion be reached by choosing weights after the fact. Archetype differences are handled **inside the anchors**: each dimension says how to judge a cyclical, a grower and a financial institution. They are not handled by changing weights.
+A fund manager does not add up analysts' opinions. They ask a sequence of questions, and a "no" to an early one is not rescued by strong answers later. The scorecard follows that sequence; the weighted scores summarize, but **they do not decide alone**.
 
-The CIO must not change weights for a single company. A methodology change is made here, recorded in `docs/FRAMEWORK_CHANGES.md`, and applies to all future runs. Earlier scores are then flagged as produced under the prior version.
+1. **Is it investable at all?** Gates G1–G6 (§§2–3): unreliable reporting, compromised governance, unpriced distress, no exit, unverifiable valuation inputs. A gate caps the score and, for G1/G3, forces STRONG AVOID.
+2. **What kind of opportunity is it?** The primary layer (and any hybrid) is chosen from the four layer assessments *before* scoring. It selects a **weight profile fixed in advance** (§1): the dimensions that decide a compounder are not the ones that decide a cyclical recovery or an option.
+3. **How good is the evidence behind each judgment?** Every dimension carries its own confidence. **Uncertainty is never rewarded** (§3b): a high score on weak evidence is shrunk toward neutral; a low score is not raised. A dimension's confidence cannot exceed the evidence quality of the specialists who own it.
+4. **Does the thesis pass the archetype's must-pass tests?** (§3c) These are **non-compensatory**: a compounder without returns above its cost of capital, or a cyclical that may not survive the trough, cannot become a buy because other dimensions are strong.
+5. **Is the price right for the uncertainty?** A buy requires a **margin of safety that rises as confidence falls** (§5); at Low confidence the answer is to get more evidence or wait, not to buy (Layer 4 aside, which is sized as speculation).
+6. **What decides the outcome, and do we see it differently from the market?** The 3–5 **decision drivers** (§6): for each, what the price implies, our evidence-based view, how strongly the evidence supports it, and how much value moves with it. With no difference from the market on a driver that matters, there is no edge from that driver.
+7. **How convinced should we be?** **Conviction** (§5) combines the size of the edge (E[IRR] over the hurdle), the payoff asymmetry, the confidence and whether the verdict survives the robustness grid. STRONG BUY needs High conviction.
+8. **Judgment, bounded.** The CIO may still move the mapped verdict one notch with a written reason, when a dominant consideration is not captured by the dimensions.
+
+**The CIO weighs evidence, not agents.** No specialist's view counts by default. Each dimension is scored from the evidence its owners produced (§3b lists the owners), weighted by that evidence's quality (tier, corroboration, reconciliation, the auditor's sample), and the weight profile reflects what matters for this archetype, not how many specialists contributed.
+
+## 1. Weight profiles: by archetype, fixed in advance
+
+A score of 82 must mean the same thing for every company **of the same archetype**. Weights are therefore fixed by the methodology for each primary layer (§3a) and never chosen per company: the CIO cannot change a weight, only the evidence-based classification, which is made in the four layer assessments before any score and must be defended there. A hybrid uses the average of its two layers' profiles. The scorecard also reports the score under the **Base** profile, so companies of different archetypes can still be compared.
+
+A methodology change is made here, recorded in `docs/FRAMEWORK_CHANGES.md`, and applies to all future runs. Earlier scores are flagged as produced under the prior version.
 
 ---
 
@@ -50,7 +65,7 @@ The CIO must not change weights for a single company. A methodology change is ma
 - *Cyclicals:* use mid-cycle, never peak. *Growers:* score evidenced contribution, cohort or incremental economics, and reduce confidence rather than inflating the score.
 - **Quantitative guide** (start here; deviate only with a written reason). Non-financials: the spread of 10-year (or through-cycle) median `roic` over the run's WACC: ≥ 15 pp → 90–100; 8–15 pp → 75–89; 3–8 pp → 60–74; 0–3 pp → 45–59; −5–0 pp → 30–44; < −5 pp → 0–29. Lenders: the spread of through-cycle `roe` (at normalized credit cost) over cost of equity: ≥ 8 pp → 90–100; 4–8 → 75–89; 1–4 → 60–74; −1–1 → 45–59; < −1 → 0–44. **Adjust within or one band down** if `incremental_roic_5y` is below half the historical median, or if returns depend on a single peak period.
 
-**BQ2 Competitive advantage and industry structure** (owner evidence: moat and industry)
+**BQ2 Competitive advantage and industry structure** (owner evidence: moat and industry; ground truth: scuttlebutt)
 - 90–100: An identified mechanism (switching costs, network effects, cost advantage, scale, intangible or regulatory) is evidenced in pricing, retention, share or returns, and survives the competitor-attack test. The industry is rational.
 - 70–89: The mechanism is evidenced but narrower, or the industry is competitive yet disciplined.
 - 50–69: A modest or emerging advantage, or advantage offset by tough industry structure.
@@ -171,6 +186,93 @@ Layer-4 opportunities score lower on IA3 by construction. They can still reach a
 
 The reference position defaults to `reference_position_inr` in the manifest (₹50 lakh unless the user sets otherwise).
 
+### 3a. Weight profiles by primary layer (3.0.0)
+
+The **Base** column repeats the dimension tables above and is used when no layer is compelling (primary layer `None`) and for cross-archetype comparison. A hybrid (two layers within 10 points, both ≥ 61) uses the mean of its two profiles.
+
+<!-- WEIGHT_PROFILES:BEGIN -->
+| Dimension | Base | L1 | L2 | L3 | L4 |
+|---|---|---|---|---|---|
+| BQ1 | 20 | 22 | 18 | 16 | 14 |
+| BQ2 | 20 | 22 | 16 | 12 | 12 |
+| BQ3 | 12 | 14 | 22 | 6 | 18 |
+| BQ4 | 12 | 10 | 8 | 14 | 6 |
+| BQ5 | 10 | 6 | 8 | 22 | 18 |
+| BQ6 | 10 | 12 | 12 | 12 | 12 |
+| BQ7 | 10 | 10 | 10 | 10 | 14 |
+| BQ8 | 6 | 4 | 6 | 8 | 6 |
+| IA1 | 25 | 20 | 15 | 25 | 10 |
+| IA2 | 20 | 25 | 22 | 18 | 15 |
+| IA3 | 20 | 20 | 18 | 20 | 15 |
+| IA4 | 10 | 8 | 12 | 12 | 30 |
+| IA5 | 10 | 12 | 18 | 5 | 10 |
+| IA6 | 5 | 5 | 5 | 12 | 8 |
+| IA7 | 5 | 5 | 5 | 4 | 7 |
+| IA8 | 5 | 5 | 5 | 4 | 5 |
+<!-- WEIGHT_PROFILES:END -->
+
+Why these shifts: a **compounder** (L1) is decided by returns, moat, runway and the allocator, and by the long-run return over the hurdle more than by today's discount. A **grower** (L2) is decided by runway and unit economics, and by whether the growth the price implies is plausible (IA5). A **cyclical or event** (L3) is decided by trough survival (BQ5), earnings quality, the discount to normalized value (IA1) and the realization path (IA6). An **option** (L4) is decided by funding (BQ5), governance (BQ7), the runway, and above all by the payoff asymmetry (IA4).
+
+### 3b. Uncertainty is never rewarded (3.0.0)
+
+Every BQ and IA dimension carries its own `confidence` (High / Medium / Low, by the §4 criteria applied to that dimension's evidence). The **effective score** used in the weighted average and in the must-pass tests is:
+
+- the score itself if it is 50 or below (weak evidence never raises a low score);
+- otherwise `50 + (score − 50) × k`, with k by confidence:
+
+<!-- CONFIDENCE_SHRINK:BEGIN -->
+- High: 1.0
+- Medium: 0.85
+- Low: 0.65
+<!-- CONFIDENCE_SHRINK:END -->
+
+**Evidence ceiling.** A dimension's confidence cannot be High when a specialist that owns its evidence has a primary-source share below 0.50 or a NOT_LOCATED share above 0.15 (`qc/evidence_stats.json`), or when the auditor's re-verification found a material discrepancy in that specialist's claims (the CIO re-scores after the audit). `build_scorecard.py` applies the first rule.
+
+<!-- DIMENSION_OWNERS:BEGIN -->
+| Dimension | Evidence owners |
+|---|---|
+| BQ1 | financials, moat |
+| BQ2 | moat, industry, scuttlebutt |
+| BQ3 | industry, financials, scuttlebutt |
+| BQ4 | financials, filings |
+| BQ5 | financials, filings |
+| BQ6 | management, concalls |
+| BQ7 | filings, management |
+| BQ8 | industry, bear-case, management |
+| IA1 | valuation |
+| IA2 | valuation |
+| IA3 | bear-case, valuation |
+| IA4 | valuation |
+| IA5 | valuation, concalls |
+| IA6 | special-situations, valuation |
+| IA7 | valuation |
+| IA8 | valuation |
+<!-- DIMENSION_OWNERS:END -->
+
+### 3c. Must-pass tests (non-compensatory, 3.0.0)
+
+Evaluated on effective scores. `ALL` applies to every primary layer; a layer code applies when that layer is primary (or part of a hybrid). A failed **business** test caps the verdict at HOLD / NEUTRAL; a failed **price** test caps it at WATCHLIST — WAIT FOR BETTER PRICE. Neither changes the scores: they decide whether a buy is allowed.
+
+<!-- MUST_PASS:BEGIN -->
+| Applies to | Test | Kind | Why |
+|---|---|---|---|
+| ALL | BQ7 >= 50 | business | No buy where governance or reporting raises material concerns |
+| ALL | IA2 >= 60 | price | The expected return must at least reach the hurdle |
+| None,L1,L2,L3 | IA3 >= 45 | price | Permanent-loss risk must not be elevated (Layer 4 carries it by construction) |
+| L1 | BQ1 >= 60 | business | A compounder must earn above its cost of capital through the cycle |
+| L1 | BQ2 >= 60 | business | A compounder needs an evidenced advantage |
+| L1 | BQ6 >= 55 | business | A compounder needs a capable allocator |
+| L2 | BQ3 >= 65 | business | A grower needs a real runway |
+| L2 | BQ1 >= 50 | business | A grower's unit economics must be at least positive |
+| L2 | BQ5 >= 45 | business | Growth must be fundable |
+| L3 | BQ5 >= 55 | business | A cyclical must survive the trough |
+| L3 | IA6 >= 55 | price | An event needs at least a probable catalyst with a mechanism |
+| L3 | IA1 >= 60 | price | A cyclical buy needs a discount to normalized value |
+| L4 | BQ7 >= 60 | business | Binary outcomes need clean governance |
+| L4 | BQ5 >= 45 | business | The option must be funded through its milestones |
+| L4 | IA4 >= 60 | price | An option must pay asymmetrically against the hurdle |
+<!-- MUST_PASS:END -->
+
 ---
 
 ## 4. Confidence (reported separately from each score)
@@ -184,6 +286,8 @@ Confidence measures **how far the evidence supports the score**. It is a propert
 | Low | <50 % primary support; or two or more of (b)–(d) fail; or the score hinges on an assumption with weak evidence |
 
 The report's *Confidence Assessment* section shows each criterion as met or not met, with its evidence.
+
+**Per-dimension confidence (3.0.0).** The same criteria are applied to each dimension's own evidence, and each dimension records its confidence. It drives the effective score (§3b) and is capped by the evidence ceiling. The block-level confidence of BQ and of IA (above) summarizes them and cannot be higher than the confidence of the dimensions carrying most of the profile's weight.
 
 Report a **judgment band** with each score (typically ±5 for High, ±8 for Medium, ±12 for Low confidence). This is the uncertainty of the judgment, not measurement precision. Report scores as integers, rounded **half up** (`research_lib.round_half_up`, used by every tool and validator).
 
@@ -201,13 +305,45 @@ Report a **judgment band** with each score (typically ±5 for High, ±8 for Medi
 - STRONG AVOID
 <!-- VERDICTS:END -->
 
-Mapped verdict, applied in order:
-1. Any of gates G1 or G3 triggered, or IA < 25 → **STRONG AVOID**
+Mapped verdict (3.0.0), applied in order:
+1. Gate G1 or G3 triggered, or IA < 25 → **STRONG AVOID**
 2. IA 25–44 → **AVOID**
 3. IA 45–64 → **WATCHLIST — WAIT FOR BETTER PRICE** if BQ ≥ 70, otherwise **HOLD / NEUTRAL**
-4. IA 65–79, or IA ≥ 80 with IA confidence = Low → **BUY**
-5. IA ≥ 80 with IA confidence High or Medium → **STRONG BUY**
-6. If the primary layer is Layer 4 and step 4 or 5 applies → **SPECULATIVE BUY** (the outcome distribution includes near-total loss; size accordingly).
+4. IA ≥ 65 (a buy candidate), then:
+   1. a failed **business** must-pass test → **HOLD / NEUTRAL**;
+   2. a failed **price** must-pass test, or the margin of safety below the **required margin of safety** for the layer and IA confidence (table below; "none" means no buy at that confidence) → **WATCHLIST — WAIT FOR BETTER PRICE**;
+   3. primary layer Layer 4 → **SPECULATIVE BUY** (the outcome distribution includes near-total loss; size accordingly);
+   4. IA ≥ 80 with IA confidence High or Medium **and conviction High** → **STRONG BUY**;
+   5. otherwise → **BUY**.
+
+**Required margin of safety** (MoS against the base value; a hybrid takes the stricter of its two layers):
+
+<!-- REQUIRED_MOS:BEGIN -->
+| Layer | High | Medium | Low |
+|---|---|---|---|
+| None | 0.15 | 0.25 | none |
+| L1 | 0.00 | 0.10 | none |
+| L2 | 0.10 | 0.20 | none |
+| L3 | 0.20 | 0.30 | none |
+| L4 | 0.30 | 0.40 | 0.50 |
+<!-- REQUIRED_MOS:END -->
+
+A compounder bought near fair value can still compound above the hurdle (the IA2 must-pass checks that), so its requirement is lowest; a cyclical or event case must pay for being wrong about timing; an option is valued on a probability-weighted outcome tree and needs the widest cushion.
+
+**Conviction** (reported with the verdict; STRONG BUY requires High). Points:
+
+<!-- CONVICTION:BEGIN -->
+- edge_pp: 8=3, 4=2, 0=1
+- asymmetry: 3.0=2, 1.5=1
+- confidence: High=2, Medium=1, Low=0
+- robust: 1
+- high_at: 6
+- medium_at: 3
+<!-- CONVICTION:END -->
+
+*edge_pp* is E[IRR] minus the hurdle in percentage points (≥ 8 pp scores 3, ≥ 4 pp 2, ≥ 0 pp 1, below 0 nothing); *asymmetry* is the hurdle-adjusted ratio; *confidence* is the IA confidence; *robust* scores 1 when the `robustness` grid maps one verdict. Conviction is High at 6 points or more, Medium at 3–5, Low below 3. Conviction is not confidence: confidence says how well the evidence supports the scores; conviction says how large and reliable the edge is.
+
+**2.x mapping (runs before 3.0.0, kept for re-validation):** G1/G3 or IA < 25 → STRONG AVOID; IA 25–44 → AVOID; IA 45–64 → WATCHLIST if BQ ≥ 70, else HOLD / NEUTRAL; IA 65–79, or IA ≥ 80 with Low IA confidence → BUY; IA ≥ 80 with High or Medium IA confidence → STRONG BUY; Layer 4 primary with a buy → SPECULATIVE BUY. Fixed Base weights, no shrinkage, no must-pass tests.
 
 **Override:** the CIO may move the verdict **one notch** from the mapped verdict with a written `override_reason` in `scorecard.json`, for example when a single dominant risk is not well captured by the weighted dimensions. Moving more than one notch is not allowed; change the dimension scores and justify them instead. Notch order: STRONG AVOID < AVOID < HOLD / NEUTRAL = WATCHLIST — WAIT FOR BETTER PRICE < BUY = SPECULATIVE BUY < STRONG BUY.
 
@@ -229,14 +365,16 @@ Guide (price versus base value): ≥40 % below → Extremely Cheap; 20–40 % be
 ## 6. Mandatory scoring discipline (both scores)
 
 For BQ and IA the final report must state:
-1. Each dimension score with a 1–3 sentence rationale citing claim IDs.
-2. The weighted raw score, gates considered and applied, and the final score.
+1. Each dimension score, its confidence and its effective score, with a 1–3 sentence rationale citing claim IDs.
+2. The weight profile used (and the Base-profile score for comparison), the weighted raw score, gates considered and applied, and the final score.
+2a. **The must-pass table** (each applicable test, its effective score and pass / fail), the **required margin of safety** against the actual one, and **conviction** with its points.
+2b. **The decision drivers** (3–5): driver · what the price implies · our view · the evidence (claim IDs) and its confidence · the value at stake per share across the plausible range (from the valuation sensitivity) · the signpost that will resolve it.
 3. **What prevents a higher score** (the specific evidence or uncertainty).
 4. **What would cause a lower score** (observable developments).
 5. Confidence and judgment band.
 6. **The evidence most likely to change the score** in the next 12 months.
 
-`scripts/validate_scorecard.py` recomputes the weighted sums, checks gates and the verdict mapping, and rejects inconsistencies.
+`scripts/build_scorecard.py` computes all of this from the CIO's judgments; `scripts/validate_scorecard.py` recomputes it (weight profile, effective scores, gates, must-pass tests, required margin of safety, conviction, verdict mapping) and rejects inconsistencies.
 
 ---
 
@@ -257,7 +395,7 @@ Scores are issued only when the evidence can support them. Precise scores are ne
 
 | Outcome | Trigger | What is produced | Scoreboard / `latest_run.txt` |
 |---|---|---|---|
-| **complete** | All nine specialists complete (or a gap is accepted under QC), automated and manual QC PASS, and no insufficient-evidence trigger | Full final report, `scorecard.json` with `assessment_status: complete` | Row upserted; pointer updated |
+| **complete** | All ten specialists complete (nine for runs before 2.4.0), or a gap is accepted under QC; the independent audit has run and every Critical and Major finding is resolved (Critical ones confirmed Closed by a re-audit); automated and manual QC PASS; and no insufficient-evidence trigger | Full final report, `scorecard.json` with `assessment_status: complete` | Row upserted; pointer updated |
 | **insufficient_evidence** | Any of: (a) the price or share count cannot be verified; (b) after retries, two or more of `financials`, `filings` and `valuation` are missing or failed; (c) fewer than 8 of the ≥12 decision-critical claims selected for re-verification could be confirmed from tier 1–4 sources; (d) consolidated financials for the latest completed fiscal year are unavailable | Final report with **no BQ/IA scores or verdict** (`assessment_status: insufficient_evidence`, scores `null`, `insufficient_evidence_reason` stated); the evidence gathered is preserved | **Unchanged.** Any prior valid row and pointer stay. |
 | **qc_failed** | Automated or manual QC fails and cannot be fixed in the run | Artifacts preserved; report and scorecard carry `qc_status: FAIL` | **Unchanged** |
 | **failed / interrupted** | The run stopped before synthesis (interruption, tool failure) | Whatever artifacts exist, plus a manifest status. Resume with `/research-company --resume <RUN_ID>`. | **Unchanged** |
@@ -284,6 +422,6 @@ Position sizing beyond this ceiling, trading instructions, pair trades and short
 
 ## 10. Decision outputs (complete runs)
 
-1. **Decision triggers (price ladder).** Using `valuation_tools.py price-ladder` with the run's scenario values and the non-price IA dimensions held constant, state the price at or below which the mapped verdict would become BUY, and STRONG BUY (if reachable), and above which it would become AVOID. These are hypothetical triggers, not limit orders. They go stale when the evidence changes.
+1. **Decision triggers (price ladder).** Using `valuation_tools.py price-ladder` with the run's scenario values and the non-price IA dimensions held constant, state the price at or below which the mapped verdict would become BUY, and STRONG BUY (if reachable), and above which it would become AVOID. From 3.0.0 the ladder applies the whole decision sequence at each price (weight profile, effective scores, must-pass tests, required margin of safety, conviction), so `buy_below` is the highest price at which every condition for a buy holds. These are hypothetical triggers, not limit orders. They go stale when the evidence changes.
 2. **Falsifiable predictions (decision journal).** Write 3–7 specific, measurable, dated predictions that the thesis implies, each with a probability between 0.05 and 0.95. For example: "FY2027 consolidated EBITDA margin ≥ 18 % (p = 0.65)". They are recorded in `scorecard.json` and resolved by the next run of the company.
 3. **Next review date.** Within 12 months, and earlier if a monitored trigger or a scheduled event (results, regulatory decision, record date) could change the verdict.

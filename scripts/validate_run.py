@@ -4,11 +4,14 @@
   python3 scripts/validate_run.py RUN_DIR --stage specialists
   python3 scripts/validate_run.py RUN_DIR --stage final
 
---stage specialists : all nine initial reports + ledgers exist and validate;
+--stage specialists : every initial specialist report + ledger the run's methodology version requires exists and
+                      validates (ten specialists from 2.4.0: scuttlebutt joined; nine before);
                       updates run_manifest.json specialist statuses.
 --stage final       : everything above + follow-ups, CIO ledger, merged ledger
                       freshness, scorecard, final report, contradiction log,
-                      QC record. Writes RUN_DIR/qc/auto_checks.json.
+                      QC record; from 2.4.0 also the document map, the
+                      independent audit and the CIO's audit resolutions.
+                      Writes RUN_DIR/qc/auto_checks.json.
 
 A run is validated against the contract of the methodology version recorded in its manifest (checks added in
 2.3.0 are skipped for older runs). A finalized run (status complete or insufficient_evidence) is
@@ -32,15 +35,17 @@ import reconcile_numbers  # noqa: E402
 FINALIZED = ("complete", "insufficient_evidence")  # qc_failed stays writable: it is fixed and re-validated
 
 
-def check_specialists(run_dir: Path, manifest: dict, results: list, legacy: bool = False) -> set:
+def check_specialists(run_dir: Path, manifest: dict, results: list, legacy: bool = False,
+                      version: tuple = None, segment: str = "") -> set:
     all_ids = set()
     expected = {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")}
-    for name, prefix in rl.SPECIALISTS.items():
+    v = rl.effective_version(legacy, version)
+    for name, prefix in rl.specialists_for(v).items():
         report = run_dir / "specialists" / ("%s.md" % name)
         ledger = run_dir / "specialists" / ("%s_ledger.csv" % name)
         lres, ids = rl.validate_ledger(ledger, prefix)
         all_ids |= ids
-        rres = rl.validate_specialist_report(report, ids, expected, legacy=legacy)
+        rres = rl.validate_specialist_report(report, ids, expected, version=v, segment=segment)
         results.extend([lres, rres])
         entry = manifest.setdefault("specialists", {}).setdefault(name, {})
         if not report.exists() or not ledger.exists():
@@ -56,9 +61,9 @@ def check_specialists(run_dir: Path, manifest: dict, results: list, legacy: bool
     return all_ids
 
 
-def check_followups(run_dir: Path, ids: set, results: list) -> None:
+def check_followups(run_dir: Path, ids: set, results: list, version: tuple = None) -> None:
     for fu in sorted((run_dir / "specialists").glob("*_followup_*.md")):
-        results.append(rl.validate_specialist_report(fu, ids, None, followup=True))
+        results.append(rl.validate_specialist_report(fu, ids, None, followup=True, version=version))
 
 
 def main(argv=None) -> int:
@@ -73,23 +78,30 @@ def main(argv=None) -> int:
         return 1
     manifest = rl.load_json(mpath)
     results = []
+    version = rl.version_tuple(manifest.get("methodology_version"))
     legacy = rl.is_legacy(manifest.get("methodology_version"))
+    segment = str(manifest.get("listing_segment") or manifest.get("segment") or "")
     read_only = manifest.get("status") in FINALIZED
-    if legacy:
-        print("note: run recorded under methodology %s; validating against that contract (2.3.0 additions skipped)"
+    if version < rl.current_version():
+        print("note: run recorded under methodology %s; validating against that contract (later additions skipped)"
               % manifest.get("methodology_version"))
     if read_only:
         print("note: run is finalized (status %s); validating read-only, nothing in the run is written" % manifest.get("status"))
-    ids = check_specialists(run_dir, manifest, results, legacy)
+    ids = check_specialists(run_dir, manifest, results, version=version, segment=segment)
 
     if a.stage == "specialists":
-        check_followups(run_dir, ids | rl.validate_ledger(run_dir / "cio" / "cio_ledger.csv")[1], results)
+        check_followups(run_dir, ids | rl.validate_ledger(run_dir / "cio" / "cio_ledger.csv")[1], results, version)
     else:
         cio_ledger = run_dir / "cio" / "cio_ledger.csv"
         cres, cids = rl.validate_ledger(cio_ledger, rl.CIO_PREFIX)
         results.append(cres)
         ids |= cids
-        check_followups(run_dir, ids, results)
+        if version >= rl.V24:
+            for led in sorted((run_dir / "audit").glob("*_ledger.csv")):
+                ares, aids = rl.validate_ledger(led, rl.AUDITOR_PREFIX)
+                results.append(ares)
+                ids |= aids
+        check_followups(run_dir, ids, results, version)
         merged = run_dir / "evidence_ledger.csv"
         mres = rl.Result(str(merged))
         if not merged.exists():
@@ -114,7 +126,13 @@ def main(argv=None) -> int:
             missing = rl.Result(str(sc_path))
             missing.error("scorecard.json missing")
             results.append(missing)
-        results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids, legacy=legacy))
+        results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids, version=version,
+                                                segment=segment))
+        if version >= rl.V24:
+            ares, findings = rl.validate_audit_report(run_dir / rl.AUDIT_REPORT, ids,
+                                                      {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")})
+            rl.check_audit_resolutions(run_dir, findings, ares)
+            results.append(ares)
         # Evidence statistics (warnings) and cross-ledger numeric conflicts (must be adjudicated).
         stats = evidence_stats.compute(run_dir)
         if not read_only:
@@ -134,7 +152,8 @@ def main(argv=None) -> int:
                 cres2.error("unadjudicated numeric conflict: %s %s %s..%s (%s) — cite these claim IDs in cio/contradiction_log.md"
                             % (c["metric"], c["period"], c["min"], c["max"], c["claim_ids"]))
         results.append(cres2)
-        files = ["cio/contradiction_log.md"] + ([] if legacy else list(rl.V23_CIO_FILES)) + [rl.QC_RECORD]
+        files = ["cio/contradiction_log.md"] + ([] if legacy else list(rl.V23_CIO_FILES)) + \
+            (list(rl.V24_CIO_FILES) if version >= rl.V24 else []) + [rl.QC_RECORD]
         for rel in files:
             fp = run_dir / rel
             r = rl.Result(str(fp))

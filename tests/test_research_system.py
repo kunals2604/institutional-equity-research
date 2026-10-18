@@ -71,6 +71,10 @@ COVERAGE_TEXT = {  # section -> text that satisfies the Historical Depth Standar
     "Historical and Peer Valuation": "P/E history %s." % FY_COLS,
     "Ownership, Pledging and Insider Activity": "Shareholding: %s." % QUARTERS,
     "Market Share and Company Position": "Share history %s." % FY_COLS,
+    "Filings Reviewed": "Annual reports read: %s." % FY_COLS,
+    "Quantified Advantage Metrics": "ROIC spread %s." % FY_COLS,
+    "Corporate-Action History": "Corporate actions %s." % FY_COLS,
+    "Independent Operating Data": "Regulator series %s." % FY_COLS,
 }
 
 
@@ -127,6 +131,25 @@ def final_report(sc, run_id):
     return "\n".join(out)
 
 
+def audit_report(run_id, ticker="FIXTURECO", findings=(("AUD-F01", "Minor"),), opinion="Clean with minor findings"):
+    fm = ("---\nauditor: auditor\ncompany: FixtureCo Ltd\nticker: %s\nrun_id: %s\naudit_scope: \"cio/final_report.md\"\n"
+          "audit_opinion: %s\nindependence_attestation: \"I wrote only files under audit/.\"\n---\n\n" % (ticker, run_id, opinion))
+    body = ["# Audit — FixtureCo\n"]
+    for sec in rl.agent_sections(rl.AUDITOR):
+        if sec == "Findings Register":
+            rows = "\n".join("| %s | %s | Decision Dashboard | Fixture finding | CIO-C001 | Fix it |" % f for f in findings)
+            body.append("## %s\n| ID | Severity | Location | Finding | Evidence | Required correction |\n|---|---|---|---|---|---|\n%s\n"
+                        % (sec, rows or "No findings"))
+        else:
+            body.append("## %s\nFixture audit content [FACT: CIO-C001].\n" % sec)
+    return fm + "\n".join(body)
+
+
+def audit_resolutions(findings=(("AUD-F01", "Minor"),), resolution="Fixed"):
+    rows = "\n".join("| %s | %s | %s | Fixture change | — |" % (f, sev, resolution) for f, sev in findings)
+    return "# Audit Resolutions\n\n| Finding | Severity | Resolution | What changed | Re-audit |\n|---|---|---|---|---|\n%s\n" % rows
+
+
 class FixtureRun:
     """Builds a fully valid synthetic run in a temporary repository root."""
 
@@ -159,6 +182,11 @@ class FixtureRun:
                            encoding="utf-8")
         cl = self.dir / "cio" / "contradiction_log.md"
         cl.write_text(cl.read_text(encoding="utf-8").replace("<question>", "Fixture question"), encoding="utf-8")
+        (self.dir / "audit").mkdir(exist_ok=True)
+        (self.dir / rl.AUDIT_REPORT).write_text(audit_report(self.run_id), encoding="utf-8")
+        (self.dir / "cio" / "audit_resolutions.md").write_text(audit_resolutions(), encoding="utf-8")
+        (self.dir / "corpus").mkdir(exist_ok=True)
+        (self.dir / "corpus" / "DOCUMENT_MAP.md").write_text("# Document Map — fixture\n", encoding="utf-8")
         return sc
 
     def write_scorecard(self, sc):
@@ -188,8 +216,8 @@ class TestCanonicalConfiguration(unittest.TestCase):
         for kind in ("BQ", "IA"):
             self.assertEqual(sum(w for _, _, w in rl.dimension_weights(kind)), 100, kind)
 
-    def test_ten_agents_with_valid_frontmatter(self):
-        names = set(rl.SPECIALISTS) | {"cio"}
+    def test_all_agents_with_valid_frontmatter(self):
+        names = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR}
         files = {p.stem for p in rl.AGENTS_DIR.glob("*.md")}
         self.assertEqual(files, names)
         for name in names:
@@ -197,6 +225,7 @@ class TestCanonicalConfiguration(unittest.TestCase):
             fm = rl.parse_front_matter(text)
             self.assertEqual(fm.get("name"), name)
             self.assertEqual(fm.get("model"), "opus", name)
+            self.assertNotIn("effort", fm, "%s: effort must follow the session's model picker" % name)
             self.assertIn("investment-constitution", text, name)
             self.assertTrue(fm.get("description"), name)
 
@@ -462,7 +491,9 @@ class TestEndToEndRun(unittest.TestCase):
         header, rows = rl.read_csv(board)
         self.assertEqual(header, sb.COLUMNS)
         self.assertEqual(len(rows), 1)
-        self.assertEqual((rows[0]["business_quality_score"], rows[0]["investment_attractiveness_score"]), ("69", "53"))
+        ex = json.loads((ROOT / "templates" / "scorecard.example.json").read_text(encoding="utf-8"))
+        self.assertEqual((rows[0]["business_quality_score"], rows[0]["investment_attractiveness_score"]),
+                         (str(ex["business_quality"]["final"]), str(ex["investment_attractiveness"]["final"])))
         self.assertEqual((self.fx.dir.parent.parent / rl.LATEST_POINTER).read_text().strip(), self.fx.run_id)
         m = rl.load_json(self.fx.dir / rl.RUN_MANIFEST)
         self.assertEqual(m["status"], "complete")
@@ -577,7 +608,7 @@ class TestGitPublish(unittest.TestCase):
         r = run("git_publish.py", self.fx.dir, "--batch", "specialists")
         self.assertEqual(r.returncode, 0, r.stderr)
         msg = self.g("log", "-1", "--format=%s").stdout
-        self.assertIn("8/9 complete", msg)
+        self.assertIn("%d/%d complete" % (len(rl.SPECIALISTS) - 1, len(rl.SPECIALISTS)), msg)
         self.assertIn("NOT complete: moat", msg)
         files = self.g("show", "--name-only", "--format=", "HEAD").stdout.split()
         self.assertTrue(files and all(f.startswith("research/companies/FIXTURECO/runs/") for f in files), files)

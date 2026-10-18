@@ -15,10 +15,12 @@ research/companies/<TICKER>/
     ├── research_brief.md                   # CIO preflight brief given to every specialist (facts only)
     ├── source_register.csv                 # discovery leads (NOT proof, NOT conclusions)
     ├── source_retrievals.csv               # every download: time, author, URL, HTTP status, bytes, SHA-256 (scripts/fetch_source.py)
-    ├── corpus/                             # CATALOG.md, catalog.csv (+ SHA-256 of each local document), coverage.json (scripts/corpus.py)
+    ├── corpus/                             # CATALOG.md, catalog.csv (+ SHA-256 of each local document), coverage.json (scripts/corpus.py);
+    │                                       #   DOCUMENT_MAP.md + document_map.csv (both channels cross-checked) and
+    │                                       #   index_summary.json (exchange / IR / archive index) from scripts/document_map.py, exchange_index.py
     ├── specialists/
-    │   ├── <name>.md                       # 9 initial reports: financials, filings, management, industry, moat,
-    │   ├── <name>_ledger.csv               #   concalls, valuation, bear-case, special-situations (+ 9 claim ledgers)
+    │   ├── <name>.md                       # 10 initial reports: financials, filings, management, industry, moat, concalls,
+    │   ├── <name>_ledger.csv               #   valuation, bear-case, special-situations, scuttlebutt (+ 10 claim ledgers; 9 before 2.4.0)
     │   ├── <name>_workpapers/              # research plan, extraction tables (e.g. financial_history.csv), verification logs
     │   └── <name>_followup_<n>.md          # optional targeted follow-ups (+ ledgers)
     ├── cio/
@@ -26,7 +28,10 @@ research/companies/<TICKER>/
     │   ├── contradiction_log.md
     │   ├── final_report.md                 # states its as-of date in front matter and the Decision Dashboard
     │   ├── scorecard.json
+    │   ├── audit_resolutions.md            # the CIO's resolution of every audit finding (2.4.0)
     │   └── quality_control.md
+    ├── audit/                              # the independent auditor's files only (2.4.0): audit_report.md, auditor_ledger.csv,
+    │                                       #   tieout.csv, sample.csv, recompute/, audit_followup_<n>.md
     ├── calc/                               # inputs/outputs of fin_metrics.py, valuation_tools.py and other reproducible calculations
     ├── evidence_ledger.csv                 # merged by scripts/merge_ledgers.py
     ├── qc/                                 # auto_checks.json, evidence_stats.json, numeric_conflicts.csv (validate_run.py --stage final)
@@ -62,7 +67,7 @@ coverage_exception: ""         # optional: why the Historical Depth Standard cou
 
 ---
 
-## 3. Common sections (all nine specialists, in this order)
+## 3. Common sections (all ten specialists, in this order)
 
 Order: the **head** sections, then the domain sections from the agent definition, then the **tail** sections. Numbering headings (`## 3. …`) is optional; the heading text must match.
 
@@ -94,6 +99,10 @@ What each must contain:
 - **Domain Conclusion:** answers to the agent's decision questions plus its formal classifications. **No** BQ or IA score, primary-layer selection, or buy/sell verdict.
 - **Source Register:** see `EVIDENCE_STANDARDS.md` §2.
 
+**SME runs:** when the run's listing segment is `sme`, every specialist report (and the final report) also carries the section **SME Enhanced Scrutiny**, with the content its agent definition specifies. `validate_report.py` requires it for SME runs from methodology 2.4.0.
+
+**Sections marked `(since X.Y.Z)`** in an agent definition's `REQUIRED_SECTIONS` block are required only of runs produced under that methodology version or later, so a completed older run is still validated against the contract it was written under.
+
 **Depth over brevity:** every method step must be carried out in full (see the checklist). Interruptions, rate limits or long documents never justify a shallower method; resume and finish the step.
 
 **Length:** there is **no upper limit**. Research is as deep and thorough as the evidence allows, and the depth standards are floors, not ceilings. Depth comes from evidence, not padding: do not repeat the same finding in several sections; refer back to it instead.
@@ -112,6 +121,10 @@ A specialist deliverable is **complete** only if:
 7. No layer name is altered (`validate_report.py` checks this).
 
 Run: `python3 scripts/validate_run.py <run_dir> --stage specialists`.
+
+## 4a. Independent audit (Stage 4, methodology 2.4.0)
+
+The `auditor` agent (`.claude/agents/auditor.md`) audits the CIO's draft final report and scorecard with fresh context and writes only under `RUN_DIR/audit/`. Its report has its own front matter and required sections (defined in the agent file) and a **Findings Register** of `AUD-F##` rows graded Critical / Major / Minor, with an opinion of Clean, Clean with minor findings, Qualified or Adverse. The CIO answers every finding in `cio/audit_resolutions.md` (Fixed / Rebutted / Accepted limitation; a Critical finding can never be an accepted limitation, and must be marked Closed by a re-audit in `audit/audit_followup_<n>.md`). `validate_run.py --stage final` enforces all of this.
 
 ---
 

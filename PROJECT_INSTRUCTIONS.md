@@ -1,6 +1,6 @@
 # Institutional Equity Research — Global Research and Execution Rules
 
-These rules bind every agent in the system (the CIO and the nine specialists) and any session doing research in this repository.
+These rules bind every agent in the system (the CIO, the ten specialists and the auditor) and any session doing research in this repository.
 
 ## 1. Sources of truth (in precedence order)
 
@@ -53,6 +53,7 @@ The phases in the framework and the CIO stages are internal milestones, not stop
 - **Specialists** investigate independently in Stage 1. They do not read other specialists' reports, CIO files, other runs or `archive/` until the CIO hands them specific material in a follow-up.
 - Each agent writes **only** its own files in the run directory (see the constitution §6). Never modify another agent's report or ledger.
 - Specialist outputs are evidence inputs, not unquestionable conclusions. The CIO verifies, adjudicates and decides. It does **not** average scores or split the difference.
+- **The auditor** (Stage 4) reads everything in the run but writes only under `RUN_DIR/audit/`; it never edits the report, the scorecard or any other agent's file. The CIO resolves its findings in `cio/audit_resolutions.md`. Separation of duties: the agent that wrote the conclusion never certifies it alone.
 - Only the CIO updates `COMPANY_SCOREBOARD.csv` (via `scripts/finalize_run.py`, which locks, validates and writes atomically, and only for a `complete` outcome).
 
 ## 6a. Git policy

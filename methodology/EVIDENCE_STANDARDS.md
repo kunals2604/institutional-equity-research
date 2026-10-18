@@ -12,6 +12,7 @@ Each author writes its own ledger so that parallel agents never write to the sam
 |---|---|
 | Specialist `<name>` | `specialists/<name>_ledger.csv` |
 | CIO | `cio/cio_ledger.csv` |
+| Auditor | `audit/auditor_ledger.csv` |
 
 `scripts/merge_ledgers.py` combines them into `evidence_ledger.csv` at the run root. Never edit the merged file by hand.
 
@@ -108,7 +109,7 @@ Reconcile and **state explicitly** in every report that uses numbers:
 2. **Fiscal vs. calendar periods:** label periods (`FY2025` = year ending March 2025 for Indian companies, unless stated otherwise). Do not mix TTM, fiscal and calendar figures without saying so.
 3. **Units and currency:** state units once per table (₹ crore, ₹ lakh, US$ million). Convert explicitly and record the FX rate and date as a claim.
 4. **Share count:** basic and diluted. Adjust per-share history for splits and bonuses. Record convertibles, warrants and ESOP overhang.
-5. **Price:** price, exchange, timestamp (date and time or "close of DD-MMM-YYYY") and source are recorded once by the CIO in preflight as `CIO-C001`. Specialists cite that ID or record their own with a timestamp. Market cap and EV must reconcile to that price and share count.
+5. **Price:** price, exchange, timestamp (date and time or "close of DD-MMM-YYYY") and source are recorded once by the CIO in preflight as `CIO-C001`, from the exchange's bhavcopy file (`scripts/market_data.py close`), cited by its URL and SHA-256. Specialists cite that ID or record their own with a timestamp. Market cap and EV must reconcile to that price and share count.
 6. **Reported vs. adjusted:** keep reported figures and your adjustments in separate rows, and give the adjustment's formula.
 7. **Historical vs. forecast:** never place forecasts in a historical table without marking them `E`.
 8. **Provider differences:** when a database and a filing disagree, record both, the size of the gap, the likely cause (classification, restatement, consolidation scope) and which figure you use.
@@ -161,6 +162,6 @@ And a missing-evidence list: what was sought, where, why it was unavailable, and
 
 ## 6. Source access notes
 
-- Indian listed companies: annual reports, results and transcripts are usually on the company's investor-relations page and on BSE/NSE corporate filings. Shareholding patterns, pledges and insider (SAST/PIT) disclosures are on exchange filings. Credit-rating rationales are on rating-agency sites. Use what you can retrieve and record what you could not.
+- Indian listed companies: annual reports, results, transcripts, shareholding, insider (SAST/PIT) disclosures, corporate actions and every Regulation 30 announcement are indexed from NSE and BSE in Stage 0 (`scripts/exchange_index.py`; `corpus/DOCUMENT_MAP.md`), together with the IR site and the Internet Archive's copies of it. Credit-rating rationales are on rating-agency sites. Use what you can retrieve and record what you could not, with the URLs tried (`source_retrievals.csv` keeps them).
 - If a page will not load or is behind a paywall, say so in the missing-evidence list. Do not reconstruct its contents from memory.
 - Aggregators (for example Screener-style datasets, tier 5) are acceptable for discovery and as a cross-check. Reconcile decision-critical numbers to filings.

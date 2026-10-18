@@ -283,13 +283,23 @@ def price_ladder(inp: dict, prices: List[float], scorecard: Optional[dict]) -> d
         ctx = {"bq": scorecard["business_quality"]["final"], "conf": ia.get("confidence", "Medium"),
                "gates": sorted(set(ia.get("gates_triggered") or []) | set(scorecard["business_quality"].get("gates_triggered") or [])),
                "layer": scorecard.get("primary_layer") or "None"}
+    v3 = bool(scorecard) and rl.version_tuple(scorecard.get("methodology_version")) >= rl.V3
     rows = []
     for P in prices:
         s = scenarios(inp, P)
         dims = {"IA1": ia1(s["margin_of_safety"]), "IA2": ia2(s["expected_irr"], h), "IA4": ia4(s["asymmetry_ratio"])}
         row = {"price": P, "margin_of_safety": s["margin_of_safety"], "expected_irr": s["expected_irr"],
                "asymmetry_ratio": s["asymmetry_ratio"], **dims}
-        if scorecard and dims["IA1"] is not None:
+        if scorecard and dims["IA1"] is not None and v3:
+            # 3.0.0: the whole decision sequence at this price (profile weights, effective scores, must-pass tests,
+            # required margin of safety, conviction), with the non-price judgments held at the scorecard's values.
+            asym = s["asymmetry_ratio"] if s["asymmetry_ratio"] != float("inf") else 99.0
+            ev = rl.evaluate_v3(scorecard, ia_override=dims,
+                                metrics_override={"margin_of_safety": s["margin_of_safety"], "expected_irr": s["expected_irr"],
+                                                  "asymmetry_ratio": asym, "hurdle_rate": h})
+            row.update({"ia_raw": ev["IA"]["weighted_raw"], "ia_final": ev["IA"]["final"], "conviction": ev["conviction"],
+                        "mapped_verdict": ev["mapped_verdict"], "verdict_path": ev["verdict_path"]})
+        elif scorecard and dims["IA1"] is not None:
             allv = dict(fixed, **dims)
             raw = sum(allv[k] * w for k, w in weights.items()) / 100.0
             final = min([rl.round_half_up(raw)] + caps)

@@ -50,9 +50,10 @@ def main(argv=None) -> int:
 
     paths = [str(run_dir.relative_to(root.resolve()))]
     if a.batch == "specialists":
-        done = [n for n, s in m["specialists"].items() if s.get("status") == "complete"]
-        missing = [n for n in rl.SPECIALISTS if n not in done]
-        msg = "research(%s): %s specialists batch — %d/9 complete" % (ticker, run_id, len(done))
+        expected = list(rl.specialists_for(rl.version_tuple(m.get("methodology_version"))))
+        done = [n for n, s in m["specialists"].items() if s.get("status") == "complete" and n in expected]
+        missing = [n for n in expected if n not in done]
+        msg = "research(%s): %s specialists batch — %d/%d complete" % (ticker, run_id, len(done), len(expected))
         if missing:
             msg += "; NOT complete: %s" % ", ".join(missing)
     else:

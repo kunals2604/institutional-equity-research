@@ -52,6 +52,7 @@ FINAL_VERDICT_FIELDS = ("Business quality", "Layer fit", "Current valuation", "E
 FIT_CONF_RE = re.compile(r"Layer-fit confidence:\**\s*\**\s*(High|Medium|Low)")
 
 # Agent registry: name -> claim-ID prefix. Agent files must exist for each.
+# Stage-1 specialists (independent research). `scuttlebutt` joined in methodology 2.4.0.
 SPECIALISTS: Dict[str, str] = {
     "financials": "FIN",
     "filings": "FIL",
@@ -62,9 +63,15 @@ SPECIALISTS: Dict[str, str] = {
     "valuation": "VAL",
     "bear-case": "BEAR",
     "special-situations": "SPS",
+    "scuttlebutt": "SCU",
 }
+SPECIALIST_SINCE: Dict[str, tuple] = {"scuttlebutt": (2, 4, 0)}
 CIO_PREFIX = "CIO"
-ALL_PREFIXES = set(SPECIALISTS.values()) | {CIO_PREFIX}
+# Independent research auditor (Stage 4, methodology 2.4.0): audits the CIO's draft, never researches the company.
+AUDITOR = "auditor"
+AUDITOR_PREFIX = "AUD"
+ALL_PREFIXES = set(SPECIALISTS.values()) | {CIO_PREFIX, AUDITOR_PREFIX}
+AGENT_NAMES = set(SPECIALISTS) | {"cio", AUDITOR}
 
 CLAIM_ID_RE = re.compile(r"\b(?:%s)-C\d{3,}\b" % "|".join(sorted(ALL_PREFIXES, key=len, reverse=True)))
 TAG_RE = re.compile(
@@ -244,8 +251,21 @@ def any_years(text: str) -> Set[int]:
     return fiscal_years(text) | {int(y) for y in _YEAR_RE.findall(text)}
 
 
-def agent_sections(agent: str) -> List[str]:
-    return read_block(AGENTS_DIR / ("%s.md" % agent), "REQUIRED_SECTIONS")
+SINCE_RE = re.compile(r"^(.*?)\s*\(since (\d+(?:\.\d+){1,2})\)\s*$")
+
+
+def agent_sections(agent: str, version: Optional[tuple] = None) -> List[str]:
+    """Required H2 sections of an agent's report. A section marked `(since X.Y.Z)` in the agent definition is
+    required only of runs produced under methodology X.Y.Z or later; `version=None` returns every section."""
+    out = []
+    for item in read_block(AGENTS_DIR / ("%s.md" % agent), "REQUIRED_SECTIONS"):
+        m = SINCE_RE.match(item)
+        if m:
+            if version is not None and version < version_tuple(m.group(2)):
+                continue
+            item = m.group(1)
+        out.append(item)
+    return out
 
 
 def round_half_up(x: float) -> int:
@@ -308,6 +328,14 @@ def methodology_version() -> str:
 V23 = (2, 3, 0)
 V23_FINAL_SECTIONS = ("CIO Independent Analysis", "Confidence Assessment")
 V23_CIO_FILES = ("cio/gap_register.md", "cio/cio_analysis.md")
+# Contract additions of methodology 2.4.0: the scuttlebutt specialist, the independent audit, the Stage-0
+# document map (both evidence channels cross-checked) and SME enhanced-scrutiny sections.
+V24 = (2, 4, 0)
+V24_FINAL_SECTIONS = ("Ground-Truth Evidence", "Independent Audit and Resolutions")
+V24_CIO_FILES = ("cio/audit_resolutions.md", "corpus/DOCUMENT_MAP.md")
+AUDIT_REPORT = "audit/audit_report.md"
+AUDIT_LEDGER = "audit/auditor_ledger.csv"
+SME_SECTION = "SME Enhanced Scrutiny"
 
 
 def version_tuple(v: Optional[str]) -> tuple:
@@ -318,6 +346,23 @@ def version_tuple(v: Optional[str]) -> tuple:
 def is_legacy(run_version: Optional[str]) -> bool:
     """True when a run was produced under a methodology older than 2.3.0."""
     return version_tuple(run_version) < V23
+
+
+def current_version() -> tuple:
+    return version_tuple(methodology_version())
+
+
+def specialists_for(run_version: Optional[tuple] = None) -> Dict[str, str]:
+    """The Stage-1 specialists a run of this methodology version must have (all of them for current runs)."""
+    v = run_version or current_version()
+    return {n: p for n, p in SPECIALISTS.items() if v >= SPECIALIST_SINCE.get(n, (0,))}
+
+
+def effective_version(legacy: bool = False, version: Optional[tuple] = None) -> tuple:
+    """Version whose contract applies: `legacy=True` means a pre-2.3.0 run (kept for older callers)."""
+    if legacy:
+        return (2, 2, 0)
+    return version or current_version()
 
 
 def _parse_table_block(path: Path, name: str) -> List[List[str]]:
@@ -610,12 +655,15 @@ def run_ledger_paths(run_dir: Path) -> List[Path]:
     cio = run_dir / "cio" / "cio_ledger.csv"
     if cio.exists():
         paths.append(cio)
+    paths += sorted((run_dir / "audit").glob("*_ledger.csv"))
     return paths
 
 
 def prefix_for_ledger(path: Path) -> Optional[str]:
     if path.parent.name == "cio":
         return CIO_PREFIX
+    if path.parent.name == "audit":
+        return AUDITOR_PREFIX
     stem = path.name[: -len("_ledger.csv")]
     stem = re.sub(r"_followup_\d+$", "", stem)
     return SPECIALISTS.get(stem)
@@ -635,7 +683,11 @@ FINAL_FM = ("company", "ticker", "exchange", "run_id", "as_of_date", "research_c
 
 
 def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None,
-                               expected: Optional[dict] = None, followup: bool = False, legacy: bool = False) -> Result:
+                               expected: Optional[dict] = None, followup: bool = False, legacy: bool = False,
+                               version: Optional[tuple] = None, segment: str = "") -> Result:
+    """Validate one specialist report against the contract of `version` (the run's methodology version;
+    default: current). `segment` is the run's listing segment; `sme` requires the SME Enhanced Scrutiny section."""
+    v = effective_version(legacy, version)
     res = Result(str(path))
     if not path.exists():
         res.error("Report missing")
@@ -657,12 +709,14 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     if fm.get("report_status") == "partial":
         res.warn("Report status is partial")
     if not followup:
-        tail = [t for t in common_tail() if not (legacy and t == CHECKLIST_SECTION)]
-        required = common_head() + (agent_sections(name) if name in SPECIALISTS else []) + tail
+        tail = [t for t in common_tail() if not (v < V23 and t == CHECKLIST_SECTION)]
+        required = common_head() + (agent_sections(name, v) if name in SPECIALISTS else []) + tail
+        if segment.lower() == "sme" and v >= V24:
+            required = required + [SME_SECTION]
         check_sections(text, required, res)
         check_crosswalk(text, res)
-        check_coverage(name, text, fm, res)
-        if name in SPECIALISTS and not legacy:
+        check_coverage(name, text, fm, res, v)
+        if name in SPECIALISTS and v >= V23:
             check_method_checklist(name, text, res)
     allowed = {SPECIALISTS[name], CIO_PREFIX} if (name in SPECIALISTS and not followup) else None
     if ledger_ids is not None:
@@ -679,22 +733,27 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
     return res
 
 
-# (specialist, section(s), counter, depth key, unit label, error-or-warning)
+# (specialist, section(s), counter, depth key, unit label, error-or-warning, contract version it applies from)
 _COVERAGE_RULES = (
-    ("financials", ("Historical Financial Summary",), fiscal_years, "financials.fiscal_years", "fiscal years", True),
-    ("concalls", ("Coverage of Communications", "Promise-to-Delivery Database"), quarters, "concalls.quarters", "quarters", True),
-    ("valuation", ("Historical and Peer Valuation", "Price History, Drawdowns and TSR"), any_years, "valuation.history_years", "years", True),
-    ("management", ("Ownership, Pledging and Insider Activity",), quarters, "management.shareholding_quarters", "quarters", False),
-    ("industry", ("Market Share and Company Position", "Market Size and Reachable Market"), any_years, "industry.history_years", "years", False),
+    ("financials", ("Historical Financial Summary",), fiscal_years, "financials.fiscal_years", "fiscal years", True, (0,)),
+    ("concalls", ("Coverage of Communications", "Promise-to-Delivery Database"), quarters, "concalls.quarters", "quarters", True, (0,)),
+    ("valuation", ("Historical and Peer Valuation", "Price History, Drawdowns and TSR"), any_years, "valuation.history_years", "years", True, (0,)),
+    ("management", ("Ownership, Pledging and Insider Activity",), quarters, "management.shareholding_quarters", "quarters", False, (0,)),
+    ("industry", ("Market Share and Company Position", "Market Size and Reachable Market"), any_years, "industry.history_years", "years", False, (0,)),
+    ("filings", ("Filings Reviewed",), fiscal_years, "filings.annual_report_years", "annual-report fiscal years", True, V24),
+    ("moat", ("Quantified Advantage Metrics",), any_years, "moat.history_years", "years", False, V24),
+    ("special-situations", ("Corporate-Action History",), any_years, "special-situations.history_years", "years", False, V24),
+    ("scuttlebutt", ("Independent Operating Data",), any_years, "scuttlebutt.history_years", "years", False, V24),
 )
 
 
-def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result) -> None:
-    """Historical Depth Standard (methodology/RESEARCH_PLAYBOOK.md §2)."""
+def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result, version: Optional[tuple] = None) -> None:
+    """Historical Depth Standard (methodology/RESEARCH_PLAYBOOK.md §2), as it applied to the run's version."""
     mins = depth_minimums()
+    v = version or current_version()
     exception = (fm.get("coverage_exception") or "").strip()
-    for agent, sections, counter, key, label, hard in _COVERAGE_RULES:
-        if agent != name or key not in mins:
+    for agent, sections, counter, key, label, hard, since in _COVERAGE_RULES:
+        if agent != name or key not in mins or v < since:
             continue
         body = "\n".join(section(text, s) or "" for s in sections)
         n = len(counter(body))
@@ -709,7 +768,20 @@ def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result) -> Non
             res.warn(msg)
 
 
-def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Optional[Set[str]], legacy: bool = False) -> Result:
+def final_sections_for(version: tuple) -> List[str]:
+    """The CIO final-report sections required for a run of this methodology version."""
+    out = []
+    for s in agent_sections("cio", version):
+        if version < V23 and s in V23_FINAL_SECTIONS:
+            continue
+        if version < V24 and s in V24_FINAL_SECTIONS:
+            continue
+        out.append(s)
+    return out
+
+
+def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Optional[Set[str]], legacy: bool = False,
+                          version: Optional[tuple] = None, segment: str = "") -> Result:
     res = Result(str(path))
     if not path.exists():
         res.error("Final report missing")
@@ -719,7 +791,11 @@ def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Opt
     for k in FINAL_FM:
         if not fm.get(k):
             res.error("Front matter missing '%s'" % k)
-    check_sections(text, [s for s in agent_sections("cio") if not (legacy and s in V23_FINAL_SECTIONS)], res)
+    v = effective_version(legacy, version)
+    required = final_sections_for(v)
+    if segment.lower() == "sme" and v >= V24:
+        required = required + [SME_SECTION]
+    check_sections(text, required, res)
     insufficient = fm.get("assessment_status") == "insufficient_evidence"
     layers = canonical_layers()
     body = section(text, FINAL_LAYER_SECTION) or ""
@@ -793,6 +869,86 @@ def validate_final_report(path: Path, scorecard: Optional[dict], ledger_ids: Opt
 
 
 # ---------------------------------------------------------------------------
+# Independent audit (methodology 2.4.0; contract in .claude/agents/auditor.md)
+# ---------------------------------------------------------------------------
+
+AUDIT_FM = ("auditor", "company", "ticker", "run_id", "audit_opinion", "independence_attestation")
+AUDIT_OPINIONS = ("Clean", "Clean with minor findings", "Qualified", "Adverse")
+AUDIT_SEVERITIES = ("Critical", "Major", "Minor")
+AUDIT_RESOLUTIONS = ("Fixed", "Rebutted", "Accepted limitation")
+FINDING_ROW_RE = re.compile(r"^\|\s*(AUD-F\d{2,})\s*\|\s*([A-Za-z]+)\s*\|", re.M)
+
+
+def audit_findings(text: str) -> List[Tuple[str, str]]:
+    """(finding id, severity) rows of the Findings Register table."""
+    body = section(text, "Findings Register") or ""
+    return [(m.group(1), m.group(2).strip().title()) for m in FINDING_ROW_RE.finditer(body)]
+
+
+def validate_audit_report(path: Path, ledger_ids: Optional[Set[str]] = None,
+                          expected: Optional[dict] = None) -> Tuple[Result, List[Tuple[str, str]]]:
+    res = Result(str(path))
+    if not path.exists():
+        res.error("Audit report missing: the CIO must invoke the auditor agent before QC (cio.md Stage 4)")
+        return res, []
+    text = path.read_text(encoding="utf-8")
+    fm = parse_front_matter(text)
+    for k in AUDIT_FM:
+        if not fm.get(k):
+            res.error("Front matter missing '%s'" % k)
+    if expected:
+        for k in ("ticker", "run_id"):
+            if expected.get(k) and fm.get(k) and fm[k] != expected[k]:
+                res.error("Front matter %s=%r does not match run (%r)" % (k, fm[k], expected[k]))
+    opinion = fm.get("audit_opinion", "")
+    if opinion and opinion not in AUDIT_OPINIONS:
+        res.error("audit_opinion %r is not one of %s" % (opinion, ", ".join(AUDIT_OPINIONS)))
+    check_sections(text, agent_sections(AUDITOR), res)
+    findings = audit_findings(text)
+    for fid, sev in findings:
+        if sev not in AUDIT_SEVERITIES:
+            res.error("%s: severity %r is not Critical | Major | Minor" % (fid, sev))
+    n = {s: sum(1 for _, x in findings if x == s) for s in AUDIT_SEVERITIES}
+    if n["Critical"] and opinion != "Adverse":
+        res.error("%d Critical finding(s) require the opinion 'Adverse' (resolutions are recorded by the CIO)" % n["Critical"])
+    elif n["Major"] and opinion in ("Clean", "Clean with minor findings"):
+        res.error("%d Major finding(s) are inconsistent with the opinion %r" % (n["Major"], opinion))
+    elif n["Minor"] and opinion == "Clean":
+        res.warn("Minor findings with a 'Clean' opinion: use 'Clean with minor findings'")
+    if not findings and "no findings" not in (section(text, "Findings Register") or "").lower():
+        res.warn("Findings Register has no AUD-F## rows and does not state 'No findings'")
+    check_tags(text, res, ledger_ids, {AUDITOR_PREFIX, CIO_PREFIX} | set(SPECIALISTS.values()))
+    check_layer_names(text, res)
+    return res, findings
+
+
+def check_audit_resolutions(run_dir: Path, findings: List[Tuple[str, str]], res: Result) -> None:
+    """Every Critical/Major finding is resolved in cio/audit_resolutions.md; a Critical finding cannot be accepted as a
+    limitation and its fix must be confirmed 'Closed' by a re-audit (audit/audit_followup_<n>.md)."""
+    path = run_dir / "cio" / "audit_resolutions.md"
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    rows = {}
+    for line in text.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if cells and re.fullmatch(r"AUD-F\d{2,}", cells[0]):
+            rows[cells[0]] = cells
+    followups = "\n".join(p.read_text(encoding="utf-8") for p in sorted((run_dir / "audit").glob("audit_followup_*.md")))
+    for fid, sev in findings:
+        row = rows.get(fid)
+        if row is None:
+            (res.error if sev in ("Critical", "Major") else res.warn)(
+                "%s (%s) has no row in cio/audit_resolutions.md" % (fid, sev))
+            continue
+        resolution = next((r for r in AUDIT_RESOLUTIONS if any(c.lower() == r.lower() for c in row[1:4])), None)
+        if resolution is None:
+            res.error("%s: resolution must be one of %s" % (fid, ", ".join(AUDIT_RESOLUTIONS)))
+        elif sev == "Critical" and resolution == "Accepted limitation":
+            res.error("%s is Critical: it must be fixed or rebutted with evidence, not accepted as a limitation" % fid)
+        if sev == "Critical" and not re.search(r"%s[^\n]*\bClosed\b" % re.escape(fid), followups):
+            res.error("%s is Critical: a re-audit (audit/audit_followup_<n>.md) must mark it Closed" % fid)
+
+
+# ---------------------------------------------------------------------------
 # Scorecard
 # ---------------------------------------------------------------------------
 
@@ -810,6 +966,220 @@ def mapped_verdict(bq: int, ia: int, ia_conf: str, gates_hit: List[str], primary
         return "WATCHLIST — WAIT FOR BETTER PRICE" if bq >= 70 else "HOLD / NEUTRAL"
     v = "STRONG BUY" if (ia >= 80 and ia_conf in ("High", "Medium")) else "BUY"
     return "SPECULATIVE BUY" if l4 else v
+
+
+# ---------------------------------------------------------------------------
+# Decision engine, methodology 3.0.0 (SCORING.md §§0, 1, 3a-3c, 5)
+# ---------------------------------------------------------------------------
+
+V3 = (3, 0, 0)
+BUY_CLASS = ("BUY", "STRONG BUY", "SPECULATIVE BUY")
+
+
+def layer_code(name: Optional[str]) -> str:
+    """'Layer 2 — High-Growth Business' -> 'L2'; anything else -> 'None'."""
+    layers = canonical_layers()
+    n = norm_layer(name or "")
+    return "L%d" % (layers.index(n) + 1) if n in layers else "None"
+
+
+def weight_profiles() -> Dict[str, Dict[str, float]]:
+    rows = [r for r in _parse_table_block(SCORING, "WEIGHT_PROFILES") if r and r[0].lower() != "dimension"]
+    cols = ["Base", "L1", "L2", "L3", "L4"]
+    out: Dict[str, Dict[str, float]] = {c: {} for c in cols}
+    for r in rows:
+        for c, v in zip(cols, r[1:6]):
+            out[c][r[0]] = float(v)
+    return out
+
+
+def confidence_shrink() -> Dict[str, float]:
+    out = {}
+    for line in read_block(SCORING, "CONFIDENCE_SHRINK"):
+        k, _, v = line.partition(":")
+        out[k.strip()] = float(v)
+    return out
+
+
+def dimension_owners() -> Dict[str, List[str]]:
+    rows = [r for r in _parse_table_block(SCORING, "DIMENSION_OWNERS") if r and r[0].lower() != "dimension"]
+    return {r[0]: [x.strip() for x in r[1].split(",") if x.strip()] for r in rows}
+
+
+MUST_PASS_RE = re.compile(r"^(BQ\d|IA\d)\s*(>=|>|<=|<)\s*(\d+(?:\.\d+)?)$")
+
+
+def must_pass_rules() -> List[dict]:
+    out = []
+    for r in _parse_table_block(SCORING, "MUST_PASS"):
+        if not r or r[0].lower().startswith("applies"):
+            continue
+        m = MUST_PASS_RE.match(r[1].strip())
+        if not m:
+            raise ValueError("MUST_PASS test %r not of the form 'BQ1 >= 60'" % r[1])
+        out.append({"applies": [x.strip() for x in r[0].split(",")], "test": r[1].strip(), "dimension": m.group(1),
+                    "op": m.group(2), "threshold": float(m.group(3)), "kind": r[2].strip().lower(), "why": r[3] if len(r) > 3 else ""})
+    return out
+
+
+def required_mos_table() -> Dict[str, Dict[str, Optional[float]]]:
+    out = {}
+    for r in _parse_table_block(SCORING, "REQUIRED_MOS"):
+        if not r or r[0].lower() == "layer":
+            continue
+        out[r[0]] = {lvl: (None if v.strip().lower() == "none" else float(v)) for lvl, v in zip(("High", "Medium", "Low"), r[1:4])}
+    return out
+
+
+def conviction_rules() -> dict:
+    out = {}
+    for line in read_block(SCORING, "CONVICTION"):
+        k, _, v = line.partition(":")
+        k, v = k.strip(), v.strip()
+        if "=" in v:
+            pairs = [p.strip().split("=") for p in v.split(",")]
+            out[k] = [(a.strip(), float(b)) for a, b in pairs]
+        else:
+            out[k] = float(v)
+    return out
+
+
+def layer_codes_of(sc: dict) -> List[str]:
+    codes = [layer_code(sc.get("primary_layer"))]
+    if sc.get("hybrid") and sc.get("secondary_layers"):
+        sec = layer_code(sc["secondary_layers"][0])
+        if sec != "None" and sec not in codes:
+            codes.append(sec)
+    return codes
+
+
+def profile_weights(codes: List[str]) -> Tuple[str, Dict[str, float]]:
+    prof = weight_profiles()
+    keys = [c if c in prof else "Base" for c in codes] or ["Base"]
+    keys = ["Base" if k == "None" else k for k in keys]
+    dims = prof["Base"].keys()
+    weights = {d: sum(prof[k][d] for k in keys) / float(len(keys)) for d in dims}
+    return "+".join(keys), weights
+
+
+def effective_score(score: float, confidence: str, shrink: Optional[Dict[str, float]] = None) -> float:
+    k = (shrink or confidence_shrink()).get(confidence, 0.0)
+    return float(score) if score <= 50 else 50.0 + (float(score) - 50.0) * k
+
+
+def required_mos(codes: List[str], ia_confidence: str) -> Tuple[bool, Optional[float]]:
+    """(buy permitted at this confidence, required margin of safety). A hybrid takes the stricter layer."""
+    table = required_mos_table()
+    vals = []
+    for c in codes or ["None"]:
+        row = table.get(c) or table.get("None")
+        vals.append(row.get(ia_confidence))
+    if any(v is None for v in vals):
+        return False, None
+    return True, max(vals)
+
+
+def conviction(edge: Optional[float], asymmetry: Optional[float], ia_confidence: str, robust: bool) -> Tuple[str, int]:
+    rules = conviction_rules()
+    pts = 0
+    if edge is not None:
+        e_pp = edge * 100.0
+        for thr, p in sorted(((float(a), b) for a, b in rules["edge_pp"]), reverse=True):
+            if e_pp >= thr:
+                pts += int(p)
+                break
+    if asymmetry is not None:
+        for thr, p in sorted(((float(a), b) for a, b in rules["asymmetry"]), reverse=True):
+            if asymmetry >= thr:
+                pts += int(p)
+                break
+    pts += int(dict(rules["confidence"]).get(ia_confidence, 0))
+    pts += int(rules["robust"]) if robust else 0
+    level = "High" if pts >= rules["high_at"] else ("Medium" if pts >= rules["medium_at"] else "Low")
+    return level, pts
+
+
+def _cmp(v: float, op: str, t: float) -> bool:
+    return {">=": v >= t, ">": v > t, "<=": v <= t, "<": v < t}[op]
+
+
+def evaluate_v3(sc: dict, ia_override: Optional[Dict[str, int]] = None, metrics_override: Optional[dict] = None) -> dict:
+    """Recompute the 3.0.0 decision from a scorecard's judgments. `ia_override` replaces IA dimension scores (the
+    price ladder's IA1/IA2/IA4 at another price); `metrics_override` replaces price_metrics at that price."""
+    codes = layer_codes_of(sc)
+    label, weights = profile_weights(codes)
+    _, base_weights = profile_weights(["Base"])
+    shrink = confidence_shrink()
+    eff: Dict[str, float] = {}
+    out = {"weight_profile": label, "weights": weights, "effective": eff}
+    implied = set()
+    cls = sc.get("classifications") or {}
+    for (field, value), gate in _CLASSIFICATION_GATES.items():
+        if str(cls.get(field, "")).strip().lower() == value:
+            implied.add(gate)
+    gates_all = set()
+    for kind, key in (("BQ", "business_quality"), ("IA", "investment_attractiveness")):
+        block = sc.get(key) or {}
+        dims = {d.get("id"): d for d in block.get("dimensions", [])}
+        raw = base = 0.0
+        for did in [d for d in weights if d.startswith(kind)]:
+            d = dims.get(did) or {}
+            score = (ia_override or {}).get(did, d.get("score", 0)) if kind == "IA" else d.get("score", 0)
+            e = effective_score(float(score), d.get("confidence", "Low"), shrink)
+            eff[did] = e
+            raw += e * weights[did] / 100.0
+            base += e * base_weights[did] / 100.0
+        table = gates(kind)
+        hit = sorted((set(block.get("gates_triggered") or []) | implied) & set(table))
+        caps = [table[g][1] for g in hit if table[g][1] is not None]
+        out[kind] = {"weighted_raw": round(raw, 2), "base_profile_raw": round(base, 2), "gates": hit,
+                     "final": min([round_half_up(raw)] + caps)}
+        gates_all |= set(hit)
+    m = dict(sc.get("price_metrics") or {})
+    m.update(metrics_override or {})
+    ia_conf = (sc.get("investment_attractiveness") or {}).get("confidence", "Low")
+    tests = []
+    for rule in must_pass_rules():
+        if "ALL" not in rule["applies"] and not set(rule["applies"]) & set(codes):
+            continue
+        v = eff.get(rule["dimension"], 0.0)
+        tests.append({"test": rule["test"], "kind": rule["kind"], "effective": round(v, 2),
+                      "passed": _cmp(v, rule["op"], rule["threshold"]), "why": rule["why"]})
+    permitted, req = required_mos(codes, ia_conf)
+    mos = m.get("margin_of_safety")
+    e_irr, hurdle = m.get("expected_irr"), m.get("hurdle_rate", sc.get("hurdle_rate"))
+    edge = (e_irr - hurdle) if (e_irr is not None and hurdle is not None) else None
+    conv, pts = conviction(edge, m.get("asymmetry_ratio"), ia_conf, bool(m.get("robust")))
+    bq, ia = out["BQ"]["final"], out["IA"]["final"]
+    l4 = codes[0] == "L4"
+    biz_fail = [t["test"] for t in tests if t["kind"] == "business" and not t["passed"]]
+    price_fail = [t["test"] for t in tests if t["kind"] == "price" and not t["passed"]]
+    if "G1" in gates_all or "G3" in gates_all or ia < 25:
+        verdict, why = "STRONG AVOID", "gate G1/G3 or IA < 25"
+    elif ia < 45:
+        verdict, why = "AVOID", "IA 25-44"
+    elif ia < 65:
+        verdict, why = ("WATCHLIST — WAIT FOR BETTER PRICE", "IA 45-64, BQ >= 70") if bq >= 70 else ("HOLD / NEUTRAL", "IA 45-64")
+    elif biz_fail:
+        verdict, why = "HOLD / NEUTRAL", "business must-pass failed: %s" % ", ".join(biz_fail)
+    elif price_fail:
+        verdict, why = "WATCHLIST — WAIT FOR BETTER PRICE", "price must-pass failed: %s" % ", ".join(price_fail)
+    elif not permitted:
+        verdict, why = "WATCHLIST — WAIT FOR BETTER PRICE", "no buy at %s IA confidence for %s" % (ia_conf, "+".join(codes))
+    elif mos is None or mos < req - 1e-9:
+        verdict, why = "WATCHLIST — WAIT FOR BETTER PRICE", "margin of safety %s below the required %.0f %%" % (
+            "n/a" if mos is None else "%.1f %%" % (mos * 100), req * 100)
+    elif l4:
+        verdict, why = "SPECULATIVE BUY", "Layer 4 buy"
+    elif ia >= 80 and ia_conf in ("High", "Medium") and conv == "High":
+        verdict, why = "STRONG BUY", "IA >= 80, confidence %s, conviction High" % ia_conf
+    else:
+        verdict, why = "BUY", "IA >= 65 and every buy condition met"
+    out.update({"layer_codes": codes, "gates": sorted(gates_all), "must_pass": tests,
+                "buy_permitted_at_confidence": permitted, "required_margin_of_safety": req,
+                "margin_of_safety": mos, "edge": edge, "conviction": conv, "conviction_points": pts,
+                "mapped_verdict": verdict, "verdict_path": why})
+    return out
 
 
 def _date(s) -> Optional[dt.date]:
@@ -955,6 +1325,11 @@ def validate_scorecard(path: Path) -> Result:
         if str(cls.get(field, "")).strip().lower() == value:
             implied.add(gate)
 
+    if version_tuple(sc.get("methodology_version")) >= V3:
+        _validate_v3(sc, implied, res)
+        _validate_scenarios_and_vocab(sc, res)
+        return res
+
     finals = {}
     for kind, key in (("BQ", "business_quality"), ("IA", "investment_attractiveness")):
         block = sc[key]
@@ -1004,6 +1379,16 @@ def validate_scorecard(path: Path) -> Result:
                 res.error("%s.%s missing" % (key, f))
         finals[kind] = final if isinstance(final, int) else expected_final
 
+    _validate_scenarios_and_vocab(sc, res)
+    all_hits = set(sc["business_quality"].get("gates_triggered") or []) | set(sc["investment_attractiveness"].get("gates_triggered") or [])
+    if "BQ" in finals and "IA" in finals:
+        mv = mapped_verdict(finals["BQ"], finals["IA"], sc["investment_attractiveness"].get("confidence", ""),
+                            sorted(all_hits), pl)
+        _check_verdict(sc, mv, res)
+    return res
+
+
+def _validate_scenarios_and_vocab(sc: dict, res: Result) -> None:
     scen = sc["scenarios"]
     probs = []
     for name in ("bear", "base", "bull"):
@@ -1022,22 +1407,87 @@ def validate_scorecard(path: Path) -> Result:
         res.error("Verdict %r not canonical" % sc["verdict"])
     if sc["valuation_status"] not in valuation_statuses():
         res.error("Valuation status %r not canonical" % sc["valuation_status"])
-    all_hits = set(sc["business_quality"].get("gates_triggered") or []) | set(sc["investment_attractiveness"].get("gates_triggered") or [])
-    if "BQ" in finals and "IA" in finals:
-        mv = mapped_verdict(finals["BQ"], finals["IA"], sc["investment_attractiveness"].get("confidence", ""),
-                            sorted(all_hits), pl)
-        if sc.get("mapped_verdict") and sc["mapped_verdict"] != mv:
-            res.error("mapped_verdict %r but methodology maps to %r" % (sc["mapped_verdict"], mv))
-        if sc["verdict"] in NOTCH and sc["verdict"] != mv:
-            gap = abs(NOTCH[sc["verdict"]] - NOTCH[mv])
-            same_notch_swap = gap == 0
-            if not (sc.get("override_reason") or "").strip():
-                res.error("Verdict %r differs from mapped %r without override_reason" % (sc["verdict"], mv))
-            elif gap > 1:
-                res.error("Override moves verdict %d notches (max 1)" % gap)
-            elif same_notch_swap:
-                res.warn("Verdict swapped within the same notch; check override_reason")
-    return res
+
+
+def _check_verdict(sc: dict, mv: str, res: Result) -> None:
+    if sc.get("mapped_verdict") and sc["mapped_verdict"] != mv:
+        res.error("mapped_verdict %r but methodology maps to %r" % (sc["mapped_verdict"], mv))
+    if sc["verdict"] in NOTCH and sc["verdict"] != mv:
+        gap = abs(NOTCH[sc["verdict"]] - NOTCH[mv])
+        if not (sc.get("override_reason") or "").strip():
+            res.error("Verdict %r differs from mapped %r without override_reason" % (sc["verdict"], mv))
+        elif gap > 1:
+            res.error("Override moves verdict %d notches (max 1)" % gap)
+        elif gap == 0:
+            res.warn("Verdict swapped within the same notch; check override_reason")
+
+
+DRIVER_KEYS = ("driver", "market_implied", "our_view", "claim_ids", "confidence", "value_at_stake", "signpost")
+
+
+def _validate_v3(sc: dict, implied: set, res: Result) -> None:
+    """3.0.0 scorecards: per-dimension confidence, recomputed decision, price metrics, decision drivers."""
+    for kind, key in (("BQ", "business_quality"), ("IA", "investment_attractiveness")):
+        block = sc[key]
+        ids = {d for d in weight_profiles()["Base"] if d.startswith(kind)}
+        dims = {d.get("id"): d for d in block.get("dimensions", [])}
+        if set(dims) != ids:
+            res.error("%s dimensions %s, expected %s" % (key, sorted(dims), sorted(ids)))
+        for did, d in dims.items():
+            s_ = d.get("score")
+            if not isinstance(s_, int) or not 0 <= s_ <= 100:
+                res.error("%s.%s score must be integer 0-100" % (key, did))
+            if d.get("confidence") not in ("High", "Medium", "Low"):
+                res.error("%s.%s confidence must be High/Medium/Low (3.0.0: every dimension carries its own)" % (key, did))
+            if not (d.get("rationale") or "").strip():
+                res.error("%s.%s rationale missing" % (key, did))
+            if not d.get("claim_ids"):
+                res.warn("%s.%s cites no claim IDs" % (key, did))
+        hit = set(block.get("gates_triggered") or [])
+        for g in implied & set(gates(kind)):
+            if g not in hit:
+                res.error("%s: classification implies gate %s but gates_triggered omits it" % (key, g))
+        if block.get("confidence") not in ("High", "Medium", "Low"):
+            res.error("%s confidence must be High/Medium/Low" % key)
+        for f in ("band", "prevents_higher", "could_lower", "evidence_to_change"):
+            if block.get(f) in (None, ""):
+                res.error("%s.%s missing" % (key, f))
+    if "G6" in set(sc["investment_attractiveness"].get("gates_triggered") or []) and \
+            sc["investment_attractiveness"].get("confidence") != "Low":
+        res.error("Gate G6 requires IA confidence Low")
+    pm = sc.get("price_metrics")
+    if not isinstance(pm, dict):
+        res.error("price_metrics missing (margin_of_safety, expected_irr, hurdle_rate, asymmetry_ratio, robust)")
+        return
+    for k in ("margin_of_safety", "expected_irr", "hurdle_rate", "asymmetry_ratio", "robust"):
+        if pm.get(k) is None:
+            res.error("price_metrics.%s missing" % k)
+    if res.errors:
+        return
+    ev = evaluate_v3(sc)
+    for kind, key in (("BQ", "business_quality"), ("IA", "investment_attractiveness")):
+        block = sc[key]
+        if abs(float(block.get("weighted_raw", -1)) - ev[kind]["weighted_raw"]) > 0.51:
+            res.error("%s weighted_raw %s but the %s profile with effective scores gives %.2f" % (
+                key, block.get("weighted_raw"), ev["weight_profile"], ev[kind]["weighted_raw"]))
+        if block.get("final") != ev[kind]["final"]:
+            res.error("%s final %r but the methodology gives %d" % (key, block.get("final"), ev[kind]["final"]))
+    dec = sc.get("decision") or {}
+    if dec.get("conviction") != ev["conviction"]:
+        res.error("decision.conviction %r but the methodology gives %r (%d points)" % (dec.get("conviction"), ev["conviction"], ev["conviction_points"]))
+    recorded = {t.get("test"): t.get("passed") for t in dec.get("must_pass") or []}
+    for t in ev["must_pass"]:
+        if recorded.get(t["test"]) is not t["passed"]:
+            res.error("decision.must_pass %s recorded %r but evaluates %r (effective %.1f)" % (t["test"], recorded.get(t["test"]), t["passed"], t["effective"]))
+    drivers = sc.get("decision_drivers") or []
+    if sc.get("assessment_status") == "complete":
+        if len(drivers) < 3:
+            res.error("decision_drivers: at least 3 required (SCORING.md §6), found %d" % len(drivers))
+        for i, d in enumerate(drivers, 1):
+            missing = [k for k in DRIVER_KEYS if d.get(k) in (None, "", [])]
+            if missing:
+                res.error("decision_drivers[%d] missing %s" % (i, ", ".join(missing)))
+    _check_verdict(sc, ev["mapped_verdict"], res)
 
 
 # ---------------------------------------------------------------------------

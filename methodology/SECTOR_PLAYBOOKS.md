@@ -2,7 +2,7 @@
 
 Expands `MASTER_RESEARCH_FRAMEWORK.md` §§40–45. Every specialist reads the playbook(s) for the company's sector(s). Conglomerates use one per material segment. The **"Layer questions to test"** are prompts for the four-layer analysis, **not default classifications**.
 
-Structure of each playbook: economics, KPIs, accounting and forensic traps, cycle drivers, valuation (use / avoid), layer questions to test, sources.
+Structure of each playbook: economics, KPIs, accounting and forensic traps, cycle drivers, valuation (use / avoid), layer questions to test, sources, and **ground truth** (independent operating series, customer, channel and pricing evidence for the scuttlebutt specialist).
 
 ---
 
@@ -15,6 +15,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/B vs. sustainable ROE (justified P/B = (ROE − g)/(CoE − g)); P/E on normalized credit cost; residual income. **Avoid** EV/EBITDA and FCF.
 - **Layer questions to test:** L1: can it compound book value at an ROE well above its cost of equity through a credit cycle? L2: share gains in under-penetrated segments with stable asset quality? L3: a recovering credit cycle or recapitalization with mispriced normalized ROE? L4: rarely relevant (digital-bank optionality).
 - **Sources:** annual-report Basel III Pillar 3 disclosures, RBI statistics, rating rationales, quarterly asset-quality disclosures.
+- **Ground truth:** RBI bank-wise and sectoral credit data (DBIE, tier 2); RBI Ombudsman complaint statistics by bank; branch, ATM and digital-transaction data (RBI); dated deposit and lending rate cards vs. peers; credit-bureau industry reports (tier 5); mobile-banking app ratings; BRSR attrition.
 
 ## 2. NBFCs and housing finance companies
 
@@ -25,6 +26,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/B vs. ROE (RoA × leverage) with sustainable credit cost; P/E on normalized earnings; a growth-adjusted residual-income model. **Stress-test ROE at peak-cycle credit cost.**
 - **Layer questions to test:** L1: durable underwriting with ROA above the cost of capital across cycles and a low-cost funding advantage? L2: AUM growth runway in under-penetrated credit with stable credit cost? L3: a post-crisis normalization of credit cost or funding spreads? L4: digital lending or new-product optionality with unproven loss rates.
 - **Sources:** annual-report ECL and ALM notes, rating rationales (funding, ALM), RBI regulations, monthly or quarterly business updates.
+- **Ground truth:** RBI/NHB statistics; credit-bureau segment delinquency reports (tier 5); rating agencies' securitisation pool-performance reports; dated rate cards; RBI Ombudsman complaints; collection-practice orders and news (verify); branch-network growth.
 
 ## 3. Insurance (life and general)
 
@@ -35,6 +37,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/EV and appraisal value (EV + multiple × VNB) for life; P/B vs. ROE and combined-ratio normalization for general. **Avoid** P/E for life insurers.
 - **Layer questions to test:** L1: durable VNB growth at stable margins with a protection-heavy mix? L2: penetration-driven growth? L3: regulatory-shock mispricing?
 - **Sources:** public disclosures (insurer website forms), IRDAI data, EV reports.
+- **Ground truth:** IRDAI monthly new-business premium by insurer (tier 2); claim-settlement ratios and grievance data (IRDAI annual report); public persistency disclosures; agent and bancassurance partner counts; dated online quotes vs. competitors.
 
 ## 4. Asset managers, brokers, exchanges and capital-market intermediaries
 
@@ -44,6 +47,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E on **normalized** activity, EV/EBITDA, market-share-adjusted DCF; scenario tests for regulatory caps.
 - **Layer questions to test:** L1: network effects and liquidity moats (exchanges)? L2: financialization runway? L3: market-cycle trough opportunity?
 - **Sources:** AMFI, exchange business-growth statistics, regulator circulars.
+- **Ground truth:** AMFI monthly AUM and SIP flows by fund house (tier 2/5); exchange data on active clients by broker; NSDL/CDSL demat-account data; SEBI SCORES complaint statistics; app ratings; dated brokerage and expense-ratio comparisons.
 
 ## 5. IT services
 
@@ -53,6 +57,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E and FCF yield vs. growth durability; DCF with a terminal competitive fade; total shareholder yield (dividends + buybacks).
 - **Layer questions to test:** L1: can it sustain high ROIC with modest growth and high payout? L2: a mid-tier share-gain story? L3: a demand-cycle trough (discretionary spending)? L4: AI-led new service lines?
 - **Sources:** quarterly fact sheets and investor metrics files, annual reports, peer disclosures.
+- **Ground truth:** Large clients' own filings (vendor consolidation, IT-spend commentary); US Department of Labor LCA/H-1B filings by employer (tier 2); headcount and attrition (BRSR); hiring-volume trends and employee-review ratings (tier 7); clients' deal announcements.
 
 ## 6. Consumer internet and software platforms
 
@@ -62,6 +67,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** scenario DCF to steady-state margins; EV/gross profit; cohort-based LTV; **probability-weighted outcomes with dilution** for Layer-4-like profiles. **Avoid** trailing P/E.
 - **Layer questions to test:** L2: unit economics improving with scale? L4: which milestones prove the option? L1: do network effects create durable excess returns once mature?
 - **Sources:** shareholder letters, annual reports, offer documents (cohort data), app-store or industry data (tier 5–6, with care).
+- **Ground truth:** App download ranks and ratings, web-traffic and search-interest estimates (tier 6–7, leading indicators only); merchant, partner or seller counts; dated commission and take-rate checks; regulator complaints; competitor app ranks on the same dates.
 
 ## 7. Consumer staples (FMCG)
 
@@ -71,6 +77,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E and DCF with long duration; a reverse DCF is essential, because these often price in decades of growth; FCF yield.
 - **Layer questions to test:** L1: classic compounder test with emphasis on price paid; L3: input-cost-cycle margin normalization.
 - **Sources:** annual reports, industry panel data where public (often paywalled), peer filings.
+- **Ground truth:** Dated retail price and pack-size checks vs. competitors (grammage cuts are hidden price rises); public syndicated-panel summaries (tier 5/6); distributor and retailer commentary in trade press; e-commerce ranks and ratings; rural demand proxies (tractor sales, monsoon, wage data); ad-spend data.
 
 ## 8. Consumer discretionary, retail, QSR and durables
 
@@ -79,6 +86,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** EV/EBITDA (pre-Ind AS 116 consistent), DCF with store roll-out economics, P/E.
 - **Layer questions to test:** L2: store roll-out runway with proven unit economics? L1: brand-led compounding? L3: discretionary demand cycle?
 - **Sources:** company disclosures, mall and retail industry reports (tier 5).
+- **Ground truth:** Store openings and closures from company and mall data; footfall indices (tier 6); delivery-platform and app ratings and ranks; dated price checks; e-commerce ranks for durables; employee reviews (tier 7).
 
 ## 9. Automobiles and auto components
 
@@ -89,6 +97,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E and EV/EBITDA on **mid-cycle** margins; SOTP for financing and other subsidiaries; DCF with explicit EV-transition scenarios.
 - **Layer questions to test:** L1: durable share and distribution moat with through-cycle ROCE? L2: premiumization or exports? L3: volume cycle position? L4: EV or new-mobility subsidiaries.
 - **Sources:** SIAM, FADA, VAHAN, company monthly volume releases, peer filings.
+- **Ground truth:** VAHAN registrations by maker and model (tier 2, near real time); FADA retail sales and dealer inventory days; SIAM wholesales (wholesale minus retail = channel stuffing); NCAP crash ratings; recall notices; dated price lists and waiting periods; component makers' customer-concentration notes.
 
 ## 10. Pharmaceuticals and healthcare
 
@@ -98,6 +107,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E and EV/EBITDA ex-one-offs; product-level DCF for specialty pipelines (risk-adjusted NPV); EV/bed or EV/EBITDA with maturity adjustments for hospitals.
 - **Layer questions to test:** L1: durable domestic branded franchise? L2: hospital expansion runway? L3: regulatory-remediation recovery (plant clearance)? L4: specialty or biosimilar pipeline.
 - **Sources:** FDA databases, CDSCO and price-control notifications, company filings.
+- **Ground truth:** US FDA inspection classifications, Form 483s, warning letters and import alerts (tier 2); ANDA and NDA approvals; US drug-shortage lists; NPPA/DPCO price controls; CDSCO not-of-standard-quality alerts; public market-share summaries (tier 5/6); hospitals: bed counts, occupancy and insurer empanelment.
 
 ## 11. Capital goods, engineering, defence and infrastructure EPC
 
@@ -107,6 +117,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/E and EV/EBITDA vs. order-book growth; DCF with working-capital realism; SOTP for listed subsidiaries.
 - **Layer questions to test:** L2: multi-year order-book growth with improving margins? L3: capex cycle upswing? L1: rarely, but possible for niche high-ROCE product companies.
 - **Sources:** order announcements (exchange filings), budget documents, ministry procurement data.
+- **Ground truth:** Tender and award portals (GeM, CPPP, NHAI, railways, defence procurement) for wins, losses and bid pricing; customers' award announcements; government capex budgets and releases; project-progress dashboards; CAG reports on payment delays.
 
 ## 12. Metals, mining and commodities
 
@@ -116,6 +127,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** EV/EBITDA on **mid-cycle** EBITDA/tonne; replacement cost per tonne; NAV for mining. **Never** peak P/E.
 - **Layer questions to test:** L3: almost always the primary test (cycle position, balance-sheet survival, normalized earnings); L1 only for structural cost leaders through cycles.
 - **Sources:** ministry and association data, exchange price data, peer filings.
+- **Ground truth:** Production and dispatch data (Ministry of Mines, JPC for steel; tier 2); import and export data by HS code (DGCI&S/TradeStat); mine-auction results; environmental clearances (PARIVESH); published price assessments (tier 5/6).
 
 ## 13. Cement and building materials
 
@@ -125,6 +137,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** EV/EBITDA on normalized EBITDA per tonne; EV per tonne vs. replacement cost.
 - **Layer questions to test:** L3: utilization and pricing cycle; L1: cost leadership and regional dominance.
 - **Sources:** company filings, industry association data.
+- **Ground truth:** Dated dealer price checks by region (trade press); capacity commissioning against announcements; freight and rail-loading data; housing and infrastructure demand indicators; limestone-mine auctions.
 
 ## 14. Chemicals (specialty and commodity)
 
@@ -133,6 +146,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** EV/EBITDA and P/E vs. growth and ROCE; mid-cycle spreads for commodities; DCF for contract manufacturers with customer concentration risk.
 - **Layer questions to test:** L2: import substitution and China+1 runway? L3: destocking-cycle trough? L1: niche chemistry moats?
 - **Sources:** customs/export data (tier 2/5), company filings, peer filings.
+- **Ground truth:** Export and import data by HS code (TradeStat; tier 2) to see volumes and realizations by product; global customers' filings naming suppliers; anti-dumping investigations and duties (DGTR); pollution-control board orders; competitors' capacity announcements.
 
 ## 15. Oil and gas, energy and utilities (including power)
 
@@ -142,6 +156,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** P/B vs. regulated ROE; DCF of regulated cash flows; EV/EBITDA on normalized spreads; SOTP.
 - **Layer questions to test:** L1: regulated compounding with reinvestment runway? L3: commodity-spread normalization, or regulatory change?
 - **Sources:** CEA, PPAC, regulator tariff orders, company filings.
+- **Ground truth:** PPAC consumption and pricing; CEA station-wise generation and plant-load factors (tier 2); power-exchange prices and volumes (tier 5); distribution-company dues (PRAAPTI); CERC/SERC tariff orders; pipeline and city-gas network data.
 
 ## 16. Telecom and media
 
@@ -151,6 +166,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** EV/EBITDA (lease-consistent) and EV/EBITDA-minus-capex; DCF with explicit capex cycles; SOTP for tower and other listed holdings.
 - **Layer questions to test:** L1: in a rational oligopoly, durable ARPU growth with falling capital intensity? L3: tariff-repair inflection or deleveraging? L4: adjacencies (data centers, payments).
 - **Sources:** TRAI reports, DoT notices, company quarterly reports.
+- **Ground truth:** TRAI monthly subscribers, mobile-number-portability port-ins/outs, quality-of-service reports and complaint data (tier 2); independent network-experience and speed-test reports (tier 6); dated tariff cards vs. competitors; app ratings; media: audience-measurement ratings, box office, streaming-app ranks.
 
 ## 17. Real estate
 
@@ -160,6 +176,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** NAV (project DCF + land valuation − net debt), P/B (with caution); cap-rate valuation for rental assets.
 - **Layer questions to test:** L3: the housing cycle and deleveraging are often primary; L2: platform developers with replicable execution and capital-light JDAs.
 - **Sources:** RERA portals, company presentations, filings.
+- **Ground truth:** RERA project registrations and quarterly sales and progress disclosures (state portals, tier 2); property-registration data (state IGR portals); listing-portal price trends (tier 6); consultants' launch and absorption data (tier 5/6); land records.
 
 ## 18. Holding companies and conglomerates
 
@@ -169,6 +186,7 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Valuation:** SOTP with a **justified** holding discount (not a default 20–40 %), plus a mechanism for the discount to close (special-situations).
 - **Layer questions to test:** L3: discount-closure catalysts (simplification, buybacks, listings); L1: is the capital allocator genuinely compounding look-through value?
 - **Sources:** each subsidiary's filings, AOC-1, scheme documents.
+- **Ground truth:** The listed subsidiaries' own ground-truth series; market values of listed holdings on the same date (exchange data); the record of dividends actually upstreamed to the holding company.
 
 ---
 

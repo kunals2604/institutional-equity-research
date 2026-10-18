@@ -5,24 +5,30 @@
 ```mermaid
 flowchart TD
     U["/research-company \"Name\" TICKER EXCHANGE"] --> CIO["CIO = main session<br/>(.claude/agents/cio.md)"]
-    CIO --> P["Stage 0 Preflight<br/>identity check (name ↔ ticker ↔ exchange) · price CIO-C001<br/>new_run.py (UTC run id) · manifest.py · brief · source register"]
-    P --> F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9
-    subgraph S1["Stage 1 — nine parallel Agent calls in one message, no cross-reading"]
-      F1[financials] ; F2[filings] ; F3[management] ; F4[industry] ; F5[moat]
-      F6[concalls] ; F7[valuation] ; F8[bear-case] ; F9[special-situations]
+    CIO --> P["Stage 0 Preflight<br/>identity check · new_run.py (UTC run id) · price CIO-C001 = exchange close (market_data.py)"]
+    P --> ACQ["Stage 0 acquisition<br/>exchange_index.py: NSE + BSE + IR site + Internet Archive<br/>document_map.py: download, validate, cross-check vs. FilingForge corpus → DOCUMENT_MAP.md<br/>xbrl_facts.py: exchange XBRL facts"]
+    ACQ --> S1
+    subgraph S1["Stage 1 — ten specialists, one at a time by default (--parallel optional), no cross-reading"]
+      F1[financials] --> F2[filings] --> F3[industry] --> F4[scuttlebutt] --> F5[moat]
+      F5 --> F6[management] --> F7[concalls] --> F8[valuation] --> F9[special-situations] --> F10[bear-case]
     end
-    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 --> B["Stage 2 barrier<br/>validate_run.py --stage specialists"]
-    B -->|failures| R["targeted re-invocation (≤2)"] --> B
+    S1 --> B["Stage 2 barrier + gap-closure loop<br/>validate_run.py --stage specialists · gap_register.md"]
+    B -->|failures / closable gaps| R["targeted re-invocation or follow-up"] --> B
     B --> G1["git batch 1 (specialists) + push"]
-    G1 --> A["Stage 3 adjudication<br/>read all · audit ≥12 claims · recompute ≥3 · contradiction log<br/>follow-ups · 4 independent layer assessments · classify<br/>bear-case attack on draft (if buy) · thesis-disproof · insufficient-evidence check · scorecard"]
-    A --> Q["Stage 4 QC<br/>merge_ledgers · validate_run --stage final · quality_control.md"]
+    G1 --> A["Stage 3 synthesis first, scores last<br/>audit ≥12 claims · recompute ≥3 · contradiction log · follow-ups<br/>CIO independent analysis · synthesis · 4 layer assessments · thesis-disproof<br/>build_scorecard.py · robustness → confidence · symmetric adversarial review"]
+    A --> AU["Stage 4 independent audit (auditor agent, fresh context)<br/>tie-out · source re-verification sample · recomputation · scoring audit<br/>CIO resolutions · re-audit of Critical findings"]
+    AU --> Q["QC<br/>merge_ledgers · validate_run --stage final · quality_control.md"]
     Q --> FR["finalize_run.py<br/>complete → locked scoreboard upsert + latest_run.txt<br/>otherwise → manifest only"]
     FR --> G2["git batch 2 (final) + push — never force, never merge"]
 ```
 
 **Why the CIO is the main session:** in Claude Code, subagents do not launch further subagents. A CIO running as a subagent could not orchestrate, and nesting would only add a layer of summarization. `/research-company` therefore turns the current session into the CIO, which loads `.claude/agents/cio.md` as its protocol. The same file works as a main-thread agent via `claude --agent cio`.
 
-**Why parallel and independent:** the pre-migration system ran specialists in three dependent waves, and each specialist "reconciled" against the earlier reports. Errors spread instead of being caught (audit §4). Now all nine work from primary sources at the same time, and cross-examination is the CIO's job.
+**Why independent, and why sequential by default:** the pre-migration system ran specialists in dependent waves, and each specialist "reconciled" against the earlier reports, so errors spread instead of being caught (audit §4). Now every specialist works from primary sources without reading the others, and cross-examination is the CIO's job. Running them one at a time (since 2.3.0) changes the order, not the independence: it keeps at most one agent in flight when a usage limit interrupts, and later specialists reuse the documents acquired in Stage 0.
+
+**Why a separate auditor:** the agent that wrote the conclusion should not be the only one certifying it. The auditor (2.4.0) reads the finished draft with fresh context and checks numbers, sources, calculations, scoring and process; the bear-case agent challenges the investment view. Separation of duties is the institutional control the earlier design lacked.
+
+**Why acquisition is a stage, not a specialist:** finding and downloading filings is deterministic work. Done once, by scripts, it is faster, cheaper and more reliable than ten agents each searching the same exchange pages, and it produces the two-channel cross-check the owner asked for.
 
 ## 2. Single sources of truth
 
@@ -41,8 +47,9 @@ The code holds **no copies** of these lists. Tests assert the expected canonical
 | Item | Setting | Note |
 |---|---|---|
 | Agent location | `.claude/agents/<name>.md` | Frontmatter: `name`, `description`, `tools`, `model`, `skills` |
-| Model | `model: opus` on all ten agents | The alias resolves, in this installation, to the user's Opus model (`claude-opus-5-5` at migration time). No hard-coded version string. |
-| Specialist tools | `Read, Write, Edit, Bash, WebSearch, WebFetch` | No `Agent`, so specialists cannot spawn agents |
+| Reasoning effort | **Not set** in any agent | Owner policy: every agent runs at the effort chosen in the model picker when the research starts. An `effort:` frontmatter key would override the session level (code.claude.com/docs/en/sub-agents, checked 2026-10-17), so `validate_system.py` rejects one, and the CIO passes no per-invocation effort. |
+| Model | `model: opus` on all twelve agents | The alias resolves, in this installation, to the user's Opus model (`claude-opus-5-5` at migration time). No hard-coded version string. |
+| Specialist and auditor tools | `Read, Write, Edit, Bash, WebSearch, WebFetch` | No `Agent`, so they cannot spawn agents |
 | CIO tools | Inherited (main session) | Needs `Agent` to launch specialists |
 | Shared context | `skills: [investment-constitution]` | Preloads the constitution into every specialist. The constitution also tells agents to read it, as a fallback. |
 | Workflow | `.claude/skills/research-company/SKILL.md` with `disable-model-invocation: true` | Runs only when the user types it. Modes: full, `--validate-only [--probe]`, `--dry-run`, `--resume` |
@@ -60,7 +67,10 @@ The code holds **no copies** of these lists. Tests assert the expected canonical
 | Ledger completeness (source, locator, formula) | `validate_ledger` | `EVIDENCE_STANDARDS.md` |
 | Scorecard arithmetic, gates, verdict mapping, layer rules | `validate_scorecard` | `SCORING.md` |
 | Final report consistent with scorecard | `validate_final_report` | CIO protocol |
-| Completion barrier (all 9 exist and validate) | `validate_run --stage specialists` | CIO Stage 2 |
+| Completion barrier (every specialist the run's version requires exists and validates) | `validate_run --stage specialists` | CIO Stage 2 |
+| Method Coverage Checklist, depth standard, SME section (version-aware) | `validate_report.py` | Agent definitions |
+| Independent audit run; every Critical/Major finding resolved; Critical findings Closed by a re-audit | `validate_run --stage final` (`validate_audit_report`, `check_audit_resolutions`) | CIO Stage 4 |
+| Document map present (both channels cross-checked) | `validate_run --stage final` (2.4.0 runs) | CIO Stage 0 |
 | Scoreboard only for `complete` outcomes; no lost rows | `finalize_run.py` + `scoreboard.py` (lock, re-read, atomic replace, post-write verify, newer-run guard) | CIO Stage 4 |
 | Incomplete-run policy (no manufactured scores) | `validate_scorecard` (null scores for insufficient evidence), `finalize_run.py` | `SCORING.md` §8 |
 | Previous runs never overwritten; sortable UTC run IDs | `new_run.py` refusal; `validate_system.py` functional check | — |
@@ -69,15 +79,29 @@ The code holds **no copies** of these lists. Tests assert the expected canonical
 | Flagged superlatives | Warnings (specialists), errors (final) | Constitution §4 |
 | **Specialist independence (no cross-reading)** | — | Constitution §6, the attestation in each report header, CIO audit |
 | **Specialists do not run git or write elsewhere** | — | Constitution §6 |
-| Truth of a cited source or figure | — | CIO re-verification of ≥12 claims; ledger confidence |
+| Numbers in the report tie to their cited claims | `audit_tools.py tieout` (screen) | Auditor (every flagged row by hand) |
+| Truth of a cited source or figure | — | CIO re-verification of ≥12 claims; the auditor's stratified re-verification sample (≥25 claims) |
 
-The code verifies **structure and traceability**. It cannot verify that a cited page says what the report claims. That is why the CIO's independent re-verification and recomputation steps are mandatory, and why every claim records its exact locator.
+The code verifies **structure and traceability**, and screens numbers against the ledgers. It cannot verify that a cited page says what the report claims. That is why the CIO's and the auditor's re-verification and recomputation steps are mandatory, and why every claim records its exact locator.
 
 ## 5. Run artifacts
 
 See `methodology/REPORT_CONTRACTS.md` §1. Each run is self-contained and immutable once committed. `run_manifest.json` records identity, cutoff, the hurdle rate, the framework commit, the methodology version, model information and per-specialist invocation status, so a run can be interpreted later even after the methodology changes.
 
-## 5a. Research data layer (v2.2)
+## 5a. Research data layer (v2.2; acquisition layer v2.4)
+
+```text
+NSE API + archives ─┐                       ┌─▶ _cache/index/exchange_index.csv (typed, period-labelled)
+BSE API (HTTP/2) ───┼─ exchange_index.py ───┤
+IR site (crawl) ────┤                       └─▶ corpus/index_summary.json
+Internet Archive ───┘
+                         document_map.py ──▶ downloads via fetch_source.py (netfetch: curl-first, validated,
+FilingForge corpus ─────▶ (cross-check) ──▶   mirrors, archive fallback) ──▶ corpus/DOCUMENT_MAP.md
+NSE XBRL / Integrated Filing ── xbrl_facts.py ──▶ calc/xbrl_facts.csv ──▶ reconcile vs. financial_history.csv
+NSE bhavcopy ── market_data.py ──▶ price claim, ADTV and delivery, split-adjusted price history
+core PDFs ── doc_text.py ──▶ _cache/text/<sha>/pages.md (page anchors, spreads split, tables from coordinates) + meta.json
+```
+
 
 ```text
 sources ──fetch_source.py──▶ _cache/ (git-ignored) + source_retrievals.csv (SHA-256, status)
@@ -116,6 +140,8 @@ Headless sessions ignore `.claude/settings.json` permission rules until the work
 ## 7. Known limitations
 
 - Independence is instruction-enforced. A hook-based read guard could enforce it technically; it was not added because a wrong hook would block legitimate CIO reads.
-- Validators check structure, not semantic truth.
-- Research quality depends on which primary documents the web tools can retrieve. Paywalled or blocked sources are recorded as missing, not reconstructed.
+- Validators check structure and traceability; the auditor and the CIO's re-verification check semantic truth on samples, not on every claim.
+- Exchange endpoints are unofficial and change without notice. `exchange_index.py` records every failing endpoint in `corpus/index_summary.json`, and the retrieval mechanics are documented with their verification date (`SOURCE_GUIDE.md` §6).
+- Exchange XBRL covers about FY2019 onward; earlier years rest on the annual-report PDFs (now retrievable from the exchanges back to the 2000s).
+- Paywalled sources are recorded as missing, not reconstructed.
 - Scoring calibration across companies starts empty. Calibration reviews begin once five or more companies are scored (`SCORING.md` §7).

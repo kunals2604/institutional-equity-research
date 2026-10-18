@@ -330,7 +330,7 @@ class TestNumericControls(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
         self.assertIn("evidence base may be thin", r.stdout)
         stats = rl.load_json(self.fx.dir / "qc" / "evidence_stats.json")
-        self.assertEqual(stats["overall"]["claims"], 19)
+        self.assertEqual(stats["overall"]["claims"], 2 * len(rl.SPECIALISTS) + 1)   # 2 per specialist + CIO-C001
 
 
 class TestDecisionOutputs(unittest.TestCase):

@@ -27,5 +27,13 @@ Run: `{run_id}` · Created: {created_at} · Research cutoff: **{cutoff}**
 - Investment policy (config/investment_policy.json): **{ips_status}**. Hurdle {hurdle}; horizon {horizon} years; benchmark {benchmark}; reference position for the exit-liquidity test {reference_position} {currency}
 - Historical depth required (methodology/RESEARCH_PLAYBOOK.md §2): at least 10 fiscal years of financials, 12 quarters of calls and results, 10 years of valuation and industry history. Use more where available; cyclicals need two full cycles.
 
+## Documents (Stage 0 acquisition: `corpus/DOCUMENT_MAP.md`)
+- Sources indexed: NSE _n_, BSE _n_, IR site _n_, Internet Archive _n_ (`corpus/index_summary.json`; failed endpoints: _none / list_)
+- Coverage against the depth standard: annual reports _n of 15_ · transcripts _n of 24_ · presentations _n_ · results _n_ · shareholding _n_
+- Cross-check flags (local corpus vs. exchange copies) and which copy to read: _none / list_
+- Missing core documents and where they were searched: _none / list_
+- Text layer: every core document converted (`doc_text.py`); pages to read visually are listed in the map
+- Structured data: exchange XBRL facts `calc/xbrl_facts.csv` (_years_); exchange close and liquidity `calc/cio_price.json`
+
 ## User notes
 _none_

@@ -1,17 +1,18 @@
 # CLAUDE.md — Institutional Equity Research System
 
-A Claude Code multi-agent system for buy-side equity research: one CIO (the main session) and nine specialist subagents. The goal is better investment decisions and per-share, risk-adjusted compounding. It is not about producing long reports.
+A Claude Code multi-agent system for buy-side equity research: one CIO (the main session), ten specialist subagents and an independent auditor. The goal is better investment decisions and per-share, risk-adjusted compounding. It is not about producing long reports.
 
 ## Run research
 - `/research-company "<Company name>" <TICKER> <EXCHANGE> [--cutoff YYYY-MM-DD]`: this session becomes the CIO and follows `.claude/agents/cio.md`.
 - Modes: `--validate-only [--probe]` (no research), `--dry-run "<Name>" <T> <EX>` (writes nothing), `--resume <T> <RUN_ID>`.
-- Never spawn a `cio` subagent. Specialists are launched by the CIO via the Agent tool, **one at a time by default** (`--parallel` optional): `financials`, `filings`, `management`, `industry`, `moat`, `concalls`, `valuation`, `bear-case`, `special-situations`.
+- Never spawn a `cio` subagent. Specialists are launched by the CIO via the Agent tool, **one at a time by default** (`--parallel` optional): `financials`, `filings`, `industry`, `scuttlebutt`, `moat`, `management`, `concalls`, `valuation`, `special-situations`, `bear-case`. The `auditor` runs once the draft is complete (Stage 4) and writes only under `RUN_DIR/audit/`.
+- Stage 0 acquires the filings once for the whole run: `scripts/exchange_index.py` (NSE, BSE, IR site, Internet Archive) → `scripts/document_map.py` (download, validate, cross-check against the FilingForge corpus) → `corpus/DOCUMENT_MAP.md`.
 
 ## Where things live (read the relevant file; do not rely on memory)
 - `.claude/skills/investment-constitution/SKILL.md`: **canonical** four layers, fit scale, epistemic tags, citation syntax, specialist protocol
 - `methodology/`: `SCORING.md` · `EVIDENCE_STANDARDS.md` · `REPORT_CONTRACTS.md` · `RESEARCH_PLAYBOOK.md` (how to research; **≥10-year depth standard**) · `METRIC_DEFINITIONS.md` · `SECTOR_PLAYBOOKS.md` · `SOURCE_GUIDE.md` · `INVESTOR_LENSES.md`
 - `config/investment_policy.json`: owner policy. **No position or risk limits**; hurdle = the run's cited cost of equity. Nothing in it limits research depth.
-- `config/data_sources.json` → FilingForge library (`~/Documents/FilingForgeLibrary`): read the company's filings there via `scripts/corpus.py` (Markdown, token-efficient) **and** run full web research at par. The library may be incomplete or have download glitches, so it never limits research (`methodology/SOURCE_GUIDE.md` §0).
+- `config/data_sources.json` → FilingForge library (`~/Documents/FilingForgeLibrary`): read the company's filings there via `scripts/corpus.py` (Markdown, token-efficient) **and** the exchange / IR originals (document map) **and** full web research, at par. The library may be incomplete or have download glitches, so it never limits research (`methodology/SOURCE_GUIDE.md` §0).
 - `MASTER_RESEARCH_FRAMEWORK.md`: what to investigate. `PROJECT_INSTRUCTIONS.md`: global rules
 - `research/companies/<TICKER>/runs/<UTC RUN_ID>/`: one directory per run; `latest_run.txt` points to the latest complete run. `COMPANY_SCOREBOARD.csv`: compact two-score index
 - `archive/`: old Antigravity definitions, **non-operative**. `docs/`: audit, architecture, operations
@@ -29,6 +30,6 @@ python3 scripts/validate_system.py [--live-probe]   # configuration and contract
 python3 -m unittest discover tests                   # run after changing agents, methodology or scripts
 python3 scripts/new_run.py ... [--dry-run]   ·   scripts/manifest.py   ·   scripts/validate_run.py RUN --stage specialists|final
 scripts/merge_ledgers.py · build_scorecard.py · validate_scorecard.py · finalize_run.py · git_publish.py · compare_runs.py · scoreboard.py validate
-scripts/corpus.py · fetch_source.py · html_tables.py · fin_metrics.py · score_guides.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py   # research tools
+scripts/corpus.py · exchange_index.py · document_map.py · doc_text.py · fetch_source.py (netfetch.py) · market_data.py · xbrl_facts.py · html_tables.py · fin_metrics.py · score_guides.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py · audit_tools.py   # research tools
 ```
 Canonical vocabularies are parsed from marked blocks (`<!-- NAME:BEGIN -->`) in the markdown. Edit them there, then run the tests.

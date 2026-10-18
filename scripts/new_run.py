@@ -91,16 +91,19 @@ def main(argv=None) -> int:
         print("  manifest          : %s/%s" % (rel, rl.RUN_MANIFEST))
         for name in rl.SPECIALISTS:
             print("  specialist report : %s/specialists/%s.md  (+ %s_ledger.csv)" % (rel, name, name))
-        for f in ("cio/final_report.md", "cio/scorecard.json", rl.QC_RECORD, "evidence_ledger.csv"):
-            print("  CIO artifact      : %s/%s" % (rel, f))
-        print("  stages            : 0 preflight -> 1 nine parallel specialists -> 2 barrier (+git batch 1)"
-              " -> 3 CIO adjudication -> 4 QC, finalize, git batch 2 + push")
+        print("  document map      : %s/corpus/DOCUMENT_MAP.md (Stage 0: exchange + IR + archive + local corpus)" % rel)
+        for f in ("cio/final_report.md", "cio/scorecard.json", rl.AUDIT_REPORT, "cio/audit_resolutions.md",
+                  rl.QC_RECORD, "evidence_ledger.csv"):
+            print("  CIO / audit       : %s/%s" % (rel, f))
+        print("  stages            : 0 preflight + document acquisition -> 1 %d specialists, one at a time ->"
+              " 2 barrier + gap loop (+git batch 1) -> 3 CIO synthesis, then scores -> 4 independent audit, QC,"
+              " finalize, git batch 2 + push" % len(rl.SPECIALISTS))
         return 0
 
     if run_dir.exists():
         print("ERROR: run directory already exists: %s" % run_dir, file=sys.stderr)
         return 1
-    for sub in ("specialists", "cio", "calc", "qc"):
+    for sub in ("specialists", "cio", "calc", "qc", "audit", "corpus"):
         (run_dir / sub).mkdir(parents=True)
 
     # Specialists create their own ledgers; the CIO ledger starts with the canonical header.
@@ -120,6 +123,7 @@ def main(argv=None) -> int:
                      ("contradiction_log.md", "cio/contradiction_log.md"),
                      ("gap_register.md", "cio/gap_register.md"),
                      ("cio_analysis.md", "cio/cio_analysis.md"),
+                     ("audit_resolutions.md", "cio/audit_resolutions.md"),
                      ("quality_control.md", rl.QC_RECORD)):
         (run_dir / dst).write_text((tpl / src).read_text(encoding="utf-8").format(**fields), encoding="utf-8")
     (run_dir / "source_register.csv").write_text((tpl / "source_register_header.csv").read_text(encoding="utf-8"), encoding="utf-8")
@@ -145,8 +149,9 @@ def main(argv=None) -> int:
         "ips_confirmed": bool(policy.get("confirmed_by_user")),
         "framework_commit": git_head(root),
         "methodology_version": rl.methodology_version(),
-        "model": {"requested": "opus", "effective_cio": "unverified",
+        "model": {"requested": "opus", "effort": "inherited from the session (the model picker at launch)", "effective_cio": "unverified",
                   "subagents": "opus alias (frontmatter); per-subagent ID not exposed"},
+        "execution_mode": "sequential",
         "specialists": {
             name: {"status": "pending",
                    "report": "specialists/%s.md" % name,
@@ -154,6 +159,7 @@ def main(argv=None) -> int:
                    "invocations": []}
             for name in rl.SPECIALISTS
         },
+        "auditor": {"status": "pending", "report": rl.AUDIT_REPORT, "ledger": rl.AUDIT_LEDGER, "invocations": []},
         "notes": [],
     }
     rl.write_json(run_dir / rl.RUN_MANIFEST, manifest)

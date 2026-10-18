@@ -81,3 +81,24 @@ What it still cannot do is listed in §5. The most important limitation: **it ha
 1. Review and confirm `config/investment_policy.json` (hurdle, benchmark, horizon, reference position, risk limits).
 2. Run one company you know well, so you can judge the output against your own knowledge. Then review the depth coverage, evidence statistics and contradiction log before trusting the scores.
 3. After 5 companies, run the calibration review (`SCORING.md` §7) and adjust anchors **only** through a methodology version change.
+
+---
+
+## 7. Second review (2026-10-18): after the first live run (BHARTIARTL)
+
+**Question from the owner: are ten agents (the CIO and nine specialists) enough?** Not quite. Two functions had no owner, and adding more agents beyond them would cost depth rather than add it.
+
+| Function | Was it covered? | Evidence from the first run | Decision |
+|---|---|---|---|
+| Ground truth (scuttlebutt: customers, channel, competitors, employees, regulators' operating data) | Declared as lens T1 for industry, moat and management, each of which had a different primary job | Zero network-quality, complaint, app-rating, channel, employee or search-trend evidence in 808 claims; only porting data | **New specialist `scuttlebutt`** (it owns T1) |
+| Independent verification of the CIO's own work | The CIO marked its own QC checklist | The CIO ledger carried reversed claim IDs and unsupported numbers that only came to light on review; run on that report, the new tie-out finds 71 sentences whose number matches a different claim from the one cited (an incomplete citation) and 4 numbers it cannot tie to any claim | **New `auditor`** (Stage 4, fresh context, separation of duties) |
+| Document acquisition | Every specialist searched and downloaded on its own | 52 failed downloads (41 transient TLS errors); "pre-FY2017 annual reports unavailable", although NSE and BSE list them back to FY2010 and FY2002 | **A deterministic Stage-0 stage, not an agent** (`exchange_index.py`, `document_map.py`) |
+| Credit, ESG, macro, forensic, quant | Within financials, filings, industry, valuation and bear-case | Covered; deepened inside those agents (debt maturity ladder, secretarial audit, registered charges, market-positioning signals) | No new agent: splitting them would thin each report |
+
+**Retrieval.** Both exchanges are reliably scriptable when requests are made correctly: the NSE API needs only JSON accept headers and a referer (no cookie handshake), and the BSE API needs HTTP/2 with a browser header set. The system Python's TLS library, not the websites, caused most failures; curl is now the primary transport, every payload is validated, and the Internet Archive is the fallback for moved or removed IR files.
+
+**Reading.** Annual reports are converted once into a page-anchored text layer that splits two-page spreads, keeps prose in reading order and rebuilds tables from word coordinates. Pages the text cannot be trusted for (scanned, rotated tables, mismatched numbers) are flagged, and the zero-loss rule requires every decision-critical number to be confirmed on the rendered page.
+
+**Scoring.** The verdict follows a fund manager's sequence (methodology 3.0.0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, decision drivers and conviction. On the first run's own judgments the engine still concludes AVOID, but now also states why the company would not qualify as a compounder at any price on its evidence (through-cycle returns below the cost of capital).
+
+**Remaining limitations.** Exchange endpoints are unofficial and can change without notice (failures are recorded and the mechanics documented with their verification date); scanned pages without a text layer must be read visually (no OCR is installed); XBRL covers only about FY2019 onward; the auditor and the CIO verify samples, not every claim.

@@ -1,5 +1,33 @@
 # Framework Change Log
 
+## v3.0.0 — 2026-10-18 — Fund-manager decision engine; acquisition, text and audit layers (includes the 2.4.0 contract)
+
+**Decision engine (3.0.0, `SCORING.md` §§0, 1, 3a–3c, 5, 6).** The verdict is now reached the way an institutional fund manager reaches it, not by one fixed weighted average:
+
+| # | Change |
+|---|---|
+| 1 | **Decision sequence** (§0): investability gates → classification → evidence quality per dimension → archetype must-pass tests → a margin of safety that scales with uncertainty → decision drivers → conviction → bounded judgment (one-notch override). The weighted scores summarize; they no longer decide alone. |
+| 2 | **Weight profiles by primary layer, fixed in advance** (§3a): a compounder is weighted toward returns, moat, runway and the allocator; a grower toward runway, unit economics and the plausibility of implied growth; a cyclical or event toward trough survival, normalized value and the catalyst path; an option toward funding, governance and payoff asymmetry. A hybrid averages two profiles. The Base-profile score is still reported for cross-archetype comparison. |
+| 3 | **Uncertainty is never rewarded** (§3b): every dimension carries its own confidence; a score above 50 is shrunk toward neutral by its confidence (High 1.0, Medium 0.85, Low 0.65); a low score is never raised. A dimension cannot be High when an owning specialist's evidence is thin (primary share < 0.50 or NOT_LOCATED > 0.15). |
+| 4 | **Must-pass tests, non-compensatory** (§3c): for example, a compounder needs BQ1 ≥ 60 (returns above the cost of capital through the cycle) and an evidenced moat; a cyclical needs trough survival and a probable catalyst; every buy needs E[IRR] at least at the hurdle and acceptable governance. A failure caps the verdict (HOLD for business tests, WATCHLIST for price tests) without touching the scores. |
+| 5 | **Required margin of safety by layer and confidence** (§5): from 0 % (a compounder at High confidence) to 50 % (an option at Low); no buy at Low confidence except Layer 4 speculation. |
+| 6 | **Decision drivers and conviction**: 3–5 drivers (market-implied vs. our view, evidence, value at stake, signpost) are required; conviction (edge over the hurdle, asymmetry, confidence, robustness) gates STRONG BUY. |
+| 7 | `build_scorecard.py` computes the price metrics at the verified price from the scenario inputs, runs the robustness grid, applies the whole sequence and records the **verdict path**; `validate_scorecard.py` recomputes it; `valuation_tools.py price-ladder` applies it at every price, so decision triggers respect every buy condition. Scorecards without `methodology_version` ≥ 3.0.0 keep the 2.x rules (the completed BHARTIARTL run re-validates unchanged). |
+
+**Contract 2.4.0 (applies to every run from this version):**
+
+| # | Change |
+|---|---|
+| 8 | **Stage-0 acquisition** (`exchange_index.py`, `document_map.py`): NSE (annual reports since ~FY2010, the full announcement history, results XBRL and integrated filings, shareholding, board meetings, corporate actions, PIT, SAST), BSE (annual reports since ~FY2002 over HTTP/2, announcements, scrip/ISIN lookup), the IR site and the Internet Archive are indexed; the core documents are downloaded once, validated and **cross-checked against the local FilingForge corpus** (page counts, content, period labels, duplicates). The first run's "pre-FY2017 annual reports unavailable" was a missing mechanism, not missing documents. |
+| 9 | **Reliable transport** (`netfetch.py`): curl first (Python's LibreSSL 2.8.3 failed 3 of 12 parallel downloads in a test; curl 12 of 12), host request profiles, retries, payload validation (an "Access Denied" page saved as a PDF is now a failure), mirrors and archive fallback, safe ZIP unpacking. |
+| 10 | **Exchange-grade data**: `xbrl_facts.py` (results XBRL to FY2024 and Integrated Filing tables from 2025, correcting NSE's mislabelled year-to-date contexts) with a reconciliation against the specialist's history; `market_data.py` (bhavcopy close, ADTV and delivery, split-adjusted long history). |
+| 11 | **Text layer and the zero-loss rule** (`doc_text.py`, `RESEARCH_PLAYBOOK.md` §4): spreads split, prose in reading order, tables rebuilt from word coordinates (empty cells kept), page anchors, a section index, flags for pages that must be read visually (image-only, rotated, table mismatch, alignment, encoding); every decision-critical number confirmed with `verify` and on the rendered page. |
+| 12 | **Scuttlebutt specialist** (ground truth: regulators' operating data, customers, pricing, channel, employees, competitors, digital signals; owner of lens T1, which the first run declared but never executed) and **independent auditor** (Stage 4: numeric tie-out, source re-verification sample, recomputation, scoring and process audit; every Critical/Major finding resolved, Critical ones Closed by a re-audit). `audit_tools.py` supports both the auditor and the CIO. |
+| 13 | **Specialists upgraded**: every method extended (financials 22 steps: XBRL reconciliation, debt maturity ladder, tax, capex split, cost structure, minority leakage, quarterly inflections; filings 15: 10 annual reports in substance, secretarial audit, registered charges, restatements, disclosure quality; and so on), with new sections marked `(since 2.4.0)` so older runs keep their contract. |
+| 14 | **SME enhanced scrutiny wired in**: every specialist definition has an SME section; the validator requires `SME Enhanced Scrutiny` in every report of an SME run. |
+| 15 | **Effort follows the model picker**: no agent hard-codes `effort`; the validator rejects one. |
+| 16 | New depth minimums (2.4.0): filings 10 annual-report years, moat 10 years, special situations 10 years, scuttlebutt 5 years of independent operating data. Ground-truth sources added to all 18 sector playbooks. |
+
 ## v2.3.0 — 2026-10-17 — Lessons from the first full run (BHARTIARTL)
 
 | # | Change |
