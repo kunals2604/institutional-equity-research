@@ -99,7 +99,15 @@ def operative_markdown():
 
 
 def check_agents(rep):
-    expected = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR}
+    expected = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS)
+    try:
+        policy = rl.model_policy()["agents"]
+        rep.add("model policy block parses (methodology/MODEL_POLICY.md)", True)
+    except (ValueError, OSError) as exc:
+        policy = {}
+        rep.add("model policy block parses (methodology/MODEL_POLICY.md)", False, str(exc))
+    rep.add("model policy covers exactly the agent roster", set(policy) == expected,
+            "policy %s vs roster %s" % (sorted(set(policy) - expected), sorted(expected - set(policy))) if set(policy) != expected else "")
     files = sorted(rl.AGENTS_DIR.glob("*.md"))
     names = {}
     for f in files:
@@ -116,11 +124,12 @@ def check_agents(rep):
                 re.fullmatch(r"[a-z][a-z0-9-]*", name or "") and name == f.stem, "name=%r" % name)
         model = fm.get("model", "")
         rep.add("model valid (%s): %s" % (model, f.name), model in MODEL_ALIASES or model.startswith("claude-"))
-        rep.add("model is the Opus alias: %s" % f.name, model == "opus", "model=%r" % model)
         effort = fm.get("effort", "")
-        rep.add("effort valid (%s): %s" % (effort or "unset", f.name), not effort or effort in EFFORT_LEVELS)
-        rep.add("agent inherits the session's reasoning effort, not hard-coded (owner policy): %s" % f.name,
-                not effort, "effort=%r" % effort)
+        rep.add("effort valid (%s): %s" % (effort or "unset", f.name), effort in EFFORT_LEVELS)
+        want = policy.get(name, {})
+        rep.add("model and effort pinned as MODEL_POLICY.md says (%s · %s): %s" % (want.get("model"), want.get("effort"), f.name),
+                bool(want) and model == want.get("model") and effort == want.get("effort"),
+                "frontmatter %s · %s" % (model or "unset", effort or "unset"))
         tools = [t.strip() for t in fm.get("tools", "").split(",") if t.strip()] if isinstance(fm.get("tools"), str) else fm.get("tools") or []
         unknown_tools = [t for t in tools if t not in KNOWN_TOOLS and not t.startswith("mcp__")]
         rep.add("tool names recognised: %s" % f.name, not unknown_tools, str(unknown_tools) if unknown_tools else "")
@@ -150,6 +159,19 @@ def check_agents(rep):
                         "%d steps" % len(rl.method_steps(name)))
             except ValueError as exc:
                 rep.add("specialist has a numbered Method: %s" % name, False, str(exc))
+        elif name in rl.WORKERS:
+            rep.add("worker cannot spawn agents: %s" % name, tools and "Agent" not in tools, "tools=%s" % tools)
+            rep.add("worker writes no claim ledger: %s" % name, "_ledger.csv" not in text)
+            if name in ("reader", "critical-reader"):
+                rep.add("reader has no web access: %s" % name, not ({"WebSearch", "WebFetch"} & set(tools)), "tools=%s" % tools)
+                rep.add("reader follows the reading schema: %s" % name, "methodology/READING_SCHEMAS.md" in text
+                        and "reading.py check" in text.replace("`", ""))
+            elif name == "verifier":
+                rep.add("verifier can open sources: %s" % name, {"Read", "WebFetch", "Bash"} <= set(tools))
+                rep.add("verifier checks its results with verify.py: %s" % name, "verify.py claims" in text)
+            else:
+                rep.add("librarian can search and fetch: %s" % name, {"WebSearch", "WebFetch", "Bash"} <= set(tools))
+                rep.add("librarian registers through the document map: %s" % name, "document_map.py add" in text)
         elif name == rl.AUDITOR:
             rep.add("auditor cannot spawn agents", tools and "Agent" not in tools, "tools=%s" % tools)
             rep.add("auditor declares claim prefix", "`%s`" % rl.AUDITOR_PREFIX in text)
@@ -159,8 +181,8 @@ def check_agents(rep):
             except ValueError as exc:
                 rep.add("auditor required sections block", False, str(exc))
             rep.add("auditor is forbidden from editing other files", "never edit" in text.lower())
-    rep.add("exactly the %d expected agents (CIO, %d specialists, auditor)" % (len(expected), len(rl.SPECIALISTS)),
-            set(names) == expected, "found %s" % sorted(names))
+    rep.add("exactly the %d expected agents (CIO, %d specialists, auditor, %d workers)" % (
+        len(expected), len(rl.SPECIALISTS), len(rl.WORKERS)), set(names) == expected, "found %s" % sorted(names))
     dups = {n: fs for n, fs in names.items() if len(fs) > 1}
     rep.add("agent names unique", not dups, str(dups) if dups else "")
     # Duplicate definitions elsewhere (outside archive / legacy runs).
@@ -244,8 +266,31 @@ def check_taxonomy_and_docs(rep):
 
 def check_methodology(rep):
     for doc in ("RESEARCH_PLAYBOOK.md", "SOURCE_GUIDE.md", "SECTOR_PLAYBOOKS.md", "METRIC_DEFINITIONS.md",
-                "SCORING.md", "EVIDENCE_STANDARDS.md", "INVESTOR_LENSES.md", "REPORT_CONTRACTS.md"):
+                "SCORING.md", "EVIDENCE_STANDARDS.md", "INVESTOR_LENSES.md", "REPORT_CONTRACTS.md",
+                "READING_SCHEMAS.md", "MODEL_POLICY.md"):
         rep.add("methodology document exists: %s" % doc, (ROOT / "methodology" / doc).exists())
+    try:
+        sch = rl.reading_schema()
+        types, topics, classes = sch["types"], sch["topics"], sch["classes"]
+        bad_topic = sorted(t for t, v in types.items() if v.get("topic") not in topics)
+        bad_amount = sorted(t for t, v in types.items() if not set(v.get("amounts", [])) <= set(v.get("fields", [])))
+        bad_hint = sorted("%s:%s" % (c, h) for c, v in classes.items() for h in v.get("hint", []) if h not in types)
+        owners = {o for v in topics.values() for o in v.get("owners", [])}
+        rep.add("reading schema parses: %d item types, %d topics, %d section classes" % (len(types), len(topics), len(classes)),
+                not (bad_topic or bad_amount or bad_hint), "topic %s amounts %s hints %s" % (bad_topic, bad_amount, bad_hint))
+        rep.add("reading schema topics are owned by specialists only", owners <= set(rl.SPECIALISTS), str(sorted(owners - set(rl.SPECIALISTS))))
+        rep.add("every specialist owns at least one reading topic", set(rl.SPECIALISTS) <= owners, str(sorted(set(rl.SPECIALISTS) - owners)))
+        import reading
+        crit = {c for c, v in classes.items() if v.get("critical")}
+        rep.add("critical section classes include the auditor's reports, CARO and critical notes",
+                {"auditor_report", "caro", "ifc", "notes_critical"} <= crit, str(sorted(crit)))
+        missing_cls = sorted({c for c in reading.SECTION_TO_CLASS.values()} - set(classes))
+        rep.add("every class the reading planner assigns is defined in the schema", not missing_cls, str(missing_cls))
+        cal = rl.model_policy().get("calibration", {})
+        rep.add("calibration record: status %s, single-read classes non-critical" % cal.get("status"),
+                not (set(cal.get("single_read_classes", [])) & crit), str(cal.get("single_read_classes")))
+    except (ValueError, OSError, KeyError) as exc:
+        rep.add("reading schema parses (methodology/READING_SCHEMAS.md)", False, repr(exc))
     mins = rl.depth_minimums()
     rep.add("Historical Depth Standard parses (>=10 fiscal years, >=12 quarters)",
             mins.get("financials.fiscal_years", 0) >= 10 and mins.get("concalls.quarters", 0) >= 12, str(mins))

@@ -3,6 +3,7 @@ name: concalls
 description: Earnings-call and management-guidance specialist for the equity research system. Invoke (normally by the CIO during /research-company, alongside the other nine specialists, one at a time by default) to build a structured promise-to-delivery database from at least 12 quarters (target 20–40) of a listed company's earnings-call transcripts, presentations, investor-day and AGM statements and annual-report targets. It records the original statement, date and exact locator, target, outcome, assessment date and variance, and computes guidance-accuracy statistics. It tracks goalpost changes, recurring analyst concerns and the questions management avoided, measures the drift of tone and hedging language with a script, compares guidance with consensus, and finds gaps between what management said and what statutory disclosures show. Returns a cited database, credibility ratings and a claim ledger. Does not score or recommend.
 tools: Read, Write, Edit, Bash, WebSearch, WebFetch
 model: opus
+effort: xhigh
 skills:
   - investment-constitution
 ---
@@ -33,6 +34,19 @@ Establish management's **record of forecasting, communicating and delivering** o
 - **At least 12 quarters** of original transcripts or recordings (target 20–40) plus annual investor presentations. If fewer exist, cover all of them and state a `coverage_exception`. The validator counts quarters in *Coverage of Communications* and the database; label each call `Q1FY2025`, and so on.
 - The document map lists the transcripts found on the exchanges, the IR site, the Internet Archive and the local corpus. Read the exchange or IR original; the corpus Markdown is a reading copy.
 - Annual-report MD&A and Chairman's or MD's letters going back up to 10 years for long-dated targets; investor-day presentations where they exist.
+
+## Reading pack (since 3.1.0)
+
+Before your own research, read `RUN_DIR/corpus/dossiers/packs/concalls.md` and **every dossier it lists, in full** (the
+reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
+every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
+and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+- verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
+  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
+- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+- do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
+  record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
+- **Transcripts:** the `transcripts` dossier holds every question, answer, forward statement, explanation and number from every transcript in scope, read in full by the readers. Never substitute a keyword filter for reading (run 20261012T132311Z read 13–21 % of each transcript that way); open the transcript page of every exchange you rely on.
 
 ## Method
 1. **Plan and coverage.** List every call, presentation and investor day with its date, quarter label and source (`transcript_index.csv`). Use AI or aggregator summaries only as labeled discovery, never as the locator of a quotation. Start `progress.md`.

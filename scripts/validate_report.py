@@ -58,7 +58,7 @@ def main(argv=None) -> int:
         sc = rl.load_json(Path(a.scorecard)) if a.scorecard else None
         res = rl.validate_final_report(path, sc, ids, version=version, segment=segment)
     elif a.kind == "audit":
-        res, findings = rl.validate_audit_report(path, ids)
+        res, findings = rl.validate_audit_report(path, ids, version=version)
         n = {s: sum(1 for _, x in findings if x == s) for s in rl.AUDIT_SEVERITIES}
         print("findings: %s" % ", ".join("%s %d" % kv for kv in n.items()))
     else:

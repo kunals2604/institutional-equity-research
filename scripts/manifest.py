@@ -6,6 +6,7 @@
   python3 scripts/manifest.py RUN_DIR status specialists_running
   python3 scripts/manifest.py RUN_DIR invocation financials --stage 1 --purpose "initial investigation"
   python3 scripts/manifest.py RUN_DIR invocation auditor --stage 4 --purpose "independent audit of the draft"
+  python3 scripts/manifest.py RUN_DIR invocation reader --stage 0b --purpose "L007"
   python3 scripts/manifest.py RUN_DIR note "Transcript archive for FY2019-20 unavailable"
 
 Values are parsed as JSON when possible (numbers, null, true), otherwise kept as strings.
@@ -47,7 +48,7 @@ def main(argv=None) -> int:
     st = sub.add_parser("status")
     st.add_argument("value", choices=STATUSES)
     inv = sub.add_parser("invocation")
-    inv.add_argument("specialist", choices=list(rl.SPECIALISTS) + [rl.AUDITOR])
+    inv.add_argument("specialist", choices=list(rl.SPECIALISTS) + [rl.AUDITOR] + list(rl.WORKERS))
     inv.add_argument("--stage", required=True)
     inv.add_argument("--purpose", required=True)
     n = sub.add_parser("note")
@@ -79,6 +80,8 @@ def main(argv=None) -> int:
     elif a.cmd == "invocation":
         if a.specialist == rl.AUDITOR:
             node = m.setdefault("auditor", {"status": "pending", "report": rl.AUDIT_REPORT, "invocations": []})
+        elif a.specialist in rl.WORKERS:
+            node = m.setdefault("workers", {}).setdefault(a.specialist, {"invocations": []})
         else:
             node = m["specialists"].setdefault(a.specialist, {"status": "pending", "invocations": []})
         node.setdefault("invocations", []).append({"stage": a.stage, "purpose": a.purpose, "at": now()})

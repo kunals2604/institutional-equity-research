@@ -102,3 +102,69 @@ What it still cannot do is listed in §5. The most important limitation: **it ha
 **Scoring.** The verdict follows a fund manager's sequence (methodology 3.0.0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, decision drivers and conviction. On the first run's own judgments the engine still concludes AVOID, but now also states why the company would not qualify as a compounder at any price on its evidence (through-cycle returns below the cost of capital).
 
 **Remaining limitations.** Exchange endpoints are unofficial and can change without notice (failures are recorded and the mechanics documented with their verification date); scanned pages without a text layer must be read visually (no OCR is installed); XBRL covers only about FY2019 onward; the auditor and the CIO verify samples, not every claim.
+
+## 8. Third review (2026-10-18): what the agents actually read
+
+**Question from the owner: a 300-page annual report is about 450k tokens and the run covered ten years, so how could
+specialists that ended at about 500k tokens each have read them?** They could not, and they did not. Measured from the
+nine specialists' own transcripts (every tool result matched against the full text of each report):
+
+| Measure | Result |
+|---|---|
+| Final context per specialist (no compaction) | 355k–506k tokens: everything each agent ever read or wrote |
+| Share of each annual report's text that reached any one agent | filings 4–10 %, financials 4–6 %, others below 6 %; industry, concalls and valuation below 1 % |
+| All ten agents and the CIO combined, overlap removed | 11–17 % of each year's text; 233 of 3,310 pages had half their text seen by anyone, about 2,400 pages less than a tenth |
+| Transcripts | the concalls specialist read its own keyword-filtered extracts: 13–21 % of each transcript |
+| Effort | every agent, the CIO included, ran at *high*; the session moved to *max* only after the run |
+| Usage | each specialist re-processed its context 100–150 times (22–37M tokens); re-caching after usage-limit pauses in the parallel run was about 40 % of their input-side usage |
+
+The reports said "annual reports read" (filings: "Full for FY2025–FY2026"; that full read was about 10 % of the FY2025
+report: the auditor's reports, CARO and a few notes). Nothing in the framework measured or recorded what was read; the
+depth standard counted years, which one search hit per year satisfies.
+
+**Third-party summaries were considered and rejected as a basis**: no page citations (checking one means reading the
+report anyway), unknown coverage, generic selection that drops exactly the forensic details, patchy availability. The
+structured filings regulators require (BRSR XBRL, voting results, audit-opinion statements, board composition) are
+primary and exact and are now used first (`SOURCE_GUIDE.md` §0c).
+
+**Design response (methodology 3.1.0):** a reading stage that reads every in-scope page once, in small fresh contexts
+(Sonnet readers; Opus reads the critical sections again, independently; disagreements resolved against the page),
+quote- and amount-checked by script, delivered as topic dossiers and reading packs, recorded page by page in
+`corpus/reading/COVERAGE.md` (the only statement of coverage), and checked against the transcripts by the reading audit;
+models and efforts pinned per agent (`MODEL_POLICY.md`); work goes to Sonnet only when it passes five tests and a
+calibration bake-off (`docs/MODEL_CALIBRATION.md`). Specialists stay whole and on Opus: splitting each into a "deep" and a
+"cheap" half was rejected, because questions arise while gathering evidence; the split is by function (reading versus
+reasoning), not by specialist.
+
+**The first live read found what the checks did not (2026-10-18/19).** The first calibration launch (Opus at max, six
+chunks of the Airtel FY2025–FY2026 reports) passed every check, but its output and transcript showed the chunk format
+losing meaning: values of three digits or fewer and nil dashes were hidden as "trivial" (the reader put `420` and
+`(771)` into free-text descriptions, where nothing checked them); row labels and column headers that recur every year
+were hidden as "already read", leaving the reader values without their line or period; continuation lines of a
+passage looked like page furniture; pages carrying raster images (60–80 per report) were never viewed; and two reads
+that swapped the current and prior year's amounts would have agreed. All were fixed before the calibration continued
+(`FRAMEWORK_CHANGES.md` 3.1.0 item 13). The second launch (Opus, the FY2026 MD&A and Board's report) then showed that the
+text layer can print a multi-column page's paragraphs out of order, so that an award or figure appears under the
+wrong heading. Three alternative orderings were measured on 852 report pages and none was reliably better (each fails
+on a different layout), so the remedy is in the reading rules: attribute every fact to the heading it sits under on
+the page and open the page whenever the order looks wrong. This is a residual risk for single-read chunks, and the
+calibration measures it. The lesson for the framework: a passing check proves only what it checks, so
+each new reading stage is calibrated on real documents and its outputs are read, not just validated.
+
+**Cost, honestly:** after those fixes, about 0.64–0.70M tokens of text and page images per annual report (measured on
+BHARTIARTL FY2024–FY2026; 120–150 pages per report viewed on the image), roughly 6–8M tokens of reading content per
+company over ten years with transcripts and filings. Read-once now saves about 10 % of an older report (another 10 %
+repeats but is shown as context so nothing loses its meaning). What the agents process is several times that, because
+every turn re-reads the agent's context; launches of about one chunk keep the multiple low.
+
+**Feasibility, measured (2026-10-19).** The bake-off then measured what a read really costs: an Opus critical read at
+max effort, run as a subagent, took 20–33 minutes and 1.7–2.8M processed tokens for one chunk of 10–15k tokens; two
+thinking turns over five minutes let the subagent's five-minute prompt cache expire, so its context was processed
+again; and the CIO's own turns around four launches processed three times what the readers did. One five-hour usage
+window held about four launches. At that rate a first ten-year read of a large company (about 230 critical chunks
+for Opus alone) would have taken weeks of usage windows: not feasible. The owner chose a narrower full read (every
+page of five years, the core sections of the five before, fixed by fiscal year so a missing report is never silently
+skipped) and Opus at xhigh; the framework moved the reading loop out of the CIO's context into headless sessions with
+a one-hour cache (`reading_driver.py`, now `agent_driver.py`), replaced retyped quotes with anchors, and reuses audited reading across runs
+(`FRAMEWORK_CHANGES.md` 3.1.0 item 14). The effect of these changes is measured on the next launches, not assumed;
+even with them, a first read is a multi-day job, and a later run reads only what is new.

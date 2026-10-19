@@ -95,9 +95,10 @@ def main(argv=None) -> int:
         for f in ("cio/final_report.md", "cio/scorecard.json", rl.AUDIT_REPORT, "cio/audit_resolutions.md",
                   rl.QC_RECORD, "evidence_ledger.csv"):
             print("  CIO / audit       : %s/%s" % (rel, f))
-        print("  stages            : 0 preflight + document acquisition -> 1 %d specialists, one at a time ->"
-              " 2 barrier + gap loop (+git batch 1) -> 3 CIO synthesis, then scores -> 4 independent audit, QC,"
-              " finalize, git batch 2 + push" % len(rl.SPECIALISTS))
+        print("  stages            : 0 preflight + document acquisition + structured filings -> 0b reading stage"
+              " (every in-scope page read once, one reader at a time) -> 1 %d specialists, one at a time ->"
+              " 2 barrier + gap loop (+git batch 1) -> 3 CIO synthesis, then scores -> 4 reading audit, independent audit,"
+              " QC, finalize, git batch 2 + push" % len(rl.SPECIALISTS))
         return 0
 
     if run_dir.exists():
@@ -149,8 +150,10 @@ def main(argv=None) -> int:
         "ips_confirmed": bool(policy.get("confirmed_by_user")),
         "framework_commit": git_head(root),
         "methodology_version": rl.methodology_version(),
-        "model": {"requested": "opus", "effort": "inherited from the session (the model picker at launch)", "effective_cio": "unverified",
-                  "subagents": "opus alias (frontmatter); per-subagent ID not exposed"},
+        "model": {"policy": "methodology/MODEL_POLICY.md (models and efforts pinned per agent)", "effort_override": None,
+                  "effective_cio": "unverified",
+                  "agents": {k: "%s · %s" % (v["model"], v["effort"]) for k, v in rl.model_policy()["agents"].items()},
+                  "verified_by": "scripts/reading_audit.py run (from the agents' transcripts)"},
         "execution_mode": "sequential",
         "specialists": {
             name: {"status": "pending",
@@ -160,6 +163,7 @@ def main(argv=None) -> int:
             for name in rl.SPECIALISTS
         },
         "auditor": {"status": "pending", "report": rl.AUDIT_REPORT, "ledger": rl.AUDIT_LEDGER, "invocations": []},
+        "workers": {name: {"invocations": []} for name in rl.WORKERS},
         "notes": [],
     }
     rl.write_json(run_dir / rl.RUN_MANIFEST, manifest)

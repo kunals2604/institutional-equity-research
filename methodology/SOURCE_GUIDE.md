@@ -35,6 +35,26 @@ The owner's FilingForge app downloads exchange filings (annual reports, results,
 | `scripts/xbrl_facts.py extract` / `reconcile` | Exchange XBRL results → financial-history rows (tier 1), and the reconciliation with the specialist's dataset |
 | `scripts/market_data.py close` / `adtv` / `history` | Exchange bhavcopy price, liquidity and long history (tier 1) |
 
+### 0c. Structured exchange filings: facts filed as data (methodology 3.1.0)
+
+Regulators make listed companies file many key facts in machine-readable form. They are primary (tier 1) and exact, so
+they come **before** reading for the facts they carry, and they cross-check the reports for everything else.
+`scripts/structured_filings.py fetch` collects them into `corpus/structured/` and `corpus/STRUCTURED.md`:
+
+| Filing | Content | From | Notes |
+|---|---|---|---|
+| Results XBRL and the Integrated Filing (Financial) | Statements, segments; at the year end, the declaration of an unmodified opinion or the statement on the impact of audit qualifications, and the audit firms | XBRL from about FY2012; Integrated Filing from Q3 FY2025 | `xbrl_facts.py` (statements), `structured_filings.py` (audit opinion) |
+| BRSR XBRL | Every BRSR answer: workforce, safety, complaints, penalties, energy, emissions, value-chain data | FY2022 | Covers the annual report's BRSR pages only when its numbers and text match them (`reading.py plan` tests it) |
+| Voting results XBRL (AGMs, postal ballots) | Votes polled, for and against, by shareholder category, for every resolution | about FY2021 on NSE | Institutional dissent on related-party, remuneration and auditor resolutions |
+| Integrated Filing (Governance) | Board composition: category, appointment, re-appointment, cessation, tenure | Q3 FY2025 | Earlier quarterly governance reports are listed but not machine-readable |
+| Related-party disclosures, Reg. 23(9) | Half-yearly statement of every related-party transaction and balance | about FY2020, as PDF announcements | Not structured on NSE: `reading.py fetch-filings` downloads them and the readers read them (a critical class) |
+| Shareholding, insider (PIT) and SAST disclosures | Holdings by category, pledges, insider trades, acquisitions | NSE feeds | `exchange_index.py nse` |
+
+Out of reach: the ministry's XBRL of the accounts (Form AOC-4, which carries CARO and secretarial-audit fields) sits
+behind the MCA portal's login and paid document view. Third-party "annual report summaries" (AI or broker) are
+discovery leads (tier 6), never evidence and never a substitute for reading: they cannot be checked against a page,
+their coverage is unknown, and they omit the forensic details this framework looks for.
+
 ## 1. Company and exchange disclosures (India)
 
 | Data item | Primary source (tier) | How to get it | Typical history | Notes |
@@ -113,11 +133,11 @@ Evidence that comes from neither management nor the financial statements (owner:
 | UK company accounts (for example foreign subsidiaries of Indian groups) | Companies House (gov.uk) |
 | Other listed companies | National exchange and regulator filing systems; company IR sites |
 
-## 6. Access behaviour and retrieval mechanics (verified 2026-10-17)
+## 6. Access behaviour and retrieval mechanics (verified 2026-10-17; structured feeds 2026-10-18)
 
 | Host | What works | What fails | Handled by |
 |---|---|---|---|
-| **NSE API** (`www.nseindia.com/api/...`) | JSON with an `Accept: application/json` header and an nseindia.com referer, **no cookie handshake needed**: `annual-reports`, `corporate-announcements` (full history in one call), `corporates-financial-results`, `integrated-filing-results`, `corporate-share-holdings-master`, `corporate-board-meetings`, `corporates-corporateActions`, `corporates-pit` (by year), `corporate-sast-reg29` | The homepage, `quote-equity` and `historical/cm/equity` return 403/503 to scripts; the `corporate-credit-rating` feed ignores the symbol | `netfetch.py` profile `nse-api`; prices come from bhavcopy instead |
+| **NSE API** (`www.nseindia.com/api/...`) | JSON with an `Accept: application/json` header and an nseindia.com referer, **no cookie handshake needed**: `annual-reports`, `corporate-announcements` (full history in one call), `corporates-financial-results`, `integrated-filing-results` (financial and governance views), `corporate-share-holdings-master`, `corporate-board-meetings`, `corporates-corporateActions`, `corporates-pit` (by year), `corporate-sast-reg29`; verified 2026-10-18: `corporate-bussiness-sustainabilitiy` (sic; BRSR XBRL per year, with `from_date`/`to_date`), `corporate-voting-results` (with `from_date`/`to_date`; without them only the latest meetings), `corporate-governance-master` (quarter list only) | The homepage, `quote-equity` and `historical/cm/equity` return 403/503 to scripts; the `corporate-credit-rating` feed ignores the symbol | `netfetch.py` profile `nse-api`; prices come from bhavcopy instead |
 | **NSE archives** (`nsearchives.nseindia.com`) | Every filing attachment, annual-report PDFs and ZIPs, XBRL, bhavcopy files (`sec_bhavdata_full_DDMMYYYY.csv` 2020+, `content/historical/EQUITIES/...bhav.csv.zip` 2012–2024, UDiFF 2024+) | `sec_bhavdata_full` before 2020 (404) | profile `nse-archive`; `market_data.py` picks the format by date |
 | **BSE API** (`api.bseindia.com`) | JSON **only over HTTP/2 with a browser's full header set** (`sec-ch-ua`, `sec-fetch-*`, origin, referer): `AnnualReport_New`, `AnnSubCategoryGetData` (paged, by year), `PeerSmartSearch` (scrip and ISIN lookup) | HTTP/1.1 or partial headers: Akamai 403; Python's urllib cannot do HTTP/2. An end date in the future returns no rows | profile `bse-api` (curl `--http2`); the indexer caps end dates at today |
 | **BSE files** (`www.bseindia.com/xml-data/corpfiling/AttachHis|AttachLive/...`) | Announcement attachments and annual reports | `AttachLive` holds only recent files (`AttachHis` the rest) | profile `bse-file`; both paths tried |

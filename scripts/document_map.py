@@ -3,6 +3,7 @@
 
   python3 scripts/document_map.py build RUN_DIR [--years 15] [--quarters 24] [--download core|none] [--sleep 0.5]
   python3 scripts/document_map.py status RUN_DIR
+  python3 scripts/document_map.py add    RUN_DIR --type annual_report --period FY2014 --url URL [--alt URL ...] [--note "..."]
 
 Inputs: the exchange / IR / archive index (`scripts/exchange_index.py all ...`, in RUN_DIR/_cache/index/) and the
 local FilingForge catalog (`scripts/corpus.py catalog`, in RUN_DIR/corpus/catalog.csv), if the company is there.
@@ -349,6 +350,63 @@ def write_outputs(run_dir, m, cutoff, items, anomalies, failures, index, local, 
     (out_dir / "DOCUMENT_MAP.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def add(run_dir: Path, dtype: str, period: str, url: str, alts: List[str], note: str, log=print) -> int:
+    """Register a document found outside the indexes (the librarian's tool): download and validate it, build its
+    text layer, and fill (or add) its row of the map. The file must be the document named: the librarian checks the
+    first page (company, type, period) before calling this, and the row records who found it and where."""
+    path = run_dir / "corpus" / "document_map.csv"
+    if not path.exists():
+        print("no document map: run document_map.py build first")
+        return 1
+    with path.open(newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    expect = "pdf" if url.lower().split("?")[0].endswith(".pdf") else ""
+    res = fs.retrieve(run_dir, url, "librarian", "%s %s (found by the librarian)" % (LABEL.get(dtype, dtype), period),
+                      alts=alts or None, expect=expect, wayback=True)
+    if res.get("path") is None:
+        print("FAILED: %s" % (res.get("error") or "download failed")[:300])
+        return 1
+    pdf = Path(res["path"])
+    members = [mm for mm in (res.get("members") or []) if mm.get("kind") == "pdf"]
+    if members:
+        best = max(members, key=lambda mm: mm["bytes"])
+        pdf = run_dir / best["path"] if not Path(best["path"]).is_absolute() else Path(best["path"])
+    pages = pages_of(str(pdf))
+    text_path, text_flags = "", ""
+    if doc_text.tool("pdftotext") and str(pdf).lower().endswith(".pdf"):
+        idx = doc_text.convert_many(run_dir, [pdf], log=lambda m: None)
+        e = idx.get(str(pdf))
+        if e:
+            text_path = str(Path(e["text"]).relative_to(run_dir)) if e["text"].startswith(str(run_dir)) else e["text"]
+            text_flags = "; ".join("%s %d p." % kv for kv in sorted(e["flags"].items()))
+    cached = str(pdf.relative_to(run_dir)) if str(pdf).startswith(str(run_dir)) else str(pdf)
+    row = next((r for r in rows if r["doc_type"] == dtype and r["period"] == period), None)
+    if row is None:
+        row = {c: "" for c in MAP_COLUMNS}
+        row.update(doc_type=dtype, period=period)
+        rows.append(row)
+    flags = [f for f in (row.get("flags") or "").split("; ") if f and f not in ("missing", "download_failed")]
+    flags.append("added_by_librarian")
+    if pages is not None and pages < 4:
+        flags.append("short_document")
+    row.update(primary_source=row.get("primary_source") or "LIBRARIAN", primary_url=row.get("primary_url") or url,
+               cached_path=cached, cached_sha256=res.get("sha256", ""), cached_pages=pages or "",
+               text_path=text_path or row.get("text_path", ""), text_flags=text_flags or row.get("text_flags", ""),
+               status="both" if row.get("local_doc_id") else "exchange_only", flags="; ".join(flags))
+    with path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=MAP_COLUMNS, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(rows)
+    md = run_dir / "corpus" / "DOCUMENT_MAP.md"
+    text = md.read_text(encoding="utf-8") if md.exists() else ""
+    if "## Added after the build (librarian)" not in text:
+        text += "\n## Added after the build (librarian)\n\n| Document | Period | File | Pages | Source | Note |\n|---|---|---|---|---|---|\n"
+    text += "| %s | %s | `%s` | %s | %s | %s |\n" % (LABEL.get(dtype, dtype), period, cached, pages or "?", url, note or "")
+    md.write_text(text, encoding="utf-8")
+    log("added %s %s: %s (%s pages, text %s)" % (dtype, period, cached, pages or "?", text_path or "not built"))
+    return 0
+
+
 def status(run_dir: Path) -> int:
     path = run_dir / "corpus" / "document_map.csv"
     if not path.exists():
@@ -377,12 +435,21 @@ def main(argv=None) -> int:
     b.add_argument("--sleep", type=float, default=0.5)
     s = sub.add_parser("status")
     s.add_argument("run_dir")
+    ad = sub.add_parser("add")
+    ad.add_argument("run_dir")
+    ad.add_argument("--type", required=True, choices=list(LABEL))
+    ad.add_argument("--period", required=True)
+    ad.add_argument("--url", required=True)
+    ad.add_argument("--alt", action="append", default=[])
+    ad.add_argument("--note", default="")
     a = ap.parse_args(argv)
     run_dir = Path(a.run_dir)
     if not (run_dir / rl.RUN_MANIFEST).exists():
         ap.error("%s is not a run directory" % run_dir)
     if a.cmd == "status":
         return status(run_dir)
+    if a.cmd == "add":
+        return add(run_dir, a.type, a.period, a.url, a.alt, a.note)
     res = build(run_dir, a.years, a.quarters, a.download, a.sleep)
     print("document map: %d items, %d download failures, %d local label anomalies -> %s" % (
         res["items"], len(res["failures"]), len(res["anomalies"]), run_dir / "corpus" / "DOCUMENT_MAP.md"))

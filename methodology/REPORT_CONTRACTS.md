@@ -17,7 +17,10 @@ research/companies/<TICKER>/
     ├── source_retrievals.csv               # every download: time, author, URL, HTTP status, bytes, SHA-256 (scripts/fetch_source.py)
     ├── corpus/                             # CATALOG.md, catalog.csv (+ SHA-256 of each local document), coverage.json (scripts/corpus.py);
     │                                       #   DOCUMENT_MAP.md + document_map.csv (both channels cross-checked) and
-    │                                       #   index_summary.json (exchange / IR / archive index) from scripts/document_map.py, exchange_index.py
+    │                                       #   index_summary.json (exchange / IR / archive index) from scripts/document_map.py, exchange_index.py;
+    │                                       #   STRUCTURED.md + structured/ (exact exchange filings, structured_filings.py, 3.1.0);
+    │                                       #   reading/ (plan.json, ledger.csv, COVERAGE.md, status.json, launches.json, extractions/,
+    │                                       #   disagreements/; reading.py, 3.1.0) and dossiers/ (topic dossiers, INDEX.md, packs/<name>.md)
     ├── specialists/
     │   ├── <name>.md                       # 10 initial reports: financials, filings, management, industry, moat, concalls,
     │   ├── <name>_ledger.csv               #   valuation, bear-case, special-situations, scuttlebutt (+ 10 claim ledgers; 9 before 2.4.0)
@@ -34,7 +37,8 @@ research/companies/<TICKER>/
     │                                       #   tieout.csv, sample.csv, recompute/, audit_followup_<n>.md
     ├── calc/                               # inputs/outputs of fin_metrics.py, valuation_tools.py and other reproducible calculations
     ├── evidence_ledger.csv                 # merged by scripts/merge_ledgers.py
-    ├── qc/                                 # auto_checks.json, evidence_stats.json, numeric_conflicts.csv (validate_run.py --stage final)
+    ├── qc/                                 # auto_checks.json, evidence_stats.json, numeric_conflicts.csv (validate_run.py --stage final);
+    │                                       #   reading_audit.json + READING_AUDIT.md (reading_audit.py run, 3.1.0)
     └── _cache/                             # local downloads only; git-ignored, never committed
 ```
 
@@ -119,12 +123,22 @@ A specialist deliverable is **complete** only if:
 5. Every FACT, MANAGEMENT STATEMENT, CALCULATION and ESTIMATE tag cites a claim ID that exists in the ledger.
 6. The ledger passes `scripts/validate_ledger.py` with no errors.
 7. No layer name is altered (`validate_report.py` checks this).
+8. From methodology 3.1.0: the report does not state its own reading coverage of documents (the reading ledger is the
+   record), and the run's reading stage is complete (`corpus/reading/status.json`, `COVERAGE.md` unchanged since it was
+   generated, the dossiers and every specialist's reading pack built, `corpus/STRUCTURED.md` present).
 
 Run: `python3 scripts/validate_run.py <run_dir> --stage specialists`.
 
 ## 4a. Independent audit (Stage 4, methodology 2.4.0)
 
 The `auditor` agent (`.claude/agents/auditor.md`) audits the CIO's draft final report and scorecard with fresh context and writes only under `RUN_DIR/audit/`. Its report has its own front matter and required sections (defined in the agent file) and a **Findings Register** of `AUD-F##` rows graded Critical / Major / Minor, with an opinion of Clean, Clean with minor findings, Qualified or Adverse. The CIO answers every finding in `cio/audit_resolutions.md` (Fixed / Rebutted / Accepted limitation; a Critical finding can never be an accepted limitation, and must be marked Closed by a re-audit in `audit/audit_followup_<n>.md`). `validate_run.py --stage final` enforces all of this.
+
+## 4b. Reading coverage in the final report (methodology 3.1.0)
+
+The final report's *Contradiction and Evidence Audit* carries `corpus/reading/COVERAGE.md` **unchanged** between
+`<!-- READING_COVERAGE:BEGIN -->` and `<!-- READING_COVERAGE:END -->` (`validate_run.py --stage final` compares the two),
+followed by one sentence on the reading audit (`qc/READING_AUDIT.md`). The final stage also requires the reading audit to
+have passed, or to be recorded as not measurable with a waiver and its reason.
 
 ---
 

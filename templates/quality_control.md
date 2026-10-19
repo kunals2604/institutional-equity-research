@@ -24,6 +24,11 @@ Paste the summary of `qc/auto_checks.json` (errors, warnings, pass/fail per targ
 | Independent audit run; every Critical/Major finding resolved; Critical findings Closed by a re-audit | | |
 | Ground-truth (scuttlebutt) evidence reflected in the synthesis and variant perception | | |
 | SME runs: SME Enhanced Scrutiny sections present | | |
+| Reading stage complete (`reading.py status --strict`); every critical chunk read twice and every disagreement resolved | | |
+| Reading audit PASS (`qc/READING_AUDIT.md`): agents on their pinned models and efforts, readers received every line and opened every VIEW REQUIRED page, specialists read their packs | | |
+| Auditor's reading sample: no material omission (or the affected chunks re-read) | | |
+| Final report carries `corpus/reading/COVERAGE.md` unchanged; no report states its own reading coverage | | |
+| Structured exchange filings (`corpus/STRUCTURED.md`) used before reading for the facts they cover | | |
 
 ## Cross-company calibration
 Closest companies on COMPANY_SCOREBOARD.csv and whether relative BQ / IA ordering is defensible:

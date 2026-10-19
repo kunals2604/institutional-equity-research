@@ -1,0 +1,12 @@
+{
+  "_purpose": "Process lessons from verification that predate the verification loop, counted as one earlier run in `scripts/verify.py lessons` (fed into the next briefs as generic process rules, never as facts or conclusions about a company).",
+  "source": "scripts/verify.py Tier A run read-only on BHARTIARTL 20261012T132311Z (2026-10-19): sums of printed figures recorded as FACT values (financials FIN-C016, bear-case BEAR-C025, special-situations SPS-C001 and others), values never seen in the sessions, cited pages never opened; nothing in that run was changed",
+  "findings": {
+    "financials": ["NUMBER_NOT_SEEN"],
+    "management": ["NUMBER_NOT_SEEN"],
+    "moat": ["NUMBER_NOT_SEEN", "PAGE_NOT_OPENED"],
+    "bear-case": ["NUMBER_NOT_SEEN"],
+    "special-situations": ["NUMBER_NOT_SEEN"],
+    "industry": ["SOURCE_NOT_OPENED"]
+  }
+}

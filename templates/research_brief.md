@@ -33,7 +33,13 @@ Run: `{run_id}` · Created: {created_at} · Research cutoff: **{cutoff}**
 - Cross-check flags (local corpus vs. exchange copies) and which copy to read: _none / list_
 - Missing core documents and where they were searched: _none / list_
 - Text layer: every core document converted (`doc_text.py`); pages to read visually are listed in the map
-- Structured data: exchange XBRL facts `calc/xbrl_facts.csv` (_years_); exchange close and liquidity `calc/cio_price.json`
+- Structured data: exchange XBRL facts `calc/xbrl_facts.csv` (_years_); exchange close and liquidity `calc/cio_price.json`; structured exchange filings `corpus/STRUCTURED.md` (BRSR _years_, voting results _meetings_, audit-opinion statements _years_)
+- Librarian: documents found and added _n_; still unobtainable _list with the attempt log in `corpus/librarian_log.md`_
+
+## Reading stage (Stage 0b: `corpus/reading/COVERAGE.md`)
+- Scope: annual reports _FYxxxx–FYyyyy_ (history scope: _none / years_), transcripts _n quarters_, presentations _n quarters_, exchange filings _n_
+- Plan: _n_ pages, _n_ chunks (_n_ critical, read twice), about _n_k tokens; calibration status (`methodology/MODEL_POLICY.md`): _pending (every chunk read by both models) / passed (single-read classes: list)_
+- Result: pages read _n_, repeat _n_, structured _n_, out of scope _n_, pending **0**; dossiers in `corpus/dossiers/` and one reading pack per specialist
 
 ## User notes
 _none_

@@ -10,7 +10,10 @@
 --stage final       : everything above + follow-ups, CIO ledger, merged ledger
                       freshness, scorecard, final report, contradiction log,
                       QC record; from 2.4.0 also the document map, the
-                      independent audit and the CIO's audit resolutions.
+                      independent audit and the CIO's audit resolutions; from
+                      3.1.0 the reading stage (complete, record untouched,
+                      dossiers and packs built, structured filings fetched)
+                      at both stages, and the reading audit at the final stage.
                       Writes RUN_DIR/qc/auto_checks.json.
 
 A run is validated against the contract of the methodology version recorded in its manifest (checks added in
@@ -66,6 +69,71 @@ def check_followups(run_dir: Path, ids: set, results: list, version: tuple = Non
         results.append(rl.validate_specialist_report(fu, ids, None, followup=True, version=version))
 
 
+def check_verification(run_dir: Path, results: list, stage: str) -> None:
+    """Methodology 3.1.0: the verification loop (`scripts/verify.py run`) passed for this stage: every specialist's work
+    checked against what its sessions read and opened, its claims re-checked at the sources by the verifier, and at
+    the final stage the CIO's ledger and the audit. An open blocking finding fails unless the CIO waived it."""
+    path = run_dir / "qc" / "verification.json"
+    r = rl.Result(str(path))
+    if not path.exists():
+        r.error("verification missing: run python3 scripts/verify.py run RUN_DIR --stage %s" % stage)
+    else:
+        v = rl.load_json(path)
+        if stage == "final" and v.get("stage") != "final":
+            r.error("verification was run for the %s stage: run verify.py run RUN_DIR --stage final" % v.get("stage"))
+        if v.get("status") != "PASS":
+            bad = ["%s: %s" % (n, ", ".join(f["check"] for f in s.get("findings", []) if not f.get("waived")))
+                   for n, s in (v.get("specialists") or {}).items() if s.get("status") != "PASS"]
+            bad += [f["check"] for f in v.get("run_findings", []) if f.get("severity") == "blocking" and not f.get("waived")]
+            r.error("verification %s (qc/VERIFICATION.md): %s" % (v.get("status"), "; ".join(bad)[:400]))
+    results.append(r)
+
+
+def check_reading(run_dir: Path, results: list, stage: str) -> None:
+    """Methodology 3.1.0: the reading stage is complete and its record untouched; at the final stage, the reading
+    audit passed (or could not be measured and was waived with a reason)."""
+    import hashlib
+    st_path = run_dir / rl.READING_STATUS
+    r = rl.Result(str(st_path))
+    if not st_path.exists():
+        r.error("reading stage missing: run reading.py plan, the reading loop, dossiers and status (cio.md Stage 0b)")
+    else:
+        st = rl.load_json(st_path)
+        cov = run_dir / rl.READING_COVERAGE
+        if not st.get("complete"):
+            r.error("reading incomplete: %s page(s) pending in %d chunk(s): finish the reading loop (reading.py next)"
+                    % (st.get("pending"), len(st.get("pending_chunks") or [])))
+        if not cov.exists():
+            r.error("%s missing: run reading.py status" % rl.READING_COVERAGE)
+        elif hashlib.sha256(cov.read_text(encoding="utf-8").encode()).hexdigest() != st.get("coverage_sha256"):
+            r.error("%s does not match its status record (edited by hand, or status not re-run)" % rl.READING_COVERAGE)
+    results.append(r)
+    for rel in (rl.DOSSIER_INDEX, rl.STRUCTURED_SUMMARY):
+        fr = rl.Result(str(run_dir / rel))
+        if not (run_dir / rel).exists():
+            fr.error("missing (%s)" % ("reading.py dossiers" if "dossiers" in rel else "structured_filings.py fetch"))
+        results.append(fr)
+    packs = run_dir / "corpus" / "dossiers" / "packs"
+    pr = rl.Result(str(packs))
+    for name in rl.SPECIALISTS:
+        if not (packs / ("%s.md" % name)).exists():
+            pr.error("no reading pack for %s (reading.py dossiers)" % name)
+    results.append(pr)
+    if stage == "final":
+        ar_path = run_dir / rl.READING_AUDIT
+        ar = rl.Result(str(ar_path))
+        if not ar_path.exists():
+            ar.error("reading audit missing: run reading_audit.py run RUN_DIR (cio.md Stage 4 step 0)")
+        else:
+            audit = rl.load_json(ar_path)
+            status = audit.get("status")
+            if status == "NOT_MEASURABLE" and str(audit.get("waiver") or "").strip():
+                ar.warn("reading audit not measurable, waived: %s" % audit["waiver"])
+            elif status != "PASS":
+                ar.error("reading audit %s: %s" % (status, "; ".join((audit.get("errors") or [])[:5])))
+        results.append(ar)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("run_dir")
@@ -88,6 +156,9 @@ def main(argv=None) -> int:
     if read_only:
         print("note: run is finalized (status %s); validating read-only, nothing in the run is written" % manifest.get("status"))
     ids = check_specialists(run_dir, manifest, results, version=version, segment=segment)
+    if version >= rl.V31:
+        check_reading(run_dir, results, a.stage)
+        check_verification(run_dir, results, a.stage)
 
     if a.stage == "specialists":
         check_followups(run_dir, ids | rl.validate_ledger(run_dir / "cio" / "cio_ledger.csv")[1], results, version)
@@ -130,7 +201,8 @@ def main(argv=None) -> int:
                                                 segment=segment))
         if version >= rl.V24:
             ares, findings = rl.validate_audit_report(run_dir / rl.AUDIT_REPORT, ids,
-                                                      {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")})
+                                                      {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")},
+                                                      version=version)
             rl.check_audit_resolutions(run_dir, findings, ares)
             results.append(ares)
         # Evidence statistics (warnings) and cross-ledger numeric conflicts (must be adjudicated).

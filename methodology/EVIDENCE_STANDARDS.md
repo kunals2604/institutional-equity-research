@@ -93,6 +93,13 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 - In tables, put the claim ID in a column or in the cell (`₹X cr [FACT: FIN-C004]`).
 - The report ends with a **Source Register** listing each source once: ID, title, issuer, date, URL or identifier, retrieved date, tier. The register supports the inline citations; it does not replace them.
 - Do not paste long extracts. Quote at most the sentence that matters, with its locator.
+- **Reading-stage items are finding aids, not sources** (methodology 3.1.0). A dossier item (`corpus/dossiers/`) tells you
+  what a page says and where; cite the **document and page** it names (with `FilingForge:<doc_id>` or the exchange URL), and
+  confirm decision-critical items on the page (`doc_text.py verify` and the rendered page) before citing them as FACT. Never
+  cite a dossier, a reader extraction or a launch file as the source of a claim.
+- **Coverage is recorded, not claimed.** What was read is `corpus/reading/COVERAGE.md` (generated from the page ledger).
+  A report never states its own reading coverage ("read in full", "read in substance"); it states the periods and series it
+  used. `validate_report.py` rejects such phrases in specialist reports from methodology 3.1.0.
 
 ---
 

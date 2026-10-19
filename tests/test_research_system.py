@@ -99,6 +99,32 @@ def specialist_report(name, run_id, ticker="FIXTURECO", extra="", coverage=True)
     return fm + "\n".join(body) + extra
 
 
+FIXTURE_COVERAGE = ("# Reading coverage — run fixture\n\n| Document | Pages | Read | Repeat | Structured | Out of scope | "
+                    "Pending | Viewed as image |\n|---|---|---|---|---|---|---|---|\n| Annual report FY2025 | 10 | 9 | 1 | 0 | 0 | 0 | 1 |\n\n"
+                    "**Every in-scope page has been read or accounted for.**\n")
+
+
+def write_reading(run_dir):
+    """The methodology-3.1.0 reading-stage record of a fixture run (as reading.py status / dossiers would write it)."""
+    import hashlib
+    rd = run_dir / "corpus" / "reading"
+    rd.mkdir(parents=True, exist_ok=True)
+    (run_dir / rl.READING_COVERAGE).write_text(FIXTURE_COVERAGE, encoding="utf-8")
+    rl.write_json(run_dir / rl.READING_STATUS, {"run_id": "fixture", "pages": 10, "read": 9, "repeat": 1, "structured": 0,
+                                               "out_of_scope": 0, "pending": 0, "viewed": 1, "chunks": 2, "pending_chunks": [],
+                                               "complete": True,
+                                               "coverage_sha256": hashlib.sha256(FIXTURE_COVERAGE.encode()).hexdigest()})
+    packs = run_dir / "corpus" / "dossiers" / "packs"
+    packs.mkdir(parents=True, exist_ok=True)
+    (run_dir / rl.DOSSIER_INDEX).write_text("# Dossier index — fixture\n", encoding="utf-8")
+    for name in rl.SPECIALISTS:
+        (packs / ("%s.md" % name)).write_text("# Reading pack — %s\n" % name, encoding="utf-8")
+    (run_dir / rl.STRUCTURED_SUMMARY).write_text("# Structured exchange filings — fixture\n", encoding="utf-8")
+    (run_dir / "qc").mkdir(exist_ok=True)      # the verification loop's record (as verify.py run writes it)
+    rl.write_json(run_dir / "qc" / "verification.json", {"run_id": "fixture", "stage": "final", "status": "PASS",
+                                                         "run_findings": [], "specialists": {}})
+
+
 def final_report(sc, run_id):
     insufficient = sc.get("assessment_status") == "insufficient_evidence"
     show = lambda v: "not issued" if v is None else v  # noqa: E731
@@ -126,6 +152,9 @@ def final_report(sc, run_id):
                            % (layer, items, lf["score"], lf["confidence"]))
         elif s == "Final Verdict":
             out.append("\n".join("**%s:** fixture [JUDGMENT]." % f for f in rl.FINAL_VERDICT_FIELDS) + "\n")
+        elif s == "Contradiction and Evidence Audit":
+            out.append("Fixture synthesis [FACT: CIO-C001] [JUDGMENT].\n\n<!-- %s:BEGIN -->\n%s\n<!-- %s:END -->\n"
+                       % (rl.COVERAGE_BLOCK, FIXTURE_COVERAGE.strip(), rl.COVERAGE_BLOCK))
         else:
             out.append("Fixture synthesis [FACT: CIO-C001] [JUDGMENT].\n")
     return "\n".join(out)
@@ -166,6 +195,7 @@ class FixtureRun:
                          [fact_row("%s-C001" % prefix, name),
                           calc_row("%s-C002" % prefix, name, ("%s-C001" % prefix, "%s-C001" % prefix))])
             (self.dir / "specialists" / ("%s.md" % name)).write_text(specialist_report(name, self.run_id), encoding="utf-8")
+        write_reading(self.dir)
 
     def finalize(self, qc="PASS", insufficient=False):
         sc = json.loads((ROOT / "templates" / "scorecard.example.json").read_text(encoding="utf-8"))
@@ -187,6 +217,7 @@ class FixtureRun:
         (self.dir / "cio" / "audit_resolutions.md").write_text(audit_resolutions(), encoding="utf-8")
         (self.dir / "corpus").mkdir(exist_ok=True)
         (self.dir / "corpus" / "DOCUMENT_MAP.md").write_text("# Document Map — fixture\n", encoding="utf-8")
+        rl.write_json(self.dir / rl.READING_AUDIT, {"run_id": self.run_id, "status": "PASS", "errors": [], "warnings": []})
         return sc
 
     def write_scorecard(self, sc):
@@ -217,16 +248,22 @@ class TestCanonicalConfiguration(unittest.TestCase):
             self.assertEqual(sum(w for _, _, w in rl.dimension_weights(kind)), 100, kind)
 
     def test_all_agents_with_valid_frontmatter(self):
-        names = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR}
+        names = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS)
         files = {p.stem for p in rl.AGENTS_DIR.glob("*.md")}
         self.assertEqual(files, names)
+        policy = rl.model_policy()["agents"]
+        self.assertEqual(set(policy), names)
         for name in names:
             text = (rl.AGENTS_DIR / ("%s.md" % name)).read_text(encoding="utf-8")
             fm = rl.parse_front_matter(text)
             self.assertEqual(fm.get("name"), name)
-            self.assertEqual(fm.get("model"), "opus", name)
-            self.assertNotIn("effort", fm, "%s: effort must follow the session's model picker" % name)
-            self.assertIn("investment-constitution", text, name)
+            # models and efforts are pinned per agent by methodology/MODEL_POLICY.md (owner decision, 3.1.0)
+            self.assertEqual(fm.get("model"), policy[name]["model"], name)
+            self.assertEqual(fm.get("effort"), policy[name]["effort"], name)
+            if name not in rl.WORKERS:
+                self.assertEqual(fm.get("model"), "opus", name)
+                self.assertEqual(fm.get("effort"), "xhigh", name)   # owner decision 2026-10-19 (MODEL_POLICY.md)
+                self.assertIn("investment-constitution", text, name)
             self.assertTrue(fm.get("description"), name)
 
     def test_specialists_cannot_spawn_agents_and_declare_prefix(self):

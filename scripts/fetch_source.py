@@ -204,6 +204,20 @@ def _members(path: Path):
     return []
 
 
+def text_layer_hint(run_dir: Path, pdf: Path) -> str:
+    """The run's shared text layer of this PDF (doc_text.py builds it once per file, keyed by SHA-256, for every
+    agent), or the command that builds it. Converting a document privately duplicates that work."""
+    h = hashlib.sha256()
+    with pdf.open("rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    pages = run_dir / "_cache" / "text" / h.hexdigest()[:12] / "pages.md"
+    if pages.exists():
+        return "text layer (shared, page-anchored): %s; navigate with doc_text.py toc / page / search" % pages
+    return ("text layer: python3 scripts/doc_text.py convert %s %s (built once per run and shared; do not convert "
+            "the PDF yourself)" % (run_dir, pdf))
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("url")
@@ -245,6 +259,7 @@ def main(argv=None) -> int:
     pages = res.get("pages") or (pdf_pages(path) if path.suffix == ".pdf" else 0)
     if path.suffix == ".pdf":
         print("PDF, approx. %d pages. Read with the Read tool, e.g. pages \"1-6\" for the table of contents." % pages)
+        print(text_layer_hint(run_dir, path))
     for m in res.get("members") or []:
         print("  zip member: %s (%s, %d bytes, sha256 %s)" % (m["path"], m.get("kind", ""), m["bytes"], m["sha256"][:16]))
     if res.get("method") == "reuse":
