@@ -1,0 +1,2 @@
+run_id,ticker,company,exchange,as_of_date,price,currency,verdict,primary_layer,business_quality,investment_attractiveness,hurdle_rate,buy_below,strong_buy_below,avoid_above,next_review_due,methodology_version
+20261012T132311Z,BHARTIARTL,Bharti Airtel Limited,NSE,2026-10-12,1778.7,INR,AVOID,Layer 1 — Bedrock Compounder,61,38,0.116796,1175.0,,1600.0,2027-02-28,2.2.0

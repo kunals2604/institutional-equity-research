@@ -33,7 +33,10 @@ Determine whether the company has **identifiable events, structural changes, ass
 ## Minimum evidence set
 - Corporate actions over **10 years** (or since listing), each with its primary filing (board approval, scheme document, order, offer document). NSE/BSE corporate-action and announcement feeds (`exchange_index.py`, the document map) list them. The validator counts years in *Corporate-Action History*.
 - For every announced event: its current procedural status from the latest exchange or regulator filing.
-- For every scheme or swap involving group entities in the last 10 years: the valuation report and fairness opinion where retrievable.
+- For every scheme or swap involving group entities in the last 10 years: the valuation report and fairness opinion where retrievable. Start from `corpus/dossiers/entities.md` (every entity across all years read, names merged, its roles and flows by year cited to the page, and flags): confirm each flag you rely on at its page and extend the map from your own research; do not rebuild it by hand.
+
+## Free connectors
+Scheme, insolvency and tribunal records: `connectors.py open nclt`, `connectors.py kanoon search` (when a key is set); capacity and project approvals: `connectors.py open parivesh`; dated news leads for events: `connectors.py gdelt`. Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
 
 ## Reading pack (since 3.1.0)
 

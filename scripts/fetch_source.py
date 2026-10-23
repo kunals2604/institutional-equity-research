@@ -21,6 +21,11 @@ Every payload is validated: an HTML error or bot-check page, a truncated PDF or 
 document. ZIP archives (exchanges publish older annual reports as ZIPs) are unpacked next to the archive, and each
 member's SHA-256 is printed and recorded in a `.members.json` sidecar.
 
+Rendered pages (scripts/browser.py, headless Chrome): `--snapshot` saves the page as Chrome prints it (a PDF with the
+URL and date on every page) and `--dom` the page after its JavaScript ran (for scripts/html_tables.py). Use a snapshot
+for any web page you cite: it is the copy you saw, citable by page, and the verifier re-opens the same file. WebFetch
+only paraphrases a page through a model.
+
 Exit: 0 downloaded/reused, 1 failed (row still logged), 2 usage error.
 """
 
@@ -40,6 +45,7 @@ import urllib.parse
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import browser  # noqa: E402
 import netfetch as nf  # noqa: E402
 import research_lib as rl  # noqa: E402
 
@@ -82,13 +88,21 @@ def log_row(run_dir: Path, row: dict) -> None:
         fcntl.flock(lf, fcntl.LOCK_UN)
 
 
-def prior_success(run_dir: Path, url: str):
-    """Return (author, local Path) of an earlier successful download of the same URL in this run, if the file exists."""
+RENDER_METHODS = ("chrome-snapshot", "chrome-dom")
+
+
+def prior_success(run_dir: Path, url: str, method: str = ""):
+    """Return (author, local Path) of an earlier successful download of the same URL in this run, if the file exists.
+    `method` asks for a rendered copy (chrome-snapshot | chrome-dom); without it, rendered copies are not reused for
+    a download of the document itself."""
     log = run_dir / "source_retrievals.csv"
     if not log.exists():
         return None
     with log.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
+            m = r.get("method") or ""
+            if method and m != method or not method and m in RENDER_METHODS:
+                continue
             if r.get("url") == url and str(r.get("http_status")) == "200" and not r.get("error") and r.get("local_path"):
                 path = run_dir / r["local_path"]
                 if path.exists() and path.stat().st_size > 0:
@@ -194,6 +208,48 @@ def retrieve(run_dir: Path, url: str, author: str, name: str = "", alts=None, ex
     return dict(row, path=final, members=members, pages=result["info"].get("pages"))
 
 
+def render(run_dir: Path, url: str, author: str, name: str = "", mode: str = "snapshot", reuse: bool = True,
+           timeout: float = 120.0) -> dict:
+    """A rendered copy of a public page (mode snapshot -> PDF, dom -> HTML) through headless Chrome, cached and logged
+    like a download. Returns the logged row plus `path` (None on failure) and `pages`."""
+    method = "chrome-%s" % mode
+    now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0)
+    row = {"retrieved_at_utc": now.isoformat(), "author": author, "name": name, "url": url, "method": method}
+    cache = run_dir / "_cache" / author
+    cache.mkdir(parents=True, exist_ok=True)
+    if reuse:
+        prior = prior_success(run_dir, url, method)
+        if prior:
+            src_author, path = prior
+            sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            row.update({"name": (name + " [reused: rendered earlier in this run by %s]" % src_author).strip(),
+                        "final_url": url, "http_status": 200, "bytes": path.stat().st_size, "sha256": sha,
+                        "local_path": str(path.relative_to(run_dir)), "method": method})
+            log_row(run_dir, row)
+            return dict(row, path=path, reused_from=src_author, pages=pdf_pages(path) if path.suffix == ".pdf" else 0)
+    ext = ".pdf" if mode == "snapshot" else ".html"
+    fd, tmp = tempfile.mkstemp(dir=str(cache), prefix=".part-", suffix=ext)
+    os.close(fd)
+    try:
+        res = (browser.snapshot if mode == "snapshot" else browser.dump_dom)(url, tmp, timeout=timeout)
+    except browser.BrowserError as exc:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        row.update({"error": "BrowserError: %s" % exc, "method": method + " failed"})
+        log_row(run_dir, row)
+        return dict(row, path=None, pages=0)
+    final = cache / ("%s-%s-%s-%s%s" % (now.strftime("%Y%m%d"), res["sha256"][:12],
+                                         slug(name or urllib.parse.urlparse(url).netloc + urllib.parse.urlparse(url).path),
+                                         mode, ext))
+    os.replace(tmp, final)
+    row.update({"final_url": url, "http_status": 200, "content_type": "application/pdf" if ext == ".pdf" else "text/html",
+                "bytes": res["bytes"], "sha256": res["sha256"], "local_path": str(final.relative_to(run_dir)),
+                "validation": ("ok; %s pages; rendered by %s" % (res.get("pages"), Path(res["chrome"]).name)
+                               if ext == ".pdf" else "ok; rendered DOM")})
+    log_row(run_dir, row)
+    return dict(row, path=final, pages=res.get("pages") or 0)
+
+
 def _members(path: Path):
     sidecar = path.with_suffix(".members.json")
     if sidecar.exists():
@@ -232,6 +288,9 @@ def main(argv=None) -> int:
     p.add_argument("--timeout", type=float, default=90.0)
     p.add_argument("--no-reuse", action="store_true", help="download again even if another agent already fetched this URL")
     p.add_argument("--retries", type=int, default=4, help="attempts per transport for transient failures")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--snapshot", action="store_true", help="save the page as rendered by Chrome, as a citable PDF")
+    mode.add_argument("--dom", action="store_true", help="save the page's DOM after JavaScript ran (HTML)")
     p.add_argument("--user-agent", default=os.environ.get("EQUITY_RESEARCH_USER_AGENT", ""),
                    help="override the User-Agent (SEC EDGAR requires 'Name contact@email'); default: the host profile")
     a = p.parse_args(argv)
@@ -246,6 +305,22 @@ def main(argv=None) -> int:
     if not (run_dir / rl.RUN_MANIFEST).exists():
         p.error("%s is not a run directory (no %s)" % (run_dir, rl.RUN_MANIFEST))
 
+    if a.snapshot or a.dom:
+        res = render(run_dir, a.url, a.author, a.name, "snapshot" if a.snapshot else "dom", reuse=not a.no_reuse,
+                     timeout=max(a.timeout, 120.0))
+        if res.get("path") is None:
+            print("FAILED: %s (logged in source_retrievals.csv). Try the raw page (without --%s), a mirror or the "
+                  "Internet Archive, or record it as missing evidence." % (res["error"], "snapshot" if a.snapshot else "dom"),
+                  file=sys.stderr)
+            return 1
+        print(res["path"])
+        if a.snapshot:
+            print("PDF snapshot, %d pages, rendered %s: cite it as [<this file> p.N]; Read it with page ranges." % (
+                res.get("pages") or 0, res["retrieved_at_utc"]))
+        else:
+            print("rendered DOM; tables: python3 scripts/html_tables.py %s" % res["path"])
+        print("sha256 %s, %s bytes, %s" % (res["sha256"], res["bytes"], res["method"]))
+        return 0
     res = retrieve(run_dir, a.url, a.author, a.name, alts=a.alt, expect="" if a.expect == "any" else a.expect,
                    wayback=not a.no_wayback, reuse=not a.no_reuse, timeout=a.timeout, retries=a.retries,
                    max_mb=a.max_mb, user_agent=a.user_agent)

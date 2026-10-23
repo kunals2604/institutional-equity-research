@@ -206,6 +206,7 @@ class FixtureRun:
             sc["business_quality"]["final"] = None
             sc["investment_attractiveness"]["final"] = None
         self.write_scorecard(sc)
+        self.hold_cited_claims(sc)
         (self.dir / "cio" / "final_report.md").write_text(final_report(sc, self.run_id), encoding="utf-8")
         qc_path = self.dir / rl.QC_RECORD
         qc_path.write_text(qc_path.read_text(encoding="utf-8").replace("QC status: PENDING", "QC status: %s" % qc),
@@ -219,6 +220,20 @@ class FixtureRun:
         (self.dir / "corpus" / "DOCUMENT_MAP.md").write_text("# Document Map — fixture\n", encoding="utf-8")
         rl.write_json(self.dir / rl.READING_AUDIT, {"run_id": self.run_id, "status": "PASS", "errors": [], "warnings": []})
         return sc
+
+    def hold_cited_claims(self, sc):
+        """Every claim the scorecard cites is held by its owner's ledger (the claim graph checks it)."""
+        by_prefix = {prefix: name for name, prefix in rl.SPECIALISTS.items()}
+        for cid in sorted(set(rl.CLAIM_ID_RE.findall(json.dumps(sc)))):
+            prefix = cid.split("-C")[0]
+            path = (self.dir / "cio" / "cio_ledger.csv" if prefix == rl.CIO_PREFIX else
+                    self.dir / "specialists" / ("%s_ledger.csv" % by_prefix.get(prefix, "")))
+            if not path.exists():
+                continue
+            with path.open(encoding="utf-8", newline="") as f:
+                rows = list(csv.DictReader(f))
+            if cid not in {r["claim_id"] for r in rows}:
+                write_ledger(path, rows + [fact_row(cid, by_prefix.get(prefix, "cio"))])
 
     def write_scorecard(self, sc):
         (self.dir / "cio" / "scorecard.json").write_text(json.dumps(sc, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -652,10 +667,17 @@ class TestGitPublish(unittest.TestCase):
         self.assertIn("user_notes.md", self.g("diff", "--cached", "--name-only").stdout, "unrelated staged file untouched")
         self.g("remote", "add", "origin", str(self.fx.tmp / "does-not-exist.git"))
         (self.fx.dir / "cio" / "contradiction_log.md").write_text("changed")
+        outcomes = self.fx.tmp / "research" / "outcomes"
+        (outcomes / "_cache").mkdir(parents=True)
+        (outcomes / "decisions.csv").write_text("run_id,ticker\n")
+        (outcomes / "_cache" / "prices.json").write_text("{}")
         r = run("git_publish.py", self.fx.dir, "--batch", "final", "--push")
         self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
         self.assertIn("PUSH FAILED", r.stderr)
         self.assertIn("outcome", self.g("log", "-1", "--format=%s").stdout)
+        files = self.g("show", "--name-only", "--format=", "HEAD").stdout.split()
+        self.assertIn("research/outcomes/decisions.csv", files, "the final batch records the decision ledgers")
+        self.assertFalse(any("_cache" in f for f in files), files)
 
 
 class TestSystemValidator(unittest.TestCase):

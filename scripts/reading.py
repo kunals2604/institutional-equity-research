@@ -68,7 +68,7 @@ import sys
 import zlib
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_lib as rl  # noqa: E402
@@ -1700,6 +1700,18 @@ def span_ids(it: dict, store: dict) -> Tuple[List[str], str]:
     return order[pos[uid]:pos[to] + 1], ""
 
 
+TABLE_HEAD = 5               # a table tag's anchor may be in its first passages (heading rows can hold only years)
+
+
+def page_years(store: dict, uid: str) -> Set[str]:
+    """Years and two-digit year tails printed anywhere on the passage's page: a label field may carry the period of a
+    table whose heading row ("FY 2025-26") comes before the cited row (measured 2026-10-23: most of a one-shot read's
+    fix-turn errors were this). Amounts never use this: they stay in the quote."""
+    page = (store["units"].get(uid) or {}).get("page")
+    return {n for u in store["units"].values() if u.get("page") == page for n in number_tokens(u.get("text", ""))
+            if re.fullmatch(r"19[5-9]\d|20[0-3]\d|\d{2}", n)}
+
+
 def derive_quote(it: dict, store: dict, spec: dict, rel_text: List[str]) -> Tuple[str, str]:
     """(quote, error) for an item that cites a passage and an anchor: the printed text of the cited passage, run on
     into the passages after it on the same page (QUOTE_SPAN at most) until it holds the anchor, every amount field and
@@ -1713,12 +1725,16 @@ def derive_quote(it: dict, store: dict, spec: dict, rel_text: List[str]) -> Tupl
     a = norm_quote(str(it.get("anchor") or ""))
     if len(a) > ANCHOR_MAX:
         return "", "anchor longer than %d characters: copy a few words of the passage, not the passage" % ANCHOR_MAX
-    if len(a.split()) < ANCHOR_MIN_WORDS and a != norms[0]:
+    first = store["units"][ids[0]]["text"]
+    cells = [norm_quote(c) for c in first.split("|") if c.strip()] if first.lstrip().startswith("|") else []
+    cells += [norm_quote(x) for x in first.splitlines() if x.strip()]      # a whole printed line (a list entry, a label)
+    if len(a.split()) < ANCHOR_MIN_WORDS and a != norms[0] and a not in cells:   # a table row: its label or a value
         return "", ("anchor %r: copy at least %d consecutive words of the passage (or the whole passage when it is "
                     "shorter)" % (a, ANCHOR_MIN_WORDS))
     at = " ".join(norms).find(a)
-    if at < 0 or at >= len(norms[0]):
-        return "", "anchor %r is not printed verbatim in passage %s (it must start there)" % (a[:80], uid)
+    if at < 0 or (at >= len(norms[0]) and not it.get("to")):    # a span's anchor may be anywhere in the span
+        return "", "anchor %r is not printed verbatim in passage %s (it must start there%s)" % (
+            a[:80], uid, ", or anywhere in its unit..to span" if it.get("to") else "")
     fields = it.get("fields") if isinstance(it.get("fields"), dict) else {}
     amount_fields = spec.get("amounts", [])
     amounts = [str(fields.get(f) or "").strip() for f in amount_fields if str(fields.get(f) or "").strip()]
@@ -1726,6 +1742,7 @@ def derive_quote(it: dict, store: dict, spec: dict, rel_text: List[str]) -> Tupl
     for f, v in fields.items():
         if f not in amount_fields:
             nums.update(number_tokens(v))
+    nums -= page_years(store, uid)
     if it.get("type") == "unusual":
         for x in rel_text:
             nums -= set(number_tokens(x))
@@ -1829,7 +1846,7 @@ def check_item(it: dict, store: dict, sch: dict, res: rl.Result, where: str) -> 
             res.error("%s (%s): %s %r is not printed in the quote (copy amounts exactly as printed)" % (where, t, f, v))
     # Every number written anywhere in the fields is printed in the quote (an `unusual` item may also take numbers from
     # its related passages): a value outside the quote is unverified, and a computed one is not the document's.
-    allowed = set(number_tokens(quote)) | set(it.get("_allowed") or [])
+    allowed = set(number_tokens(quote)) | set(it.get("_allowed") or []) | page_years(store, str(it.get("unit")))
     if t == "unusual":
         for x in rel_text:
             allowed |= set(number_tokens(x))
@@ -2193,9 +2210,12 @@ def _check(run_dir: Path, chunk_id: str, role: str) -> Tuple[rl.Result, Optional
         if tg.get("page") != unit["page"]:
             res.error("%s (table): page %r but passage %s is on page %d" % (where, tg.get("page"), tg.get("unit"), unit["page"]))
         a = norm_quote(str(tg.get("anchor") or ""))
-        if not a or a not in norm_quote(unit["text"]):
-            res.error("%s (table): anchor %r is not printed in passage %s (copy a few words of the table's first row or "
-                      "title)" % (where, str(tg.get("anchor") or "")[:60], tg.get("unit")))
+        order = store.get("order", [])          # the heading row may hold only the years: the first rows count too
+        head = order[order.index(str(tg["unit"])):order.index(str(tg["unit"])) + TABLE_HEAD] if str(tg["unit"]) in order \
+            else [str(tg["unit"])]
+        if not a or not any(a in norm_quote(store["units"][x]["text"]) for x in head if x in store["units"]):
+            res.error("%s (table): anchor %r is not printed in the first %d passages from %s (copy a few words "
+                      "of the table's title, heading or first row)" % (where, str(tg.get("anchor") or "")[:60], TABLE_HEAD, tg.get("unit")))
         rows_, errs = expand_table(tg, store, sch, covered)
         for e in errs:
             res.error("%s (table %s): %s" % (where, tg.get("unit"), e))
@@ -2487,6 +2507,12 @@ def series_key(it: dict, spec: dict, doc_key: str = "") -> Tuple[tuple, str]:
     label = " · ".join(norm_space(x) for x in parts if str(x).strip()) or "(no label)"
     unit = str(f.get("unit_of_amount") or f.get("unit_of_value") or "")
     norm = tuple(re.sub(r"[^a-z0-9%]+", " ", NOTE_REF_RE.sub(" ", x).lower()).strip() for x in parts)
+    if it.get("type") in ("rpt_transaction", "rpt_balance") and f.get("party"):   # one party, one history
+        import entities
+        keys = [k for k in spec.get("key", spec["fields"]) if k not in spec["amounts"] and not k.startswith("unit_of")
+                and k != "period_label"]
+        norm = tuple(entities.canonical(f.get("party")) if k == "party" else x for k, x in
+                     zip(([None] if it.get("section") else []) + keys, norm))
     if not any(norm):
         norm = ("(no label)", doc_key, str(it.get("unit")), str(it.get("to") or ""))
     return (it.get("type"), it.get("basis", ""), unit.lower().strip(), norm), label
@@ -2533,6 +2559,9 @@ def dossier_line(r: dict, docs: dict) -> str:
         r["doc"], span, r.get("page"), extra)
 
 
+ENTITY_OWNERS = ("filings", "management", "special-situations")   # the entity graph is must-read for these
+
+
 def dossiers(run_dir: Path, log=print) -> dict:
     """Topic dossiers from the verified items, in three parts. **Series**: every number of every recurring line
     (statement lines, segments, KPIs, contingent liabilities, related-party amounts, ESG metrics ...) on one line across
@@ -2559,6 +2588,10 @@ def dossiers(run_dir: Path, log=print) -> dict:
     material, reference = defaultdict(list), defaultdict(list)
     unusual = 0
     n_items = 0
+    import entities as ent
+    graph = ent.EntityGraph()
+    m = rl.load_json(run_dir / rl.RUN_MANIFEST) if (run_dir / rl.RUN_MANIFEST).exists() else {}
+    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
     for c in p["chunks"]:
         units = load_json(run_dir / CACHE / "chunks" / ("%s.json" % c["id"]), {"units": {}})["units"]
         doc = docs[c["doc"]]
@@ -2567,6 +2600,7 @@ def dossiers(run_dir: Path, log=print) -> dict:
             if not spec or it.get("type") == "table":
                 continue
             n_items += 1
+            graph.add(it, c["doc"], doc["label"], doc_fiscal_year(doc, fy_end))
             gid = units.get(str(it.get("unit")), {}).get("gid", "")
             rec = dict(it, doc=c["doc"], chunk=c["id"], also_in=also.get(gid, []))
             topic = spec["topic"]
@@ -2667,6 +2701,15 @@ def dossiers(run_dir: Path, log=print) -> dict:
     idx += ["| %s | %s | `%s` |" % (d["key"], d["label"], d["pdf"]) for d in p["documents"]]
     ev = events_check(run_dir, log=log) if (run_dir / "corpus" / "events.csv").exists() else {}
     ev_tok = est_tokens(len((out_dir / "events.md").read_text(encoding="utf-8"))) if ev else 0
+    graph.finish()                                    # the entity graph: one record per company or person, all years
+    ev_rows = []
+    if (run_dir / "corpus" / "events.csv").exists():
+        with (run_dir / "corpus" / "events.csv").open(encoding="utf-8", newline="") as f:
+            ev_rows = list(csv.DictReader(f))
+    etext = graph.markdown(p["run_id"], head, ev_rows)
+    (out_dir / "entities.md").write_text(etext, encoding="utf-8")
+    write_json(run_dir / READING / "entities.json", graph.to_json())
+    ent_tok, ent_n, ent_flags = est_tokens(len(etext)), len(graph.entities), len(graph.flags(ev_rows))
     packs = out_dir / "packs"
     packs.mkdir(exist_ok=True)
     sizes = {}
@@ -2681,6 +2724,11 @@ def dossiers(run_dir: Path, log=print) -> dict:
                  "definition requires.", "",
                  "| Dossier (read in full) | Contents | Series | Material items | ≈ tokens |", "|---|---|---|---|---|"]
         lines += ["| `corpus/dossiers/%s.md` | %s | %d | %d | %d |" % (r[0], r[1], r[2], r[3], r[5]) for r in mine]
+        if name in ENTITY_OWNERS:
+            lines.append("| `corpus/dossiers/entities.md` | Every company and person across all years read: names merged, "
+                         "roles and flows by year, %d flags (leads) | - | %d | %d |" % (ent_flags, ent_n, ent_tok))
+            must += ent_tok
+            sizes[name] = must
         if ev:
             lines.append("| `corpus/dossiers/events.md` | The company's major events from news and the web, checked against "
                          "the reports read (%d not found in them: leads to check) | - | %d | %d |" % (ev["unmatched"],
@@ -2693,6 +2741,9 @@ def dossiers(run_dir: Path, log=print) -> dict:
             if must > PACK_BUDGET else ""), "",
                   "Reference (search it and read what your method needs; not required in full):", ""]
         lines += ["- corpus/dossiers/%s.reference.md — %d items, ≈ %s tokens" % (r[0], r[4], format(r[6], ",")) for r in mine]
+        if name not in ENTITY_OWNERS:
+            lines.append("- corpus/dossiers/entities.md — %d entities across all years (related parties, group, lenders, "
+                         "directors, auditors), ≈ %s tokens" % (ent_n, format(ent_tok, ",")))
         lines += ["", "Unusual items flagged by the readers (all topics): %d, in `corpus/dossiers/other.md`." % unusual,
                   "Reading coverage (pages read, repeat, structured, out of scope): `corpus/reading/COVERAGE.md`."]
         (packs / ("%s.md" % name)).write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -101,6 +101,9 @@ def main(argv=None) -> int:
         current = pointer.read_text().strip() if pointer.exists() else ""
         if manifest["run_id"] >= current:
             atomic_write(pointer, manifest["run_id"] + "\n")
+        import outcomes                       # the decision and its predictions, for the outcome loop
+        dec, preds = outcomes.record_decision(run_dir)
+        print("outcomes: decision %s recorded with %d prediction(s) (research/outcomes/)" % (dec.get("verdict"), len(preds)))
 
     manifest["status"] = outcome
     manifest["assessment_status"] = (sc or {}).get("assessment_status")

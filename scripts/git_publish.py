@@ -5,8 +5,9 @@
   python3 scripts/git_publish.py RUN_DIR --batch final [--push]
 
 Policy (PROJECT_INSTRUCTIONS.md §6, docs/OPERATIONS.md):
-  * Stages and commits ONLY the run directory (+ scoreboard and latest_run.txt
-    for the final batch). Other staged or unstaged user changes are untouched.
+  * Stages and commits ONLY the run directory (+ scoreboard, latest_run.txt and the
+    outcome loop's ledgers in research/outcomes/ for the final batch). Other staged or
+    unstaged user changes are untouched.
   * Commit messages state the true status (missing specialists, QC outcome).
   * Pushes the current branch to its remote with a plain `git push`. Never
     forces, never merges, never pulls. Refuses on detached HEAD.
@@ -57,7 +58,9 @@ def main(argv=None) -> int:
         if missing:
             msg += "; NOT complete: %s" % ", ".join(missing)
     else:
-        for extra in (root / rl.SCOREBOARD.name, run_dir.parent.parent / rl.LATEST_POINTER):
+        outcomes = root / "research" / "outcomes"           # finalize_run.py records the decision and its predictions
+        for extra in [root / rl.SCOREBOARD.name, run_dir.parent.parent / rl.LATEST_POINTER] + [
+                outcomes / n for n in ("decisions.csv", "predictions.csv", "resolutions.csv", "WATCH.md")]:
             if extra.exists():
                 paths.append(str(extra.resolve().relative_to(root.resolve())))
         sc_path = run_dir / "cio" / "scorecard.json"

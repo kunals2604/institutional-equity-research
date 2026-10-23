@@ -61,6 +61,19 @@ the passage and carries every amount of the reference item, whatever its type (t
   hour-cached prompt, solved from the calls' usage); a fix turn re-caches the previous answer ($0.2–0.4).
   Per 12k-token chunk: Opus $1.23, Sonnet $0.60, Haiku $0.20, resolution $0.31: **critical ≈ $2.14, other ≈ $1.74**
   (`agent_driver.py` `READ_COST_PER_12K`).
+- **Fix turns (2026-10-23, later the same day).** A fresh-call fix (new session, the byte-identical chunk, then the
+  fix block) was measured on c17: the cache served only the system prompt across sessions (18.3k tokens read) and the
+  chunk was written again (~33k tokens), so a fresh fix cost $0.28–0.36 like a resumed one, and without its earlier
+  answer the model needed a second round (Opus c17 $1.73 against $1.53 resumed). Fix turns resume as before
+  (`ONESHOT_FRESH_FIX` off). What does cut them: most first-pass errors were false alarms of the check, now calibrated
+  (`reading.py` `derive_quote`, `page_years`, `TABLE_HEAD`; `TestCheckCalibration`). Re-checked on the stored first
+  answers: c17 22 → 7 errors (the rest: three anchors the model paraphrased, one table it tagged badly), c46 19 → 2
+  (both now accepted). The pre-answer checklist in the one-shot rules removed the short-heading anchors (none in the
+  read made with it).
+- **Strict recall is noisy; content recall is the depth measure.** Two Opus reads of c17 with the same rules scored
+  0.88 and 0.61 strict material recall (one tags a growth rate `kpi`, the other `segment_data`; one records an
+  explanation as its own item, the other inside the cited passage) and 1.00 and 1.00 content recall. Report both;
+  judge depth by content recall, and type agreement by strict recall.
 - Usage: the five-hour utilization measured during this check (≈ $10–13 per window) includes the interactive Claude Code
   session running at the same time (15 % of the window was used before the engine started); the clean measurement of
   2026-10-19 ($28 per window) stands until the first run, where the CIO session waits while the engine reads.

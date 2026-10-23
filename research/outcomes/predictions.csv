@@ -1,0 +1,8 @@
+run_id,ticker,id,statement,metric,comparator,threshold,unit,period,resolution_source,resolution_rule,due,probability,claim_ids,structured
+20261012T132311Z,BHARTIARTL,P1,An industry-wide headline Indian mobile tariff increase (entry/prepaid plan prices raised by >=10% by Airtel) is announced between 13-Oct-2026 and 30-Sep-2027,other:tariff_round_announced,,,,,,,2027-09-30,0.35,SPS-C071 SPS-C086 IND-C048 BEAR-C036,N
+20261012T132311Z,BHARTIARTL,P2,"FY2027 consolidated capex (company-reported) exceeds FY2026's INR 47,522 crore by more than 5% (i.e. > INR 49,898 crore)",capex,,,,,,,2027-05-31,0.5,CIO-C040 CON-C029 CON-C202,N
+20261012T132311Z,BHARTIARTL,P3,India mobile ARPU reported for Q4FY2027 is at least INR 280,other:arpu_india_mobile,,,,,,,2027-05-31,0.35,CIO-C038 IND-C066 CON-C206,N
+20261012T132311Z,BHARTIARTL,P4,Dividend per share recommended for FY2027 is at least INR 24,dps,,,,,,,2027-05-31,0.85,CON-C162 CON-C204 SPS-C088,N
+20261012T132311Z,BHARTIARTL,P5,Bharti Group share of TRAI access-services AGR in QE Mar-2027 is at least 39.5%,market_share,,,,,,,2027-07-31,0.75,CIO-C046 IND-C034,N
+20261012T132311Z,BHARTIARTL,P6,"No equity issuance (rights, QIP, preferential or share swap) raising the fully paid share count by more than 1% between 13-Oct-2026 and 31-Mar-2028",share_count_change,,,,,,,2028-03-31,0.75,CIO-C002 CIO-C035 FIN-C036,N
+20261012T132311Z,BHARTIARTL,P7,Consolidated net debt incl. leases to annualised EBITDA (company basis) is at or below 1.29x at 31-Mar-2027,other:net_debt_to_ebitda_company,,,,,,,2027-05-31,0.55,CIO-C039 CON-C154 CON-C029,N

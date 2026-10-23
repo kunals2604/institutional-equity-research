@@ -104,6 +104,30 @@ DENY_SECRETS = ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.config/**)", "Rea
 # Other agents' sessions. (Not the whole projects folder: an agent reads back its own large tool outputs, which Claude
 # Code keeps in ~/.claude/projects/<project>/<session>/tool-results/; the audit checks they are its own.)
 DENY_TRANSCRIPTS = ["Read(~/.claude/projects/*/*.jsonl)", "Read(~/.claude/projects/*/*/subagents/**)"]
+# Every headless session sees only the project: no user settings (their hooks and plugins), no hook of any source,
+# no auto-memory. Measured 2026-10-23: without these a reader session carried the owner's MEMORY.md, and a user-level
+# hook or plugin (RTK, claude-mem, ECC, superpowers) would inject its context into every reader and specialist,
+# unseen by the reading audit. `reading_audit.context_breaches` checks each transcript for it.
+ISOLATION_SETTINGS = {"disableAllHooks": True, "autoMemoryEnabled": False}
+ISOLATION = ["--setting-sources", "project", "--settings", json.dumps(ISOLATION_SETTINGS, separators=(",", ":"))]
+ISOLATION_ENV = {"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+# MCP servers, pinned, given only to the agents that need them (`Assignment.mcp`); --strict-mcp-config keeps every
+# other server out. Playwright (Microsoft) drives the installed Chrome, headless, with an in-memory profile: the
+# librarian navigates JavaScript-only IR sites with it and still downloads every document through fetch_source.py.
+PLAYWRIGHT_MCP = "@playwright/mcp@0.0.83"
+# Navigation and reading only: no JavaScript evaluation or code runner, no uploads, drag and drop or form filling.
+BROWSER_TOOLS = tuple("mcp__playwright__browser_%s" % t for t in (
+    "navigate", "navigate_back", "snapshot", "find", "click", "select_option", "type", "press_key", "wait_for", "tabs",
+    "network_requests", "network_request", "hover", "close"))
+
+
+def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
+    if name == "playwright":
+        out = run_dir.resolve() / "_cache" / agent / "browser"
+        return {"type": "stdio", "command": "npx",
+                "args": ["-y", PLAYWRIGHT_MCP, "--browser", "chrome", "--headless", "--isolated",
+                         "--block-service-workers", "--output-dir", str(out)]}
+    raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
                     "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py")
 SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "valuation",
@@ -173,6 +197,7 @@ def child_env() -> Dict[str, str]:
     for k, v in os.environ.items():
         if k in KEEP_ENV or not (k in DROP_ENV or k.startswith("CLAUDE_CODE_")):
             env[k] = v
+    env.update(ISOLATION_ENV)
     return env
 
 
@@ -192,11 +217,13 @@ def abs_rule(tool: str, path: Path, suffix: str = "") -> str:
     return "%s(/%s%s)" % (tool, path.resolve(), suffix)
 
 
-def agent_tools(agent: str) -> List[str]:
-    """The tools an agent's definition grants (its frontmatter), so a headless session has exactly those."""
+def agent_tools(agent: str, mcp: bool = False) -> List[str]:
+    """The tools an agent's definition grants (its frontmatter), so a headless session has exactly those: the built-in
+    ones (for --tools), or with mcp=True its MCP tools (allowed by name; the server comes from Assignment.mcp)."""
     text = (rl.AGENTS_DIR / ("%s.md" % agent)).read_text(encoding="utf-8")
     m = re.search(r"^tools:\s*(.+)$", text, re.M)
-    return [t.strip() for t in m.group(1).split(",")] if m else ["Read", "Write", "Edit", "Bash"]
+    tools = [t.strip() for t in m.group(1).split(",")] if m else ["Read", "Write", "Edit", "Bash"]
+    return [t for t in tools if t.startswith("mcp__") == mcp]
 
 
 def agent_skills(agent: str) -> List[str]:
@@ -273,6 +300,7 @@ class Assignment:
     message: Optional[Callable[[str, str], str]] = None   # (kind, text) -> the stream-json user message line
     on_result: Optional[Callable[[str, str], None]] = None  # (kind, result text): the engine records the read
     fix_builder: Optional[Callable[[List[str]], str]] = None
+    mcp: Tuple[str, ...] = ()       # MCP servers this agent gets (MCP_SERVERS); every other agent gets none
 
 
 def run_paths(run_dir: Path) -> List[Path]:
@@ -316,8 +344,15 @@ def independence_denies(run_dir: Path, me: str, review: bool = False) -> List[st
     return out + DENY_TRANSCRIPTS + DENY_SECRETS
 
 
+# Network and remote-shell clients an agent never runs itself: downloads go through scripts/fetch_source.py (its curl
+# runs inside the script, not as the agent's command), so a source that tells an agent to send data somewhere meets a
+# denied command. Speed bumps, not a sandbox; the untrusted-content rule in every brief is the first line.
+NET_DENY = ("curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync", "ftp", "telnet")
+
+
 def shell_denies() -> List[str]:
-    return ["Bash(git:*)"] + ["Bash(python3 scripts/%s:*)" % s for s in CIO_ONLY_SCRIPTS]
+    return (["Bash(git:*)"] + ["Bash(python3 scripts/%s:*)" % s for s in CIO_ONLY_SCRIPTS]
+            + ["Bash(%s:*)" % c for c in NET_DENY])
 
 
 def run_command(cmd: List[str]) -> Tuple[int, str]:
@@ -377,6 +412,18 @@ def reader_assignment(run_dir: Path, act: dict, oneshot: Optional[bool] = None) 
 
 ONESHOT_READING = True          # measured 2026-10-22: one call per chunk with accounting, 3-4x cheaper than a session
 ONESHOT_FIX_ROUNDS = 2          # fix turns before a chunk falls back to the agentic reader
+RESUME_WAIT_S = 60              # seconds before resuming a session that ended without a result (x tries)
+ONESHOT_FRESH_FIX = False       # off, measured 2026-10-23. A resumed fix re-processes the earlier answer and its
+#                                 preserved reasoning at the cache-write rate ($0.32-0.40 a fix on Opus; fix turns were
+#                                 26 % of reading spend). A fresh call sending the byte-identical chunk then the fix
+#                                 block was meant to read the chunk from cache, but the cache served only the system
+#                                 prompt across sessions: each fresh fix re-wrote ~33k tokens ($0.28-0.36) and, without
+#                                 its earlier answer, needed a second round (c17: $1.73 against $1.53 resumed). The
+#                                 lever that worked was fewer fix turns: the check's false alarms were calibrated
+#                                 (first-pass errors 22 -> 7 on c17, 19 -> 0 on c46). On, if cross-session caching of
+#                                 a message prefix becomes available.
+FIX_RESUME_MSG = ("Your answer was interrupted. Answer the FIX block again, complete: labelled corrections, deletions, new "
+                  "lines and, when it changes, the complete chunk_receipt.")
 ONESHOT_PREFACE = ("ONE-SHOT MODE. The engine puts the chunk file (and its rendered VIEW REQUIRED pages) in the message, "
                    "runs the reading check on your answer, and sends you back exactly what the check found. Ignore every "
                    "instruction below about tools, files, parts directories and running the check yourself: you answer "
@@ -388,12 +435,20 @@ ONESHOT_RULES = ("ACCOUNTING (checked by script): every passage a1..aN of the ch
                  "references) is recorded in a field of an item citing that passage, or set aside in the chunk_receipt's "
                  "\"numbers_not_facts\" ({\"a12\": [\"135\"]}) because it is a reference, not a fact. Work through the "
                  "passages in order; before you finish, check that every passage and every number is accounted for.\n\n"
+                 "BEFORE YOU ANSWER, CHECK (the errors earlier reads made most): every anchor is copied verbatim from "
+                 "the cited passage (or, for an item with `to`, from its span): at least three consecutive words, or one "
+                 "whole printed line or table cell; a table tag's anchor from its title, heading or first rows; one fact "
+                 "per item and one CARO clause per item; every "
+                 "number of every cited passage recorded or set aside; a page_receipt for every page and one complete "
+                 "chunk_receipt.\n\n"
                  "OUTPUT: only JSON lines, nothing else (no prose, no code fences): the items and table tags, one "
                  "page_receipt per page of the chunk, then one chunk_receipt with the role, your model id, units_read (the "
                  "number of passages the chunk header states), pages_viewed (every VIEW REQUIRED page you were shown), "
-                 "no_fact and numbers_not_facts.\n\nFIX TURNS: when the engine sends errors, answer with JSON lines only: "
-                 "to correct an item, its label and the corrected line (E7 {...}); to remove one, E7 DELETE; new items as "
-                 "plain JSON lines; and, when your no_fact, numbers_not_facts or receipts change, the new complete "
+                 "no_fact and numbers_not_facts.\n\nFIX TURNS: when the message ends with a FIX block (the reading "
+                 "check's errors on your earlier answer, its faulty lines shown with labels such as E7), answer with JSON "
+                 "lines only: to correct an item, its label and the corrected line (E7 {...}); to remove one, E7 DELETE; "
+                 "new items as plain JSON lines, only for what the errors name (the lines not shown stand and must not be "
+                 "repeated); and, when your no_fact, numbers_not_facts or receipts change, the new complete "
                  "chunk_receipt (and page_receipts), which replace the old ones.")
 JSON_LINE_RE = re.compile(r"^(?:(E\d+)\s+)?(\{.*\}|DELETE)\s*$")
 
@@ -459,15 +514,22 @@ def oneshot_reader(run_dir: Path, act: dict, base: "Assignment") -> "Assignment"
                  "the rules; the rendered VIEW REQUIRED pages follow the chunk.\n\n%s" % (rid, act["launch"], role, cid, chunk))
 
     def message(kind: str, text: str) -> str:
-        content = [{"type": "text", "text": first if kind == "start" else text}]
-        if kind == "start" and role != "resolved":
-            import base64
-            st = reading.chunk_cache(run_dir, cid)
-            for pg in reading.view_pages(st):
-                for img in reading.render(run_dir, cid, pg):
-                    content.append({"type": "text", "text": "[VIEW REQUIRED page %d of %s, rendered]" % (pg, st["doc"])})
-                    content.append({"type": "image", "source": {"type": "base64", "media_type": "image/png",
-                                                                "data": base64.b64encode(img.read_bytes()).decode()}})
+        """`start`: the chunk and its pages. `fixfresh`: the same blocks, byte for byte (so the cached prefix is read,
+        not written again), then the fix block. Any other kind continues the session with the text alone."""
+        if kind not in ("start", "fixfresh"):
+            content = [{"type": "text", "text": text}]
+        else:
+            content = [{"type": "text", "text": first}]
+            if role != "resolved":
+                import base64
+                st = reading.chunk_cache(run_dir, cid)
+                for pg in reading.view_pages(st):
+                    for img in reading.render(run_dir, cid, pg):
+                        content.append({"type": "text", "text": "[VIEW REQUIRED page %d of %s, rendered]" % (pg, st["doc"])})
+                        content.append({"type": "image", "source": {"type": "base64", "media_type": "image/png",
+                                                                    "data": base64.b64encode(img.read_bytes()).decode()}})
+            if kind == "fixfresh":
+                content.append({"type": "text", "text": text})
         return json.dumps({"type": "user", "message": {"role": "user", "content": content}}) + "\n"
 
     def current() -> List[str]:
@@ -493,15 +555,22 @@ def oneshot_reader(run_dir: Path, act: dict, base: "Assignment") -> "Assignment"
         part.parent.mkdir(parents=True, exist_ok=True)
         part.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    def fix_builder(errs: List[str]) -> str:
+    def fix_builder(errs: List[str], fresh: bool = False) -> str:
         lines = current()
         by_line, other = defaultdict(list), []
         for e in errs:
             m = re.search(r"\b01\.jsonl line (\d+)", e)
             (by_line[int(m.group(1))] if m else other).append(e.split(": ", 1)[-1] if m else e)
-        out = ["The reading check found what follows. Answer with JSON lines only: corrections as the label and the "
-               "corrected line (E7 {...}), removals as E7 DELETE, new items as plain lines, and a new complete "
-               "chunk_receipt when no_fact or numbers_not_facts change.", ""]
+        out = ["FIX. The reading check found what follows in your earlier answer for this chunk. Answer with JSON lines "
+               "only: corrections as the label and the corrected line (E7 {...}), removals as E7 DELETE, new items as "
+               "plain lines, and a new complete chunk_receipt when no_fact or numbers_not_facts change.", ""]
+        if fresh:
+            out[0] += (" You do not see the rest of that answer: the lines not shown stand; add only what the errors "
+                       "name, and do not repeat other items.")
+            rc = next((i for i, l in enumerate(lines, 1) if '"chunk_receipt"' in l), None)
+            if rc and rc not in by_line:
+                by_line[rc] = ["(no error: your current chunk_receipt, to rewrite complete if no_fact or "
+                               "numbers_not_facts change)"]
         for n in sorted(by_line):
             out.append("E%d %s" % (n, lines[n - 1] if 0 < n <= len(lines) else "(line not found)"))
             out += ["   error: %s" % x for x in by_line[n][:4]]
@@ -634,7 +703,8 @@ def historian_assignment(run_dir: Path, prompt: str, years: int = 10) -> Assignm
     model, effort = reading.pinned(run_dir, "historian")
     files = [run_dir / "corpus" / "events.csv", run_dir / "corpus" / "EVENTS.md"]
     allowed = ["Read", "WebSearch", "WebFetch"] + [abs_rule(t_, f) for f in files for t_ in ("Write", "Edit")] + [
-        "Bash(python3 scripts/%s:*)" % s for s in ("fetch_source.py", "exchange_index.py", "corpus.py", "verify.py events")]
+        "Bash(python3 scripts/%s:*)" % s for s in ("fetch_source.py", "exchange_index.py", "corpus.py", "verify.py events",
+                                                    "connectors.py")]
 
     def check() -> List[str]:
         import verify
@@ -670,7 +740,7 @@ def librarian_assignment(run_dir: Path, prompt: str) -> Assignment:
                       tools=agent_tools("librarian"), allowed=allowed,
                       denied=DENY_TRANSCRIPTS + DENY_SECRETS + shell_denies(), dirs=run_paths(run_dir), check=check,
                       resume_msg=RESUME_MSG % "corpus/librarian_log.md", fix_msg=REPORT_FIX_MSG, stage="0",
-                      purpose="find the documents the map lacks")
+                      purpose="find the documents the map lacks", mcp=("playwright",))
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -797,12 +867,30 @@ def usage_log_path() -> Path:
     return Path(os.environ.get("EQR_USAGE_LOG") or Path.home() / ".claude" / "equity-research-usage.jsonl").expanduser()
 
 
+def isolation_probe(claude: str) -> List[str]:
+    """One tiny isolated Haiku session in the project (a fraction of a cent) before any agent runs: what reached its
+    context besides the project CLAUDE.md ([] when nothing did). A leak found here costs seconds, not a reading."""
+    import reading_audit
+    sid = str(uuid.uuid4())
+    try:
+        subprocess.run([claude, "-p", "Reply with the single word OK.", "--model", "haiku", "--tools", "",
+                        "--strict-mcp-config", "--disable-slash-commands", "--output-format", "json",
+                        "--session-id", sid] + ISOLATION, cwd=str(rl.ROOT), env=child_env(), capture_output=True,
+                       text=True, timeout=180, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return ["the isolation probe could not run (%s)" % exc]
+    tj = transcripts_dir() / ("%s.jsonl" % sid)
+    if not tj.exists():
+        return ["the isolation probe left no transcript (%s)" % tj]
+    return reading_audit.context_breaches(reading_audit.load_lines(tj))
+
+
 def probe_usage(claude: str) -> dict:
     """One tiny Haiku call (no tools, no session kept), for its rate_limit_event."""
     try:
         r = subprocess.run([claude, "-p", "Reply with the single word OK.", "--model", "haiku", "--tools", "",
                             "--strict-mcp-config", "--disable-slash-commands", "--output-format", "stream-json", "--verbose",
-                            "--no-session-persistence"], cwd=tempfile.gettempdir(), env=child_env(), capture_output=True,
+                            "--no-session-persistence"] + ISOLATION, cwd=tempfile.gettempdir(), env=child_env(), capture_output=True,
                            text=True, timeout=120, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.SubprocessError):
         return {}
@@ -1006,17 +1094,24 @@ class Engine:
             return [self.claude, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
                     "--resume" if resume else "--session-id", sid, "--model", a.model, "--effort", a.effort, "--tools", "",
                     "--system-prompt-file", str(a.system_file), "--strict-mcp-config", "--disable-slash-commands",
-                    "--permission-mode", "dontAsk"]
-        cmd = [self.claude, "-p", message]
+                    "--permission-mode", "dontAsk"] + ISOLATION
+        cmd = [self.claude, "-p", message] + ISOLATION
         cmd += ["--resume", sid] if resume else ["--session-id", sid]
         cmd += ["--agent", a.agent, "--model", a.model, "--effort", a.effort, "--output-format", "stream-json", "--verbose",
                 "--tools", ",".join(a.tools), "--strict-mcp-config", "--disable-slash-commands",
-                "--permission-mode", "dontAsk", "--allowedTools"] + a.allowed + ["--disallowedTools"] + a.denied
+                "--permission-mode", "dontAsk", "--allowedTools"] + a.allowed + (agent_tools(a.agent, mcp=True) if a.mcp else []) + [
+                "--disallowedTools"] + a.denied
         if max_turns:
             cmd += ["--max-turns", str(max_turns)]
         sp = skills_prompt(a.agent, self.run_dir / "_cache" / "engine" / "system")
         if sp:
             cmd += ["--append-system-prompt-file", str(sp.resolve())]
+        if a.mcp:
+            cfg = self.run_dir / "_cache" / "engine" / "mcp" / ("%s.json" % a.agent)
+            cfg.parent.mkdir(parents=True, exist_ok=True)
+            cfg.write_text(json.dumps({"mcpServers": {n: mcp_server(n, self.run_dir, a.agent) for n in a.mcp}}, indent=2),
+                           encoding="utf-8")
+            cmd += ["--mcp-config", str(cfg.resolve())]
         for d in a.dirs:
             cmd += ["--add-dir", str(d)]
         return cmd
@@ -1088,9 +1183,13 @@ class Engine:
                 self.log("%s: the session process %s of an earlier engine still runs; waiting for it to end" % (a.label, sess["pid"]))
                 while alive(sess.get("pid")):
                     time.sleep(30)
+            fixing = sess.get("purpose") == "fix"          # a fresh-call fix session (one-shot reads)
             if Path(sess["transcript"]).exists():
-                kind, message = "resume", a.resume_msg
+                kind, message = ("fixresume", FIX_RESUME_MSG) if fixing else ("resume", a.resume_msg)
                 self.log("%s: resuming session %s (%s)" % (a.label, sess["session_id"][:8], a.agent))
+            elif fixing:            # the CLI never created it: send the same fix again, same id
+                kind, message = "fixfresh", sess.get("fix_message", "")
+                self.log("%s: starting fix session %s (%s), never started" % (a.label, sess["session_id"][:8], a.agent))
             else:                   # the CLI never created it (stopped before its first call): start it, same id
                 kind = "start"
                 message = a.prompt if len(sessions) == 1 else self.continuation(a, sessions[:-1])
@@ -1099,15 +1198,17 @@ class Engine:
             message = a.prompt if not sessions else self.continuation(a, sessions)
             sess = self.new_session(a, sessions, tdir)
             kind = "start"
-        start_msg = message
+        start_kind, start_msg = kind, message
 
         def again() -> Tuple[str, str]:     # resume the session, or start it when the CLI never created it
             if not Path(sess["transcript"]).exists():
-                return "start", start_msg
+                return start_kind, start_msg
+            if sess.get("purpose") == "fix":
+                return "fixresume", FIX_RESUME_MSG
             return "resume", a.resume_msg
         while True:
-            if kind == "start":
-                start_msg = message
+            if kind in ("start", "fixfresh"):
+                start_kind, start_msg = kind, message
             if self.stop:
                 return self.pause(a, sessions, sess)
             try:
@@ -1120,7 +1221,8 @@ class Engine:
                 max_turns = CHECKPOINT_TURNS if kind == "checkpoint" else self.o.segment_turns
             before = fingerprint(self.run_dir, a, self.busy_owned(a)) if a.guarded else {}
             w0 = windows_of(self.usage)
-            cmd = self.command(a, sess["session_id"], message, resume=(kind != "start"), max_turns=max_turns)
+            cmd = self.command(a, sess["session_id"], message, resume=(kind not in ("start", "fixfresh")),
+                               max_turns=max_turns)
             started = time.time()
 
             def on_start(pid):              # recorded, so a later engine waits for an orphaned session instead of racing it
@@ -1152,6 +1254,14 @@ class Engine:
             reset = limit_reset(got["result"], transcript, started)
             if reset:
                 att["limit_resets_at"] = dt.datetime.fromtimestamp(reset, dt.timezone.utc).replace(microsecond=0).isoformat()
+            if len(sess["attempts"]) == 0 and transcript.exists():      # the first call of this session: what it saw
+                import reading_audit
+                leaks = reading_audit.context_breaches(reading_audit.load_lines(transcript))
+                if leaks:
+                    att["context_breaches"] = leaks
+                    self.log("%s: ISOLATION: %s's context carried %s; stopping (the reading audit fails this session)"
+                             % (a.label, a.agent, "; ".join(leaks)))
+                    self.stop = self.stop or "context from outside the brief reached %s" % a.agent
             sess["attempts"].append(att)
             self.update_record(a, sessions=sessions)
             if self.stop and (got["rc"] != 0 or not got["result"]):
@@ -1191,7 +1301,7 @@ class Engine:
                     self.end_session(sess, transcript)
                     self.close(a, sessions, "abandoned", "the session could not be brought to an end")
                     return "abandoned"
-                time.sleep(60 * resumes)
+                time.sleep(RESUME_WAIT_S * resumes)
                 kind, message = again()
                 continue
             errs = a.check()
@@ -1205,10 +1315,11 @@ class Engine:
             if not errs:
                 self.end_session(sess, transcript)
                 self.close(a, sessions, "pass", result=att["result"])
-                u = sess["usage"]
-                self.log("%s: PASS %s (%s min, %s API turns, %s tokens processed, peak context %s, $%.2f)" % (
-                    a.label, a.agent, u.get("minutes_first_to_last"), u.get("api_turns"), format(u.get("processed", 0), ","),
-                    format(u.get("peak_context", 0), ","), job_cost(sessions)))
+                u = sessions_usage(sessions)
+                self.log("%s: PASS %s (%s min, %s API turns, %s tokens processed, peak context %s, $%.2f%s)" % (
+                    a.label, a.agent, u["minutes_first_to_last"], u["api_turns"], format(u["processed"], ","),
+                    format(u["peak_context"], ","), job_cost(sessions),
+                    ", %d sessions" % len(sessions) if len(sessions) > 1 else ""))
                 return "pass"
             if kind == "checkpoint":              # it finished its step and wrote everything: a fresh session goes on
                 if len(sessions) > CONTINUATIONS:
@@ -1221,13 +1332,23 @@ class Engine:
                 kind = "start"
                 continue
             fixes += 1
-            self.log("%s: the check fails (%d errors)%s" % (a.label, len(errs), "; resuming the session with them"
-                                                             if fixes <= a.fix_rounds else "; closing it as failed"))
+            fresh = a.oneshot and ONESHOT_FRESH_FIX and a.fix_builder is not None
+            self.log("%s: the check fails (%d errors)%s" % (a.label, len(errs), (
+                "; sending them in a fresh call on the cached chunk" if fresh else "; resuming the session with them")
+                if fixes <= a.fix_rounds else "; closing it as failed"))
             if fixes > a.fix_rounds:
                 self.end_session(sess, transcript)
                 self.close(a, sessions, "failed", "; ".join(errs[:5]))
                 return "failed"
-            kind, message = "fix", (a.fix_builder(errs) if a.fix_builder else a.fix_msg % "\n".join(errs[:40]))
+            if fresh:
+                message = a.fix_builder(errs, True)
+                self.end_session(sess, transcript, "fixed in a fresh call")
+                sess = self.new_session(a, sessions, tdir)
+                sess.update(purpose="fix", fix_message=message)
+                self.update_record(a, runner="headless", sessions=sessions)
+                kind = "fixfresh"
+            else:
+                kind, message = "fix", (a.fix_builder(errs) if a.fix_builder else a.fix_msg % "\n".join(errs[:40]))
 
     def new_session(self, a: Assignment, sessions: List[dict], tdir: Path) -> dict:
         sid = str(uuid.uuid4())
@@ -1343,6 +1464,18 @@ def options(**kw) -> argparse.Namespace:
     return argparse.Namespace(**base)
 
 
+def sessions_usage(sessions: List[dict]) -> dict:
+    """Usage summed over a job's sessions (peak context: the largest)."""
+    u = Counter()
+    for s in sessions:
+        us = s.get("usage") or (transcript_usage(Path(s["transcript"])) if s.get("transcript") else {})
+        for k in ("minutes_first_to_last", "api_turns", "processed", "output"):
+            u[k] += us.get(k, 0) or 0
+        u["peak_context"] = max(u["peak_context"], us.get("peak_context", 0) or 0)
+    u["minutes_first_to_last"] = round(u["minutes_first_to_last"], 1)
+    return u
+
+
 def job_cost(sessions: List[dict]) -> float:
     return sum((at.get("cost_usd") or 0.0) for s in sessions for at in s.get("attempts", []))
 
@@ -1409,6 +1542,12 @@ class Session:
         self.caf = None
 
     def __enter__(self):
+        if self.eng.claude and not os.environ.get("EQR_SKIP_ISOLATION_PROBE"):
+            leaks = isolation_probe(self.eng.claude)
+            if leaks:
+                raise SystemExit("ISOLATION: an agent session would carry context from outside its brief: %s. Remove "
+                                 "the user-level hook, plugin or memory that injects it (or fix the CLI flags in "
+                                 "agent_driver.ISOLATION), then run the engine again." % "; ".join(leaks))
         owner = reading.driver_owner(self.eng.run_dir)
         if owner:
             raise SystemExit("another engine runs for this run (pid %s on %s since %s: %s)" % (
@@ -1891,7 +2030,7 @@ def probe(eng: Engine) -> int:
     sp = skills_prompt("bear-case", Path(tempfile.gettempdir()) / "eqr-probe")
     cmd = [eng.claude, "-p", msg, "--agent", "bear-case", "--model", "haiku", "--tools", ",".join(agent_tools("bear-case")),
            "--strict-mcp-config", "--disable-slash-commands", "--permission-mode", "dontAsk", "--output-format", "json",
-           "--no-session-persistence", "--append-system-prompt-file", str(sp)]
+           "--no-session-persistence", "--append-system-prompt-file", str(sp)] + ISOLATION
     r = subprocess.run(cmd, cwd=str(rl.ROOT), env=child_env(), capture_output=True, text=True, timeout=300,
                        stdin=subprocess.DEVNULL)
     try:

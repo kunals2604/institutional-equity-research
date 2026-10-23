@@ -28,8 +28,9 @@ edit it here, then run the tests.
 3. **Tag, do not transcribe.** An item is a tag on the page, not a restatement of it: the dossier prints the
    passage itself, so never paraphrase it.
    - `anchor` is a few consecutive words copied verbatim from the cited passage that state the fact: at least three
-     words, or the whole passage when it is shorter (a statement row: its label; a lone value: the value). Do not
-     copy the passage. The check attaches the printed text as the item's `quote`: the cited passage, run on into the
+     words, or one whole printed line or table cell of it (a statement row: its label; a lone value: the value; a
+     heading), or the whole passage when it is shorter; for an item with `to`, anywhere in its span; for a table tag,
+     in the table's first five passages (its title, heading rows or first row). Do not copy the passage. The check attaches the printed text as the item's `quote`: the cited passage, run on into the
      passages after it on the same page (eight at most) until it holds the anchor and every number of every field.
    - When a fact runs over several passages (a key audit matter, a CARO remark, a policy, a claim, a litigation
      description, an answer on a call), add `"to": "<last passage id>"` (forty passages at most, across pages of the

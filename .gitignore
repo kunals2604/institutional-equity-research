@@ -13,3 +13,6 @@ research/companies/*/runs/*/_cache/
 
 # Scoreboard write lock
 *.lock
+
+# Exchange files cached by the outcome loop (scripts/outcomes.py)
+research/outcomes/_cache/

@@ -49,6 +49,9 @@ You work only from **verifiable public evidence**. You never claim an interview,
 | Competitors | Competitors' annual reports, results, presentations and call transcripts (1–4); their regulatory filings | What competitors say about the same market, and the numbers they report, are independent of the company |
 | Digital and demand | Search-interest trends, app download and usage rankings, web-traffic estimates (6–7) | Leading indicators only, with stated limitations; never decision-critical on their own |
 
+## Free connectors
+Free ground-truth series (registry, `connectors.py list`): sector regulators and bodies (TRAI, FADA, SIAM, CEA, PPAC, DGCA), government order wins (`open cppp`, `open gem`), new plants and capacity (`open parivesh`), US FDA recalls and inspections for pharma (`connectors.py openfda`, `open fda-dashboard`), news leads by date (`connectors.py gdelt`). Vahan refuses automated access: use FADA's monthly releases. Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/scuttlebutt.md` and **every dossier it lists, in full** (the

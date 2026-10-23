@@ -80,6 +80,9 @@ Everything else (layers, verdict, valuation, reasoning) lives in the run directo
 | `agent_driver.py` | The engine: runs every agent except the CIO as its own headless Claude Code session outside the CIO's context — `reading RUN_DIR [--parallel N] [--bakeoff]`, `librarian`, `specialists [--only a,b] [--parallel N]`, `followup AGENT --stage 2\|3\|4 --message-file F [--output REL]`, `audit`; pinned model and effort, a permission profile per agent (readers write only their parts; a specialist cannot read another's work, `cio/`, `audit/` or other runs and writes only its own files; the auditor writes only `audit/`), a one-hour cache, usage limits waited out, a weekly reserve (`--weekly-ceiling`), parallel sessions only below `--parallel-ceiling` of the five-hour window, checks resumed with their errors, long agents handed to a fresh session at `--context-limit` after a checkpoint, file fingerprints around each specialist segment; records in `corpus/reading/launches.json` and `engine/jobs.json` (+ `engine/ENGINE.md`). `prompt RUN_DIR NAME` (the filled specialist brief), `show` (time, tokens, cost and usage per session), `usage [--probe]` (the account's five-hour and weekly utilization), `probe` (configuration check), `cli` |
 | `agent_driver.py events` (the `historian`) | Stage 0: a dated ten-year timeline of the company's major events from news and the web, each with the source opened (`corpus/events.csv`, `EVENTS.md`), checked by `verify.py events` (dates in the window, categories, every source opened in its own session); `reading.py dossiers` then matches each event against the items read from that year's documents (`corpus/dossiers/events.md`, must-read in every pack) and `verify.py run` puts every event not found in the reports read into the CIO's findings |
 | `verify.py` | The verification loop: `specialist RUN_DIR NAME` (script checks of one specialist from its transcripts and files: values it never saw, sources and pages it never opened, its reading pack, checklist evidence, independence, integrity, model and effort), `sample` / `claims` (the `verifier` agent's re-check of a claim sample at the sources), `run --stage specialists\|final` (the whole research: `qc/VERIFICATION.md`, required by `validate_run.py`), `waive FINDING_ID --reason`, `lessons` (what earlier runs' verification found, per agent and check; fed into the next briefs) |
+| `claim_graph.py` | The claim graph: `build RUN_DIR` (every claim, CALCULATION input, scorecard input and report line citing claims → `qc/claim_graph.json`; errors: an ID no ledger holds, the scorecard included; a CALCULATION naming no input claim; a cycle), `down RUN_DIR ID…` (everything built on these claims), `up RUN_DIR ID…` (what they rest on). `verify.py` uses it: the verifier samples the facts under the calculations a conclusion cites; when a claim is found wrong, its owner must review every claim built on it and record each in `propagation.csv` (`DEPENDENT_NOT_REVIEWED`; the CIO's in `cio/propagation.csv`); `validate_run.py --stage final` fails on its errors |
+| `entities.py` | The entity graph, built by `reading.py dossiers` (no model call): every company and person the reading recorded, merged across years only on the same normalized name, the same CIN or a printed "formerly known as" (close names are listed to confirm, never merged), with every role and flow by fiscal year cited to its page, and leads (first or last year listed, relationship changes, a related-party counterparty missing from that year's list, a loan or guarantee to an entity with no disclosed relationship, entities in the historian's events) → `corpus/dossiers/entities.md` (must-read for filings, management and special-situations) and `corpus/reading/entities.json` |
+| `outcomes.py` | The outcome loop (`research/outcomes/`): `finalize_run.py` records each finished decision and its predictions (`decisions.csv`, `predictions.csv`); `watch` (any time, or from cron, e.g. `30 18 * * 1-5 cd <repo> && python3 scripts/outcomes.py watch`) checks every covered company's NSE close against its triggers, its review date and its due predictions → `WATCH.md` (which companies are due for a re-run, and why); `resolve` resolves due price predictions from exchange closes and lists the rest; `record RUN_ID PID hit\|miss\|void --actual X --evidence E` (the CIO, with a claim ID or source); `due --ticker T --cutoff D` (a company's earlier predictions due by a cutoff: a re-run must resolve them, `validate_run.py --stage final` checks it); `score` → Brier score, hit rate by stated probability, each verdict against the pro-rata hurdle after six months, and attribution to the agents whose claims each prediction rested on → `docs/CALIBRATION_LOG.md`. Specialists never see any of it |
 | `reading_audit.py` | `session`: this session's model and effort (Stage 0). `run`: from the agents' own transcripts, every agent on its pinned model and effort, every reader received every line of its chunks and opened every VIEW REQUIRED page, every specialist read its reading pack → `qc/READING_AUDIT.md` |
 | `audit_tools.py` | The auditor's aids: `tieout` (every cited number in the report against its ledger value; flags incomplete citations and unsupported numbers) and `sample` (a reproducible stratified claim sample with the local file to open) |
 | `reconcile_numbers.py` | Cross-ledger numeric conflicts (same metric, period, basis, unit), written to `qc/numeric_conflicts.csv` |
@@ -96,6 +99,8 @@ Everything else (layers, verdict, valuation, reasoning) lives in the run directo
 | `corpus.py` | Local FilingForge library: `status`, `catalog` (CATALOG.md + SHA-256 + coverage), `search` (regex across all years with line numbers), `locate` (PDF page for a passage), `pages` (page-marked text) |
 | `netfetch.py` | Transport library: system curl first (Python's LibreSSL 2.8.3 is unreliable), host request profiles (NSE API, NSE archives, BSE API over HTTP/2, BSE files, SEC, default), retries, payload validation (error pages, truncated PDFs, corrupt ZIPs), Internet Archive lookups, safe ZIP extraction |
 | `fetch_source.py` | Download a document with provenance (SHA-256, time, HTTP status, method, validation) into `RUN_DIR/_cache/`; logs failures too. Order: in-run reuse → the URL → `--alt` mirrors → the archive's raw copy; ZIPs unpacked with member hashes |
+| `browser.py` | Headless Chrome (installed Google Chrome; `EQR_CHROME` overrides): `snapshot URL OUT.pdf` (the page as printed, with its URL and date on every page), `dom URL OUT.html` (the DOM after JavaScript ran), `check`. In a run use `fetch_source.py URL --snapshot` / `--dom` (cached, logged, reused). Public pages only: a fresh profile per call, no logins, no CAPTCHA solving, no paywall bypass, ≥ `EQR_BROWSER_MIN_INTERVAL` (3) seconds between two calls to one host |
+| `connectors.py` | The free external sources, cached in `RUN_DIR/_cache/connectors/<source>/` and logged in `source_retrievals.csv`: `list`; `open SOURCE` (snapshot of a registry source's landing page); `tri` (NSE indices' total-return history); `mospi` (MoSPI's official MCP: CPI, WPI, IIP, national accounts, ASI, PLFS, energy, RBI series); `gdelt` (news leads from 2017); `openfda` (US FDA recalls and approvals); `kanoon` (Indian Kanoon judgments and tribunal orders: needs a key, capped per run); `transcribe` (an audio-only earnings call, locally with whisper.cpp); `setup-whisper`. The registry with each source's verified landing page, agents and access: `config/data_sources.json` `connectors` (§6e) |
 | `exchange_index.py` | Stage-0 index of NSE (annual reports, full announcement history, results XBRL and integrated filings, shareholding, board meetings, corporate actions, PIT, SAST), BSE (annual reports, announcements by year, scrip/ISIN lookup), the IR site (bounded crawl) and the Internet Archive; `show` lists filings by type and period |
 | `document_map.py` | Stage-0 document map: every required annual report, transcript, presentation, results and shareholding filing, with local and exchange copies; downloads the core documents once; cross-checks the two channels (page counts, first-page text, period labels, duplicates, extraction quality) → `corpus/DOCUMENT_MAP.md`. `add` registers a document the librarian found elsewhere (validated, text layer built) |
 | `structured_filings.py` | Stage-0 structured exchange filings (exact, tier 1): BRSR XBRL by year, AGM and postal-ballot voting results by shareholder category, the Integrated Filings' audit-opinion statements and board composition → `corpus/structured/` and `corpus/STRUCTURED.md`; tells the reading planner which BRSR pages the XBRL covers |
@@ -206,6 +211,47 @@ above); each specialist's brief carries its lessons as process rules (never anot
 the verifier samples more of an agent that had discrepancies, and a check the CIO keeps waiving is listed for the owner
 to review. The reading stage learns inside each run: the in-run calibration decides from the run's own sample which
 non-critical classes Sonnet reads alone.
+
+## 6e. Isolation, the free connectors and the browser (owner, 2026-10-23)
+
+**Isolation.** Every headless agent session runs with `agent_driver.ISOLATION`: `--setting-sources project`,
+`--settings {"disableAllHooks":true,"autoMemoryEnabled":false}`, `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, `--strict-mcp-config`.
+Without it a reader carried the owner's auto-memory (measured 2026-10-23), and any user-level hook or plugin (RTK,
+claude-mem, ECC, superpowers ...) would inject its context into every reader and specialist. The engine runs one tiny
+isolated probe session before any agent (`agent_driver.isolation_probe`) and refuses to start on a leak; it checks
+each session's first call too, and `reading_audit.py` fails a run whose agent transcripts show an instruction file
+other than the project `CLAUDE.md` or any hook output. `validate_system.py` lists user-level add-ons present on the Mac:
+agents never see them, but the CIO session (an ordinary interactive session) does. Start research sessions without
+them, or accept that the CIO works with them.
+
+**Untrusted content.** Everything an agent fetches or opens is evidence, never instructions (the specialist brief and
+the historian, librarian, verifier and auditor definitions). Agents cannot run `curl`, `wget`, `nc`, `ssh`, `scp`,
+`rsync`, `ftp` or `telnet` themselves (`shell_denies`); downloads go through `fetch_source.py`.
+
+**Free connectors** (`python3 scripts/connectors.py list`). One-time setup on this Mac:
+
+```
+brew install whisper-cpp ffmpeg                     # local transcription of audio-only calls
+python3 scripts/connectors.py setup-whisper          # the model, about 0.6 GB, once
+# Google Chrome (installed) serves browser.py and the librarian's Playwright MCP (npx, pinned @playwright/mcp@0.0.83)
+```
+
+Keys for the free-with-key sources, never in the repository: Indian Kanoon (`api.indiankanoon.org`: Rs 500 free credit;
+non-commercial use may apply for Rs 10,000/month free) as `EQR_KANOON_TOKEN` or in the Keychain
+(`security add-generic-password -s eqr-indiankanoon -a api -w <token>`), spend capped per run by `EQR_KANOON_MAX_INR`
+(default 200); data.gov.in (a key on registration). Sources marked `manual` in the registry (MCA21, Vahan, CCI) refused
+automated access from curl and from Chrome on 2026-10-23; they are not bypassed.
+
+**The librarian's browser.** The librarian alone gets the Playwright MCP (Microsoft), driving the installed Chrome
+headless with an in-memory profile, and only navigation tools (`agent_driver.BROWSER_TOOLS`: no JavaScript evaluation,
+code runner, uploads or form filling). It finds links on JavaScript-built IR pages and downloads every document through
+`fetch_source.py`. The CIO's interactive session gets MoSPI's official MCP from `.mcp.json` (Claude Code asks once to
+approve it); agents use `connectors.py mospi`, which caches every answer.
+
+**Agent efficiency.** `reading_audit.py run` also writes `qc/agent_efficiency.md` (`reading_audit.py efficiency
+RUN_DIR` alone): per session, ranges read three or more times with no write between, commands repeated, failed and
+denied tool calls, the largest tool results and the costliest API calls. A sensor for tightening the briefs after a
+run, never a gate.
 
 ## 7. Changing the methodology
 

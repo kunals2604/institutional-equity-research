@@ -367,6 +367,48 @@ def check_run_preservation(rep):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def check_isolation_and_connectors(rep):
+    """The engine isolates every agent session, the librarian alone gets the browser, the connector registry is
+    well formed; and what is installed on this Mac (reported, never a failure)."""
+    import agent_driver as ad
+    import browser
+    import connectors
+    src = (ROOT / "scripts" / "agent_driver.py").read_text(encoding="utf-8")
+    rep.add("agent sessions are isolated (project settings only, no hooks, no auto-memory)",
+            ad.ISOLATION[:2] == ["--setting-sources", "project"] and ad.ISOLATION_SETTINGS.get("disableAllHooks") is True
+            and ad.ISOLATION_SETTINGS.get("autoMemoryEnabled") is False and src.count("+ ISOLATION") >= 4)
+    lib_mcp = ad.agent_tools("librarian", mcp=True)
+    others = [a for a in rl.AGENT_NAMES if (rl.AGENTS_DIR / ("%s.md" % a)).exists() and a != "librarian"
+              and ad.agent_tools(a, mcp=True)]
+    rep.add("only the librarian has browser tools, exactly the navigation set", sorted(lib_mcp) == sorted(ad.BROWSER_TOOLS)
+            and not others, "others: %s" % others if others else "")
+    reg = connectors.registry()
+    bad = [r.get("id") for r in reg if r.get("access") not in ("free", "free-key", "manual") or not r.get("agents")
+           or (r.get("landing") and not r["landing"].startswith("https://"))]
+    rep.add("connector registry well formed (%d sources)" % len(reg), bool(reg) and not bad, ", ".join(map(str, bad)))
+    tools = {"Chrome (snapshots, librarian browser)": browser.find_chrome(), "npx (Playwright MCP)": shutil.which("npx"),
+             "whisper-cli": shutil.which("whisper-cli"), "ffmpeg": shutil.which("ffmpeg"),
+             "whisper model": str(connectors.WHISPER_MODEL) if connectors.WHISPER_MODEL.exists() else None}
+    missing = [k for k, v in tools.items() if not v]
+    rep.add("local tools for the free connectors", True, ("missing: %s (docs/OPERATIONS.md: install lines)" % ", ".join(missing))
+            if missing else "")
+    home = Path.home() / ".claude"
+    found = []
+    try:
+        us = json.loads((home / "settings.json").read_text(encoding="utf-8"))
+        if us.get("hooks"):
+            found.append("user hooks (%s)" % ", ".join(sorted(us["hooks"])))
+        plugins = [k for k, v in (us.get("enabledPlugins") or {}).items() if v]
+        if plugins:
+            found.append("plugins %s" % ", ".join(sorted(plugins)))
+    except (OSError, ValueError):
+        pass
+    if (home / "CLAUDE.md").exists():
+        found.append("~/.claude/CLAUDE.md")
+    rep.add("user-level add-ons", True, ("present: %s. Agent sessions are isolated from them; the CIO session is not "
+                                         "(docs/OPERATIONS.md)" % "; ".join(found)) if found else "")
+
+
 def find_claude_bin(explicit):
     if explicit:
         return explicit
@@ -410,7 +452,8 @@ def main(argv=None) -> int:
     p.add_argument("--json", action="store_true")
     a = p.parse_args(argv)
     rep = Report()
-    for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation):
+    for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation,
+               check_isolation_and_connectors):
         try:
             fn(rep)
         except Exception as exc:  # a crashing check is a failing check

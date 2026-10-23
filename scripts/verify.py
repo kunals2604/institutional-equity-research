@@ -55,6 +55,7 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import claim_graph as cg  # noqa: E402
 import reading_audit as ra  # noqa: E402
 import research_lib as rl  # noqa: E402
 
@@ -85,7 +86,15 @@ CHECKS = {
     "SPECIALIST_UNVERIFIED": ("blocking", "cio", False, ""),
     "AUDIT_OPEN": ("blocking", "cio", False, ""),
     "EVENTS_NOT_FOUND": ("major", "cio", False, ""),
+    "CLAIM_GRAPH": ("blocking", "agent", True, "Every CALCULATION names its input claim IDs in formula_or_inputs, and "
+                                                "every claim ID you cite is in your ledger."),
+    "DEPENDENT_NOT_REVIEWED": ("blocking", "agent", True,
+                               "When a claim of yours is corrected, review every claim built on it and record what you "
+                               "did with each (updated, or unaffected and why)."),
+    "CIO_CLAIM_GRAPH": ("blocking", "cio", False, ""),
+    "CIO_DEPENDENT_NOT_REVIEWED": ("blocking", "cio", False, ""),
 }
+PROPAGATION_COLUMNS = ("claim", "dependent", "action", "reason")
 FACT_TAGS = ("FACT", "MANAGEMENT STATEMENT")
 SOURCE_BLOCK = (3, 0.10)       # SOURCE_NOT_OPENED blocks above 3 claims or 10 % of the checked claims
 DEFAULT_SAMPLE = 8
@@ -359,6 +368,8 @@ def specialist(run_dir: Path, name: str, tdir: Optional[Path] = None, write: boo
     seen = Seen(sessions)
     findings += claim_checks(rows, seen, source_keys(run_dir), name)
     findings += checklist_findings(run_dir, name, ids)
+    old = rl.load_json(vdir(run_dir) / ("%s.json" % name)) if (vdir(run_dir) / ("%s.json" % name)).exists() else {}
+    findings += graph_findings(run_dir, name, old.get("corrected", []))
     # its reading pack, over all of its sessions
     pack = run_dir / "corpus" / "dossiers" / "packs" / ("%s.md" % name)
     if pack.exists() and sessions:
@@ -409,6 +420,55 @@ def specialist(run_dir: Path, name: str, tdir: Optional[Path] = None, write: boo
     return res
 
 
+def propagation_path(run_dir: Path, owner: str) -> Path:
+    return run_dir / "cio" / "propagation.csv" if owner == "cio" else \
+        run_dir / "specialists" / ("%s_workpapers" % owner) / "propagation.csv"
+
+
+def propagation_rows(run_dir: Path, owner: str) -> Set[Tuple[str, str]]:
+    """(claim, dependent) pairs the owner has recorded as reviewed: updated, or unaffected with the reason."""
+    path = propagation_path(run_dir, owner)
+    if not path.exists():
+        return set()
+    with path.open(encoding="utf-8", newline="") as f:
+        return {((r.get("claim") or "").strip(), (r.get("dependent") or "").strip()) for r in csv.DictReader(f)
+                if (r.get("action") or "").strip().lower() in ("updated", "unaffected") and (r.get("reason") or "").strip()}
+
+
+def unreviewed(run_dir: Path, g: dict, owner: str, corrected: Iterable[str]) -> List[str]:
+    """The owner's claims and scorecard inputs built on corrected claims that it has not recorded as reviewed."""
+    done = propagation_rows(run_dir, owner)
+    out = []
+    for c in sorted(set(corrected)):
+        for d in cg.down(g, [c]):
+            if g["owners"].get(d) == owner and (d in g["claims"] or d.startswith("scorecard:")) and (c, d) not in done:
+                out.append("%s (built on %s)" % (d, c))
+    return out
+
+
+def graph_findings(run_dir: Path, name: str, corrected: Iterable[str]) -> List[dict]:
+    """The claim graph for one specialist: its own broken links, and what is built on its corrected claims."""
+    g = cg.build(run_dir, write=False)
+    out = []
+    errs = ["%s cites %s, which no ledger holds" % (m["node"], m["id"]) for m in g["errors"]["missing"]
+            if g["owners"].get(m["node"]) == name]
+    errs += ["%s names no input claim ID in formula_or_inputs" % c for c in g["errors"]["calculation_without_inputs"]
+             if g["claims"][c]["owner"] == name]
+    errs += ["cycle: %s" % " -> ".join(c) for c in g["errors"]["cycles"] if g["owners"].get(c[0]) == name]
+    if errs:
+        out.append(finding("CLAIM_GRAPH", name, "%d broken link(s) between your claims" % len(errs),
+                           "Name each CALCULATION's input claim IDs in formula_or_inputs, and cite only claim IDs your "
+                           "ledger holds (python3 scripts/claim_graph.py build RUN_DIR lists them).", errs))
+    todo = unreviewed(run_dir, g, name, corrected)
+    if todo:
+        out.append(finding("DEPENDENT_NOT_REVIEWED", name, "%d claim(s) built on corrected claims not yet reviewed" % len(todo),
+                           "Review each against the corrected input (recompute it with the scripts where it is a "
+                           "calculation), update it or its report lines if it changes, and record each in %s with the "
+                           "columns %s (action: updated or unaffected)." % (
+                               "specialists/%s_workpapers/propagation.csv" % name, ",".join(PROPAGATION_COLUMNS)), todo))
+    return out
+
+
 def merge_record(run_dir: Path, name: str, findings: List[dict], n_claims: int, n_sessions: int) -> dict:
     """Write the Tier A result, keeping the Tier B results, the remediation rounds and the waivers already recorded."""
     path = vdir(run_dir) / ("%s.json" % name)
@@ -419,7 +479,8 @@ def merge_record(run_dir: Path, name: str, findings: List[dict], n_claims: int, 
         if f["id"] in waived:
             f["waived"] = waived[f["id"]]
     rec = {"agent": name, "checked_at": now(), "claims": n_claims, "sessions": n_sessions, "tier_a": findings,
-           "tier_b": old.get("tier_b", {}), "rounds": old.get("rounds", []), "waived": waived}
+           "tier_b": old.get("tier_b", {}), "rounds": old.get("rounds", []), "waived": waived,
+           "corrected": old.get("corrected", [])}
     rec["status"] = status_of(rec)
     path.parent.mkdir(parents=True, exist_ok=True)
     rl.write_json(path, rec)
@@ -464,6 +525,7 @@ def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier") -> List
     key = set()
     for sec in ("Domain Conclusion", "Executive Summary", "Key Findings", "Summary"):
         key |= set(rl.CLAIM_ID_RE.findall(rl.section(text, sec) or ""))
+    key |= set(cg.fact_inputs(cg.build(run_dir, write=False), key))    # the facts under the calculations they cite
     rnd = random.Random("%s:%s" % (seed, name))
     first = [r for r in rows if r["claim_id"] in key]
     numeric = [r for r in rows if r["claim_id"] not in key and len(digits(r.get("value") or "")) >= 3]
@@ -605,10 +667,18 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
     mat = ["%s: %s" % (c, (got[c].get("evidence") or "")[:200]) for c in want if got[c]["result"] == "Material discrepancy"]
     unv = ["%s: %s" % (c, (got[c].get("evidence") or "")[:200]) for c in want if got[c]["result"] == "Not verifiable"]
     fs = []
+    wrong = [c for c in want if got[c]["result"] == "Material discrepancy"]
     if mat:
+        g = cg.build(run_dir, write=False)
+        built = [d for d in cg.down(g, wrong) if g["owners"].get(d) == name]
+        deps = [d for d in built if d in g["claims"]]
+        lines = [d for d in built if d in g["lines"]]
         fs.append(finding("CLAIM_DISCREPANCY", name, "%d of %d re-checked claims materially differ from their sources" % (
-            len(mat), len(want)), "Correct each claim (and every claim or conclusion built on it) to what the source "
-                                  "says, as printed; the verifier re-checks them.", mat))
+            len(mat), len(want)), "Correct each claim to what the source says, as printed; the verifier re-checks them. "
+            "Built on them (claim_graph.py down): %s; report lines citing them: %s. Review each built claim and "
+            "record it in specialists/%s_workpapers/propagation.csv (%s)." % (
+                ", ".join(deps[:40]) or "none", ", ".join(lines[:20]) or "none", name, ",".join(PROPAGATION_COLUMNS)),
+            mat))
     if unv:
         fs.append(finding("CLAIM_UNVERIFIABLE", name, "%d re-checked claims could not be located at their sources" % len(unv),
                           "Give each claim a source and locator anyone can open (document, page, URL), or remove it.", unv))
@@ -621,6 +691,7 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
             if f["id"] in full.get("waived", {}):
                 f["waived"] = full["waived"][f["id"]]
         full["tier_b"] = rec
+        full["corrected"] = sorted(set(full.get("corrected", [])) | set(wrong))
         full["status"] = status_of(full)
         rl.write_json(path, full)
     return rec, []
@@ -692,6 +763,23 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
         else:
             findings.append(finding("READING_AUDIT", "cio", "no reading audit", "Run reading_audit.py run RUN_DIR."))
         findings += cio_findings(run_dir, tdir)
+        g = cg.build(run_dir)
+        errs = ["%s cites %s, which no ledger holds" % (m["node"], m["id"]) for m in g["errors"]["missing"]
+                if g["owners"].get(m["node"]) == "cio"]
+        errs += ["%s names no input claim ID" % c for c in g["errors"]["calculation_without_inputs"]
+                 if g["claims"][c]["owner"] == "cio"] + ["cycle: %s" % " -> ".join(c) for c in g["errors"]["cycles"]]
+        if errs:
+            findings.append(finding("CIO_CLAIM_GRAPH", "cio", "%d broken link(s) in the CIO's claims, scorecard or report"
+                                    % len(errs), "Fix each (python3 scripts/claim_graph.py build RUN_DIR).", errs))
+        corrected = sorted({c for n in per for c in rl.load_json(vdir(run_dir) / ("%s.json" % n)).get("corrected", [])
+                            if (vdir(run_dir) / ("%s.json" % n)).exists()})
+        todo = unreviewed(run_dir, g, "cio", corrected)
+        if todo:
+            findings.append(finding("CIO_DEPENDENT_NOT_REVIEWED", "cio", "%d CIO claim(s) or scorecard input(s) built on "
+                                    "claims the verification corrected" % len(todo),
+                                    "Review each against the corrected claim, rebuild the scorecard and ladder where it "
+                                    "changes, and record each in cio/propagation.csv (%s)." % ",".join(PROPAGATION_COLUMNS),
+                                    todo))
         aud_ledgers = sorted((run_dir / "audit").glob("*_ledger.csv"))
         aud_sessions = agent_sessions(run_dir, rl.AUDITOR, tdir)
         if aud_ledgers and aud_sessions:      # the auditor's own claims, against what its sessions read

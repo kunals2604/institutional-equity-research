@@ -37,6 +37,9 @@ Explain **how money is made in this industry, who captures it, how that is chang
 - The regulator's consultation papers, orders and policy documents that set the industry's economics, for 10 years.
 - At least one global or historical analogue market, documented with sources.
 
+## Free connectors
+Official statistics by API: `connectors.py mospi list_datasets` → `get_indicators` → `get_metadata` → `get_data` (CPI, WPI, IIP, national accounts, ASI factory data, PLFS, energy). Sector series (registry, `connectors.py list`): TRAI, FADA, SIAM, CEA, PPAC, DGCA, RBI data; open them with `connectors.py open <source>` and cite the snapshot. Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/industry.md` and **every dossier it lists, in full** (the

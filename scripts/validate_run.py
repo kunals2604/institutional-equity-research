@@ -134,6 +134,34 @@ def check_reading(run_dir: Path, results: list, stage: str) -> None:
         results.append(ar)
 
 
+def check_prior_outcomes(run_dir: Path, manifest: dict, results: list) -> None:
+    """A re-run resolves every earlier prediction of the company that fell due by its cutoff (hit, miss or void, with
+    evidence: outcomes.py record) and states in "Change Since Prior Run" how the prior decision turned out."""
+    import outcomes
+    res = rl.Result("outcomes")
+    root = outcomes.research_root(run_dir)
+    ticker, run_id = manifest.get("ticker", ""), manifest.get("run_id", run_dir.name)
+    try:
+        cutoff = dt.date.fromisoformat(str(manifest.get("research_cutoff", ""))[:10])
+    except ValueError:
+        return
+    for p in outcomes.due(root, ticker, cutoff, before_run=run_id):
+        if not p["resolution"]:
+            res.error("prior prediction %s of run %s (due %s) is not resolved: python3 scripts/outcomes.py record %s %s "
+                      "hit|miss|void --actual ... --evidence <claim ID or source>" % (p["id"], p["run_id"], p["due"],
+                                                                                     p["run_id"], p["id"]))
+    prior = [d for d in outcomes.read_rows(outcomes.out_dir(root) / "decisions.csv")
+             if d["ticker"] == ticker and d["run_id"] < run_id]
+    report = run_dir / "cio" / "final_report.md"
+    if prior and report.exists():
+        last = max(prior, key=lambda d: d["run_id"])
+        sec = rl.section(report.read_text(encoding="utf-8"), "Change Since Prior Run") or ""
+        if last["run_id"] not in sec:
+            res.error("Change Since Prior Run must name the prior run %s and state how its decision (%s at %s) turned "
+                      "out" % (last["run_id"], last["verdict"], last["price"]))
+    results.append(res)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("run_dir")
@@ -185,7 +213,7 @@ def main(argv=None) -> int:
         sc_path = run_dir / "cio" / "scorecard.json"
         sc = None
         if sc_path.exists():
-            sres = rl.validate_scorecard(sc_path)
+            sres = rl.validate_scorecard(sc_path, version)
             results.append(sres)
             try:
                 sc = rl.load_json(sc_path)
@@ -193,6 +221,14 @@ def main(argv=None) -> int:
                 sc = None
             if sc and sc.get("run_id") != manifest.get("run_id"):
                 sres.error("scorecard run_id does not match manifest")
+            if version >= rl.V31:                 # the outcome loop: earlier predictions due by this cutoff are resolved
+                check_prior_outcomes(run_dir, manifest, results)
+            if version >= rl.V31:                 # the claim graph: every cited ID held, every calculation's inputs named
+                import claim_graph
+                gres = rl.Result("claim graph")
+                for e in claim_graph.errors(claim_graph.build(run_dir, write=not read_only)):
+                    gres.error(e)
+                results.append(gres)
         else:
             missing = rl.Result(str(sc_path))
             missing.error("scorecard.json missing")

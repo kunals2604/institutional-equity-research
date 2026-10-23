@@ -43,7 +43,8 @@ TRANSIENT_HTTP = {408, 425, 429, 500, 502, 503, 504}
 # empty reply, send/receive errors, HTTP/2 stream errors.
 TRANSIENT_CURL = {5, 6, 7, 16, 18, 28, 35, 52, 55, 56, 92}
 ERROR_PAGE_RE = re.compile(
-    r"access denied|request rejected|you don't have permission|403 forbidden|404 not found|page not found|"
+    r"access denied|access forbidden|request rejected|you don['\u2019]t have permission|403 forbidden|404 not found|"
+    r"page not found|"
     r"the page you (are looking for|requested)|service unavailable|bad gateway|gateway time-?out|"
     r"captcha|are you a robot|just a moment\.\.\.|enable javascript and cookies|attention required|"
     r"error occurred while processing|session expired|too many requests",

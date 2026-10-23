@@ -53,7 +53,7 @@ No agent can hold ten years of annual reports (4–5M tokens) in one context, an
 
 Rules for specialists: read the must-read part of your pack in full (across sessions when it is large, noting in your workpapers what each dossier established); verify every decision-critical item on its page and cite the **document and page**, never the dossier; go beyond the dossiers wherever your method needs it; never state your own reading coverage ("read in full", "read in substance"), which the validator rejects.
 
-**WebFetch caution.** WebFetch returns a model-processed rendering of a page, not the raw document. It can paraphrase or mis-transcribe numbers. Use it to discover and navigate. For any **decision-critical number**, read it from the original document (a PDF page via Read, or an HTML table via `html_tables.py`) and cite that location.
+**WebFetch caution.** WebFetch returns a model-processed rendering of a page, not the raw document. It can paraphrase or mis-transcribe numbers. Use it to discover and navigate. For any **decision-critical number**, read it from the original document (a PDF page via Read, or an HTML table via `html_tables.py`) and cite that location. A web page you cite is kept as a snapshot (`fetch_source.py URL --snapshot`; `--dom` for a page whose table JavaScript builds, then `html_tables.py`).
 
 ---
 
@@ -154,6 +154,8 @@ Transcripts are read in full by the readers; the `transcripts` dossier holds eve
 | `scripts/corpus.py` | Local FilingForge library: `status`, `catalog`, `search` (regex across all years, with line numbers), `locate` (PDF page for a passage, via poppler), `pages` (page-marked text) |
 | `scripts/fetch_source.py` | Download with provenance (SHA-256, timestamp, status) into `RUN_DIR/_cache/` (git-ignored); validated payloads; mirrors (`--alt`), archive fallback and in-run reuse (§1a); logs failures too |
 | `scripts/exchange_index.py` | NSE / BSE / IR / archive filing index; `show` to list filings of a type or period |
+| `scripts/fetch_source.py --snapshot` / `--dom` | A web page as headless Chrome renders it (citable PDF with URL and date; or the DOM after JavaScript), cached and logged |
+| `scripts/connectors.py` | Free external sources, cached and logged: `list`, `open <source>` (landing-page snapshot), `tri` (index total returns), `mospi` (official statistics), `gdelt` (news leads), `openfda`, `kanoon` (courts and tribunals, with a key), `transcribe` (audio-only calls); registry `config/data_sources.json` |
 | `scripts/doc_text.py` | The text layer (§4): `toc`, `page`, `search`, `verify` on every core document |
 | `scripts/reading.py` | The reading stage (§1c): `plan`, `next`, `check`, `compare`, `dossiers`, `status`, `sample`, `bakeoff`, `reference`; your reading pack is `corpus/dossiers/packs/<name>.md` |
 | `scripts/structured_filings.py` | Exact structured exchange filings: BRSR XBRL, voting results, audit-opinion statements, board composition (`corpus/STRUCTURED.md`) |

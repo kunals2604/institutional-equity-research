@@ -63,7 +63,7 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 | confidence | `H`, `M` or `L` |
 | corroborated_by | Other claim IDs or sources that independently agree |
 | contradicted_by | Claim IDs or sources that disagree (required if known) |
-| formula_or_inputs | **Required for CALCULATION** (formula plus input claim IDs, for example `FIN-C010 / FIN-C011`). **Required for ESTIMATE** (method and basis). |
+| formula_or_inputs | **Required for CALCULATION** (formula plus input claim IDs, for example `FIN-C010 / FIN-C011`). **Required for ESTIMATE** (method and basis). These IDs are the claim graph (`scripts/claim_graph.py`): a CALCULATION naming no input claim, or any cited ID no ledger holds (scorecard included), fails verification and the final validation; when a claim is corrected, every claim built on it is listed for its owner to review and record in `propagation.csv`. |
 | notes | Assumptions, adjustments, reasons for downgrades |
 
 ### Validation rules (enforced)
@@ -107,6 +107,7 @@ Record **material** claims: those that a conclusion, score, valuation input or c
 
 - Download decision-critical documents (annual reports, results, transcripts, orders, rating rationales) with `scripts/fetch_source.py`. It stores the file under `RUN_DIR/_cache/` (git-ignored, because of licensing and size) and appends a row to `RUN_DIR/source_retrievals.csv` (committed): time, author, URL, final URL, HTTP status, content type, bytes, **SHA-256**, local path. Failed attempts are logged too, which documents missing evidence honestly.
 - WebFetch output is a model-processed rendering. It may be cited for **qualitative** facts with the URL. **Decision-critical numbers** must be read from the original document (PDF page via the Read tool, or an HTML table via `scripts/html_tables.py`) and cited at that location.
+- **Web pages are cited from a snapshot.** `scripts/fetch_source.py URL --snapshot` saves the page as headless Chrome renders it (a PDF with its URL and date on every page) in the run cache and logs it; cite `[that file p.N]`. The verifier re-opens the same file, so a page that later changes or disappears stays checkable. WebFetch remains for discovery and navigation. Results of `scripts/connectors.py` (official statistics, index total returns, court and regulator records, FDA data) are cached and logged the same way and cited as their cached file.
 
 ## 3. Numerical controls (all agents; the CIO audits)
 

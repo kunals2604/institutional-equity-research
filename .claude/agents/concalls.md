@@ -35,6 +35,9 @@ Establish management's **record of forecasting, communicating and delivering** o
 - The document map lists the transcripts found on the exchanges, the IR site, the Internet Archive and the local corpus. Read the exchange or IR original; the corpus Markdown is a reading copy.
 - Annual-report MD&A and Chairman's or MD's letters going back up to 10 years for long-dated targets; investor-day presentations where they exist.
 
+## Free connectors
+A call that exists only as a recording (the exchange filing or IR page links it): `connectors.py transcribe <audio file or URL>` (local whisper.cpp; a machine transcript with timestamps: confirm names and numbers in a filing, and cite the recording with its timestamp). Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/concalls.md` and **every dossier it lists, in full** (the

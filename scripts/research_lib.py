@@ -1261,8 +1261,37 @@ def _date(s) -> Optional[dt.date]:
         return None
 
 
-def _validate_decision_outputs(sc: dict, res: Result) -> None:
-    """Coverage, predictions, decision triggers, position risk, review date (SCORING.md §§9-10)."""
+PREDICTION_COMPARATORS = (">=", "<=", ">", "<", "between", "event")
+PREDICTION_SOURCES = ("price", "results_xbrl", "filing", "other")
+
+
+def _validate_prediction_structure(p: dict, pid, res: Result) -> None:
+    """A prediction a script (or the CIO, with evidence) can resolve as hit or miss (SCORING.md §10): what is
+    measured, the comparator and threshold, its unit and period, and where the outcome will be read."""
+    comp = p.get("comparator")
+    if comp not in PREDICTION_COMPARATORS:
+        res.error("prediction %s: comparator must be one of %s" % (pid, ", ".join(PREDICTION_COMPARATORS)))
+        return
+    if p.get("resolution_source") not in PREDICTION_SOURCES:
+        res.error("prediction %s: resolution_source must be one of %s" % (pid, ", ".join(PREDICTION_SOURCES)))
+    if comp == "event":
+        if not (p.get("resolution_rule") or "").strip():
+            res.error("prediction %s: an event prediction needs its resolution_rule (what counts as it happening)" % pid)
+        return
+    th = p.get("threshold")
+    if comp == "between":
+        if not (isinstance(th, list) and len(th) == 2 and all(isinstance(x, (int, float)) for x in th) and th[0] < th[1]):
+            res.error("prediction %s: a between threshold is [low, high]" % pid)
+    elif not isinstance(th, (int, float)) or isinstance(th, bool):
+        res.error("prediction %s: threshold must be a number" % pid)
+    for key in ("metric", "unit", "period"):
+        if not str(p.get(key) or "").strip():
+            res.error("prediction %s: %s missing" % (pid, key))
+
+
+def _validate_decision_outputs(sc: dict, res: Result, structured: bool = True) -> None:
+    """Coverage, predictions, decision triggers, position risk, review date (SCORING.md §§9-10). `structured`: the
+    resolvable form of predictions and the review-date rule (runs from methodology 3.1.0)."""
     asof = _date(sc.get("as_of_date") or sc.get("research_cutoff"))
     mins = depth_minimums()
     cov = sc.get("coverage")
@@ -1296,6 +1325,8 @@ def _validate_decision_outputs(sc: dict, res: Result) -> None:
                 res.error("prediction %s: due must be YYYY-MM-DD" % pid)
             elif asof and due <= asof:
                 res.error("prediction %s: due date must be after the as-of date" % pid)
+            if structured:
+                _validate_prediction_structure(p, pid, res)
     trig = sc.get("decision_triggers")
     if not isinstance(trig, dict):
         res.error("decision_triggers block missing")
@@ -1323,6 +1354,11 @@ def _validate_decision_outputs(sc: dict, res: Result) -> None:
         res.error("next_review_due must be YYYY-MM-DD")
     elif asof and not asof < review <= asof + dt.timedelta(days=366):
         res.error("next_review_due must fall within 12 months after the as-of date")
+    elif structured and isinstance(preds, list) and preds:
+        dues = [d for d in (_date(p.get("due")) for p in preds) if d]
+        if dues and min(dues) > review:
+            res.error("at least one prediction must fall due on or before next_review_due (%s): the review resolves "
+                      "it, so the outcome loop learns within the review cycle" % review)
 
 
 _CLASSIFICATION_GATES = {
@@ -1332,7 +1368,8 @@ _CLASSIFICATION_GATES = {
 }
 
 
-def validate_scorecard(path: Path) -> Result:
+def validate_scorecard(path: Path, version: Optional[tuple] = None) -> Result:
+    """`version`: the run's methodology version (rules added later are skipped for older runs); None = current."""
     res = Result(str(path))
     try:
         sc = json.loads(path.read_text(encoding="utf-8"))
@@ -1352,7 +1389,8 @@ def validate_scorecard(path: Path) -> Result:
     if sc["qc_status"] not in ("PASS", "FAIL", "PENDING"):
         res.error("qc_status must be PASS/FAIL/PENDING")
     if sc["assessment_status"] == "complete":
-        _validate_decision_outputs(sc, res)
+        own = version or version_tuple(sc.get("methodology_version") or "0.0.0")
+        _validate_decision_outputs(sc, res, structured=own >= V31)
     if sc["assessment_status"] == "insufficient_evidence":
         if not (sc.get("insufficient_evidence_reason") or "").strip():
             res.error("insufficient_evidence_reason required")

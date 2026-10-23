@@ -133,6 +133,19 @@ Evidence that comes from neither management nor the financial statements (owner:
 | UK company accounts (for example foreign subsidiaries of Indian groups) | Companies House (gov.uk) |
 | Other listed companies | National exchange and regulator filing systems; company IR sites |
 
+## 5a. Free connectors (verified 2026-10-23)
+
+`python3 scripts/connectors.py list` prints the registry (`config/data_sources.json` `connectors`): each free source
+with what it gives, the agents it serves, its verified landing page and its access. Adapters fetch structured data
+directly (`tri`: NSE Indices total-return series; `mospi`: MoSPI's official MCP server for CPI, WPI, IIP, national
+accounts, ASI, PLFS and energy; `gdelt`: news leads from 2017; `openfda`: US FDA recalls and approvals; `kanoon`:
+Indian Kanoon judgments and tribunal orders, with a key; `transcribe`: an audio-only earnings call, locally). Every
+other source is opened as a snapshot (`connectors.py open <source>`, then `fetch_source.py URL --snapshot` for the pages
+you cite). **Access results, 2026-10-23:** MCA21 (Akamai "Access Denied"), the Vahan dashboard ("Access Forbidden") and
+CCI's order list (timeouts) refused automated access from curl and from headless Chrome; they are marked `manual` and
+are not bypassed: use the annual report and exchange filings for the group map, FADA's monthly releases (built from
+Vahan) for registrations, and Indian Kanoon (`doctypes cci`) for CCI orders.
+
 ## 6. Access behaviour and retrieval mechanics (verified 2026-10-17; structured feeds 2026-10-18)
 
 | Host | What works | What fails | Handled by |

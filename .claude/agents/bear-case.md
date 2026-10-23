@@ -38,6 +38,9 @@ Build the **strongest credible case against the thesis** and map the specific **
 - The company's worst historical periods (from filings): what happened to revenue, margins, cash, the balance sheet and the share price.
 - At least **3 historical analogues**: comparable companies, in this sector or a close one, that suffered permanent capital loss, with what caused it and how early it was visible.
 
+## Free connectors
+Searches for what could break the case: litigation and tribunal orders (`connectors.py kanoon search`, when a key is set), SEBI and NCLT orders (`connectors.py open sebi-orders|nclt`), rating rationales and downgrades (`exchange_index.py show --type credit_rating`, agency rationales), FDA actions for pharma (`connectors.py openfda`), dated news leads (`connectors.py gdelt`). Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/bear-case.md` and **every dossier it lists, in full** (the

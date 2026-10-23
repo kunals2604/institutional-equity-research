@@ -119,6 +119,31 @@ def profile(entries: List[dict]) -> dict:
             "usage_limit_stops": limits}
 
 
+def context_breaches(entries: List[dict]) -> List[str]:
+    """What reached an agent's context from outside its brief: an instruction file other than the project CLAUDE.md
+    (the owner's auto-memory MEMORY.md, a user CLAUDE.md, an imported RTK.md ...) or the output of any hook (a user or
+    plugin hook: RTK, claude-mem, ECC, superpowers). The engine's sessions run with `agent_driver.ISOLATION`; this
+    checks that they did."""
+    project = (rl.ROOT / "CLAUDE.md").resolve()
+    out: List[str] = []
+    for d in entries:
+        a = d.get("attachment") or {}
+        kind = str(a.get("type") or "")
+        if kind == "instructions":
+            for f in a.get("files") or []:
+                path = str(f.get("path") or "")
+                try:
+                    same = Path(path).resolve() == project
+                except (OSError, ValueError):
+                    same = False
+                if not same:
+                    out.append("instruction file %s (%s)" % (path, f.get("type") or "?"))
+        elif kind.startswith("hook") or "hookSpecificOutput" in a or a.get("hookEvent"):
+            out.append("hook output %s%s" % (a.get("hookName") or a.get("hookEvent") or kind,
+                                             (": " + str(a.get("content") or "")[:60]) if a.get("content") else ""))
+    return sorted(set(out))
+
+
 def first_prompt(entries: List[dict]) -> str:
     for d in entries:
         if d.get("type") == "user":
@@ -404,6 +429,14 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
             elif above:
                 res["warnings"].append("%s (%s) ran at effort %s, above its pinned %s" % (
                     a["type"], a["description"], sorted(efforts), want_effort))
+        leaks = context_breaches(entries)
+        if leaks:
+            row["context_breaches"] = leaks
+            msg = "%s (%s): its context carried what its brief does not: %s" % (a["type"], a["description"], "; ".join(leaks))
+            if a.get("headless"):        # the engine isolates its sessions: a leak is a broken run, not a style issue
+                res["errors"].append(msg)
+            else:                        # a subagent (Agent-tool fallback) inherits the parent's settings
+                res["warnings"].append(msg)
         res["agents"].append(row)
         a["entries"] = entries
     t0 = str(m.get("started_at") or "")[:19]
@@ -555,6 +588,101 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
     return res
 
 
+# --- Efficiency: where an agent's usage went (a sensor for the briefs, never a gate) -------------------------------
+
+EFFICIENCY_MD = "qc/agent_efficiency.md"
+# Commands an agent is meant to repeat (its checks and status probes): never counted as repeated work.
+ROUTINE_CMD_RE = re.compile(r"validate_report\.py|reading\.py check|verify\.py|unittest|git status|^\s*(ls|pwd|wc)\b")
+DENIED_RE = re.compile(r"permission to use \S+ (has been|was) denied|denied by (the )?(permission|policy)|"
+                       r"requires approval|not allowed", re.I)
+
+
+def efficiency(entries: List[dict]) -> dict:
+    """Repeated reads (the same file and range read 3+ times with no write to it in between), repeated shell
+    commands (2+, routine checks exempt), failed and denied tool calls, the largest tool results and the most
+    expensive API calls of one session."""
+    uses: Dict[str, dict] = {}
+    order: List[Tuple[str, dict]] = []
+    results: Dict[str, Tuple[str, bool]] = {}
+    calls: Dict[str, dict] = {}
+    for d in entries:
+        msg = d.get("message") or {}
+        if d.get("type") == "assistant":
+            u = msg.get("usage") or {}
+            if msg.get("id") and msg["id"] not in calls:
+                calls[msg["id"]] = {"tokens": sum(int(u.get(k) or 0) for k in (
+                    "input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")),
+                    "output": int(u.get("output_tokens") or 0), "at": d.get("timestamp", "")}
+            for b in msg.get("content", []) if isinstance(msg.get("content"), list) else []:
+                if isinstance(b, dict) and b.get("type") == "tool_use":
+                    uses[b["id"]] = b
+                    order.append((b["id"], b))
+        elif d.get("type") == "user" and isinstance(msg.get("content"), list):
+            for b in msg["content"]:
+                if isinstance(b, dict) and b.get("type") == "tool_result":
+                    c = b.get("content")
+                    text = c if isinstance(c, str) else "\n".join(x.get("text", "") for x in (c or []) if isinstance(x, dict))
+                    results[b.get("tool_use_id", "")] = (text, bool(b.get("is_error")))
+    reads: Dict[Tuple[str, str], List[int]] = defaultdict(list)
+    last_write: Dict[str, int] = {}
+    cmds: Counter = Counter()
+    failed, denied, sizes = [], [], []
+    for i, (tid, b) in enumerate(order):
+        name, inp = b.get("name", ""), b.get("input") or {}
+        path = str(inp.get("file_path") or inp.get("notebook_path") or "")
+        if name in ("Write", "Edit", "MultiEdit", "NotebookEdit") and path:
+            last_write[path] = i
+        elif name == "Read" and path:
+            key = (path, "%s+%s" % (inp.get("offset", ""), inp.get("limit", "")))
+            if reads[key] and last_write.get(path, -1) > reads[key][-1]:
+                reads[key] = []                    # the file changed since: a re-read is not repeated work
+            reads[key].append(i)
+        elif name == "Bash":
+            cmd = " ".join(str(inp.get("command") or "").split())
+            if cmd and not ROUTINE_CMD_RE.search(cmd):
+                cmds[cmd[:200]] += 1
+        text, is_err = results.get(tid, ("", False))
+        sizes.append((len(text), name, (path or str(inp.get("command") or inp.get("url") or inp.get("query") or ""))[:120]))
+        if DENIED_RE.search(text[:400]):
+            denied.append("%s %s" % (name, (path or str(inp.get("command") or ""))[:120]))
+        elif is_err:
+            failed.append("%s %s: %s" % (name, (path or str(inp.get("command") or ""))[:100], " ".join(text.split())[:100]))
+    return {"tool_calls": len(order), "api_calls": len(calls),
+            "tokens": sum(c["tokens"] for c in calls.values()),
+            "repeated_reads": sorted(["%s [%s] x%d" % (k[0], k[1], len(v)) for k, v in reads.items() if len(v) >= 3]),
+            "repeated_commands": ["%s x%d" % (c, n) for c, n in cmds.most_common() if n >= 2],
+            "failed": failed, "denied": denied,
+            "largest_results": ["%s chars: %s %s" % (n, t, w) for n, t, w in sorted(sizes, reverse=True)[:10] if n],
+            "costliest_calls": ["%s tokens (%s output) at %s" % (c["tokens"], c["output"], c["at"])
+                                for c in sorted(calls.values(), key=lambda c: -c["tokens"])[:5]]}
+
+
+def efficiency_report(run_dir: Path, tdir: Path) -> Path:
+    run_id = rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name)
+    sessions = headless_sessions(run_dir, tdir) if tdir.exists() else []
+    lines = ["# Agent efficiency — run %s" % run_id, "",
+             "Generated by `scripts/reading_audit.py efficiency` from the agents' transcripts; a sensor for the briefs "
+             "(where usage went), never a gate. Do not edit.", ""]
+    total = 0
+    for s in sessions:
+        e = efficiency(load_lines(s["path"]))
+        total += e["tokens"]
+        lines += ["## %s (session %s)" % (s["description"], s["session_id"][:8]), "",
+                  "%d tool calls, %d API calls, %s tokens processed." % (e["tool_calls"], e["api_calls"], format(e["tokens"], ",")), ""]
+        for title, key in (("Repeated reads (same range, no write between, 3+ times)", "repeated_reads"),
+                           ("Repeated commands (2+, routine checks exempt)", "repeated_commands"),
+                           ("Failed tool calls", "failed"), ("Denied tool calls", "denied"),
+                           ("Largest tool results", "largest_results"), ("Costliest API calls", "costliest_calls")):
+            if e[key]:
+                lines += ["**%s**" % title, ""] + ["- %s" % x for x in e[key][:15]] + [""]
+    lines.insert(4, "%d sessions, %s tokens processed in all." % (len(sessions), format(total, ",")))
+    lines.insert(5, "")
+    out = run_dir / EFFICIENCY_MD
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return out
+
+
 def write(run_dir: Path, res: dict) -> None:
     (run_dir / rl.READING_AUDIT).parent.mkdir(parents=True, exist_ok=True)
     rl.write_json(run_dir / rl.READING_AUDIT, res)
@@ -607,14 +735,21 @@ def main(argv=None) -> int:
     r.add_argument("run_dir")
     r.add_argument("--transcripts")
     r.add_argument("--waive", default="")
+    ef = sub.add_parser("efficiency", help="where each agent's usage went (repeats, failures, largest results)")
+    ef.add_argument("run_dir")
+    ef.add_argument("--transcripts")
     a = ap.parse_args(argv)
     if a.cmd == "session":
         return session(a)
     run_dir = Path(a.run_dir)
     if not (run_dir / rl.RUN_MANIFEST).exists():
         ap.error("%s is not a run directory" % run_dir)
+    if a.cmd == "efficiency":
+        print("agent efficiency -> %s" % efficiency_report(run_dir, transcripts_dir(a.transcripts)))
+        return 0
     res = run_audit(run_dir, transcripts_dir(a.transcripts), a.waive)
     write(run_dir, res)
+    efficiency_report(run_dir, transcripts_dir(a.transcripts))
     print("reading audit %s: %d agents, %d reader chunks, %d specialist dossiers; %d errors, %d warnings -> %s" % (
         res["status"], len(res["agents"]), len(res["readers"]), len(res["specialists"]), len(res["errors"]),
         len(res["warnings"]), run_dir / "qc" / "READING_AUDIT.md"))

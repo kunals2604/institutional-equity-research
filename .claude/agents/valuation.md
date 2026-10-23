@@ -40,6 +40,9 @@ Estimate what the business may be worth under **defensible, traceable** scenario
 - `python3 scripts/market_data.py adtv --symbol <SYM> --end <cutoff> --days 90 --run RUN_DIR --out RUN_DIR/calc/valuation_adtv.json`.
 - `python3 scripts/market_data.py history --symbol <SYM> --years 20 --run RUN_DIR --verify 12 --out RUN_DIR/calc/valuation_price_history.json`: a long daily history (tier 5) with sampled dates verified against exchange bhavcopy, plus split and dividend events.
 
+## Free connectors
+Benchmark total returns: `connectors.py tri --index "NIFTY 500" --from DD-Mon-YYYY --to DD-Mon-YYYY` (NSE Indices, daily from inception). Inflation and macro inputs: `connectors.py mospi` (CPI, WPI, national accounts). Risk-free rate: `connectors.py open fbil` (G-sec curve) or RBI data (`open rbi-data`). Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/valuation.md` and **every dossier it lists, in full** (the

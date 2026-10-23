@@ -1,4 +1,478 @@
 {
   "_purpose": "Local data sources for research runs. The FilingForge library is read-only input: agents read its Markdown conversions (token-efficient) and use the sibling PDFs for page-number citations.",
-  "filingforge_library": "~/Documents/FilingForgeLibrary"
+  "filingforge_library": "~/Documents/FilingForgeLibrary",
+  "connectors": [
+    {
+      "id": "tri",
+      "name": "NSE indices total-return history",
+      "kind": "api",
+      "access": "free",
+      "adapter": "tri",
+      "what": "daily TRI and net TRI of any NSE index from inception (benchmark returns)",
+      "agents": [
+        "valuation",
+        "cio"
+      ],
+      "landing": "https://www.niftyindices.com/reports/historical-data",
+      "terms": "public data of NSE Indices Ltd",
+      "notes": "POST endpoint used by niftyindices.com itself; verified 2026-10-23"
+    },
+    {
+      "id": "mospi",
+      "name": "MoSPI official MCP server",
+      "kind": "mcp",
+      "access": "free",
+      "adapter": "mospi",
+      "what": "CPI, WPI, IIP, national accounts (NAS), ASI factory data, PLFS jobs, energy balance, RBI series and 20+ survey datasets",
+      "agents": [
+        "industry",
+        "valuation",
+        "scuttlebutt",
+        "cio"
+      ],
+      "landing": "https://mcp.mospi.gov.in/",
+      "terms": "Government of India open data",
+      "notes": "no key; tools list_datasets -> get_indicators -> get_metadata -> get_data; verified 2026-10-23"
+    },
+    {
+      "id": "gdelt",
+      "name": "GDELT DOC 2.0 news index",
+      "kind": "api",
+      "access": "free",
+      "adapter": "gdelt",
+      "what": "news articles by query and date (2017 on): leads for the timeline, never evidence by themselves",
+      "agents": [
+        "historian",
+        "bear-case",
+        "scuttlebutt",
+        "special-situations"
+      ],
+      "landing": "https://api.gdeltproject.org/api/v2/doc/doc",
+      "terms": "free with attribution to the GDELT Project",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "openfda",
+      "name": "openFDA",
+      "kind": "api",
+      "access": "free",
+      "adapter": "openfda",
+      "what": "US FDA recalls (drug/enforcement), approvals (drug/drugsfda), device and food data: pharma and API makers",
+      "agents": [
+        "scuttlebutt",
+        "bear-case",
+        "industry",
+        "filings"
+      ],
+      "landing": "https://open.fda.gov/",
+      "terms": "open data, no key at low volume",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "fda-dashboard",
+      "name": "FDA Data Dashboard (inspections, compliance actions)",
+      "kind": "page",
+      "access": "free",
+      "what": "FDA inspection classifications (NAI/VAI/OAI), warning letters and import alerts by firm",
+      "agents": [
+        "scuttlebutt",
+        "bear-case",
+        "filings"
+      ],
+      "landing": "https://datadashboard.fda.gov/ora/cd/inspections.htm",
+      "terms": "public",
+      "notes": "open with fetch_source.py --snapshot; verified 2026-10-23"
+    },
+    {
+      "id": "kanoon",
+      "name": "Indian Kanoon API",
+      "kind": "api",
+      "access": "free-key",
+      "adapter": "kanoon",
+      "what": "judgments and orders of the Supreme Court, High Courts and tribunals (NCLT, NCLAT, SAT, CCI ...)",
+      "agents": [
+        "filings",
+        "management",
+        "bear-case",
+        "special-situations",
+        "historian"
+      ],
+      "landing": "https://indiankanoon.org/",
+      "terms": "Rs 0.50 per search, Rs 0.20 per document; Rs 500 free credit; non-commercial use may apply for Rs 10,000/month free",
+      "notes": "inactive until EQR_KANOON_TOKEN (or Keychain service eqr-indiankanoon) is set; capped per run by EQR_KANOON_MAX_INR (default 200); verified 2026-10-23"
+    },
+    {
+      "id": "sebi-orders",
+      "name": "SEBI enforcement orders",
+      "kind": "page",
+      "access": "free",
+      "what": "adjudication, settlement and other orders against companies, promoters and directors",
+      "agents": [
+        "filings",
+        "management",
+        "bear-case"
+      ],
+      "landing": "https://www.sebi.gov.in/sebiweb/home/HomeAction.do?doListing=yes&sid=2&ssid=9&smid=6",
+      "terms": "public",
+      "notes": "JavaScript listing: snapshot it, or the librarian's browser; verified 2026-10-23"
+    },
+    {
+      "id": "nclt",
+      "name": "National Company Law Tribunal",
+      "kind": "page",
+      "access": "free",
+      "what": "insolvency and company-law cases, cause lists, orders",
+      "agents": [
+        "filings",
+        "special-situations",
+        "bear-case"
+      ],
+      "landing": "https://nclt.gov.in/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "nfra",
+      "name": "National Financial Reporting Authority",
+      "kind": "page",
+      "access": "free",
+      "what": "orders against auditors and audit-quality findings",
+      "agents": [
+        "filings"
+      ],
+      "landing": "https://nfra.gov.in/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "cci",
+      "name": "Competition Commission of India orders",
+      "kind": "page",
+      "access": "manual",
+      "what": "antitrust and merger orders",
+      "agents": [
+        "industry",
+        "bear-case",
+        "special-situations"
+      ],
+      "landing": "https://www.cci.gov.in/antitrust/orders",
+      "terms": "public",
+      "notes": "timed out to curl and to headless Chrome on 2026-10-23; search Indian Kanoon (doctypes cci) instead"
+    },
+    {
+      "id": "mca",
+      "name": "MCA21 master data and index of charges",
+      "kind": "page",
+      "access": "manual",
+      "what": "company and LLP master data, charges, signatories",
+      "agents": [
+        "management",
+        "filings"
+      ],
+      "landing": "https://www.mca.gov.in/content/mca/global/en/mca/master-data/MDS.html",
+      "terms": "master data free; documents paid per view",
+      "notes": "Akamai 'Access Denied' to curl and to headless Chrome on 2026-10-23; not bypassed (owner policy). Use the annual report (AOC-1, MGT-7 extract), exchange filings, rating rationales"
+    },
+    {
+      "id": "crisil",
+      "name": "CRISIL Ratings rationales",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales: drivers, liquidity, covenants, outlook",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.crisil.com/content/crisil/en/home/our-businesses/ratings/rating-rationale.html",
+      "terms": "rationales free to read; reuse with credit",
+      "notes": "exchange_index.py show --type credit_rating lists the company's own rating filings first; verified 2026-10-23"
+    },
+    {
+      "id": "icra",
+      "name": "ICRA ratings",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.icra.in/Rating/RatingCategory",
+      "terms": "free to read",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "care",
+      "name": "CareEdge Ratings",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales and press releases",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.careratings.com/",
+      "terms": "free to read",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "indiaratings",
+      "name": "India Ratings & Research (Fitch)",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.indiaratings.co.in/",
+      "terms": "free to read",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "acuite",
+      "name": "Acuité Ratings",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales (often small and mid companies)",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.acuite.in/",
+      "terms": "free to read",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "infomerics",
+      "name": "Infomerics Ratings",
+      "kind": "page",
+      "access": "free",
+      "what": "rating rationales (often small and mid companies)",
+      "agents": [
+        "filings",
+        "financials",
+        "bear-case"
+      ],
+      "landing": "https://www.infomerics.com/",
+      "terms": "free to read",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "rbi-data",
+      "name": "RBI Database on Indian Economy",
+      "kind": "page",
+      "access": "free",
+      "what": "rates, credit, deposits, banking and external-sector series",
+      "agents": [
+        "industry",
+        "valuation"
+      ],
+      "landing": "https://data.rbi.org.in/",
+      "terms": "public",
+      "notes": "MoSPI's RBI dataset covers many series by API; verified 2026-10-23"
+    },
+    {
+      "id": "fbil",
+      "name": "FBIL benchmark rates",
+      "kind": "page",
+      "access": "free",
+      "what": "G-sec yield curve and benchmark rates (risk-free rate inputs)",
+      "agents": [
+        "valuation"
+      ],
+      "landing": "https://www.fbil.org.in/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "datagov",
+      "name": "Open Government Data Platform",
+      "kind": "page",
+      "access": "free-key",
+      "what": "ministry datasets (many with an API key on registration)",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://www.data.gov.in/",
+      "terms": "Government Open Data License",
+      "notes": "API key free on registration; verified 2026-10-23"
+    },
+    {
+      "id": "trai",
+      "name": "TRAI performance indicator reports",
+      "kind": "page",
+      "access": "free",
+      "what": "telecom subscribers, ARPU, usage by operator",
+      "agents": [
+        "industry",
+        "scuttlebutt",
+        "moat"
+      ],
+      "landing": "https://www.trai.gov.in/release-publication/reports/performance-indicators-reports",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "fada",
+      "name": "FADA vehicle retail data",
+      "kind": "page",
+      "access": "free",
+      "what": "monthly vehicle retail sales by maker and segment (from Vahan)",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://fada.in/press-release-list.php",
+      "terms": "public press releases",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "siam",
+      "name": "SIAM",
+      "kind": "page",
+      "access": "free",
+      "what": "monthly domestic sales and exports by segment (summaries free; detail paid)",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://www.siam.in/",
+      "terms": "public summaries",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "vahan",
+      "name": "Vahan registrations dashboard",
+      "kind": "page",
+      "access": "manual",
+      "what": "vehicle registrations by maker, state and fuel",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://vahan.parivahan.gov.in/vahan4dashboard/",
+      "terms": "public dashboard",
+      "notes": "connection reset to curl and 'Access Forbidden' to headless Chrome on 2026-10-23; not bypassed. Use FADA's monthly releases (built from Vahan)"
+    },
+    {
+      "id": "cea",
+      "name": "Central Electricity Authority",
+      "kind": "page",
+      "access": "free",
+      "what": "installed capacity, generation, plant performance",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://cea.nic.in/?lang=en",
+      "terms": "public",
+      "notes": "reports under /reports/dashboardView; verified 2026-10-23"
+    },
+    {
+      "id": "ppac",
+      "name": "Petroleum Planning & Analysis Cell",
+      "kind": "page",
+      "access": "free",
+      "what": "fuel consumption, prices, refinery data",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://ppac.gov.in/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "dgca",
+      "name": "DGCA",
+      "kind": "page",
+      "access": "free",
+      "what": "airline traffic and market share",
+      "agents": [
+        "industry",
+        "scuttlebutt"
+      ],
+      "landing": "https://www.dgca.gov.in/digigov-portal/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "cppp",
+      "name": "Central Public Procurement Portal (results of tenders)",
+      "kind": "page",
+      "access": "free",
+      "what": "awarded government contracts (order wins)",
+      "agents": [
+        "scuttlebutt",
+        "industry"
+      ],
+      "landing": "https://eprocure.gov.in/cppp/resultoftendersnew/cpppdata",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "gem",
+      "name": "Government e-Marketplace",
+      "kind": "page",
+      "access": "free",
+      "what": "public procurement on GeM (bids and results)",
+      "agents": [
+        "scuttlebutt"
+      ],
+      "landing": "https://gem.gov.in/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "parivesh",
+      "name": "PARIVESH environmental clearances",
+      "kind": "page",
+      "access": "free",
+      "what": "environmental clearance applications: new plants and capacity expansions",
+      "agents": [
+        "scuttlebutt",
+        "industry",
+        "special-situations"
+      ],
+      "landing": "https://parivesh.nic.in/",
+      "terms": "public",
+      "notes": "JavaScript site: the librarian's browser or a snapshot; verified 2026-10-23"
+    },
+    {
+      "id": "amfi",
+      "name": "AMFI",
+      "kind": "page",
+      "access": "free",
+      "what": "mutual-fund industry data; links to each AMC's monthly portfolio disclosure",
+      "agents": [
+        "management",
+        "valuation"
+      ],
+      "landing": "https://www.amfiindia.com/",
+      "terms": "public",
+      "notes": "verified 2026-10-23"
+    },
+    {
+      "id": "transcribe",
+      "name": "Local transcription (whisper.cpp)",
+      "kind": "local",
+      "access": "free",
+      "adapter": "transcribe",
+      "what": "transcripts of earnings calls that exist only as audio recordings",
+      "agents": [
+        "concalls"
+      ],
+      "landing": "",
+      "terms": "runs on this Mac",
+      "notes": "brew install whisper-cpp ffmpeg; python3 scripts/connectors.py setup-whisper"
+    }
+  ],
+  "_connectors_purpose": "Free external sources, used through scripts/connectors.py (cached in RUN_DIR/_cache/connectors/, logged in source_retrievals.csv). access: free | free-key (free after registering a key) | manual (blocks automated access: not bypassed). Landing pages were checked live on 2026-10-23. Paid sources are not here (docs/FRAMEWORK_CHANGES.md item 20 lists what each budget adds)."
 }

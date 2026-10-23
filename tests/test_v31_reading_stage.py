@@ -1053,6 +1053,49 @@ class TestOneFactPerItem(unittest.TestCase):
         self.assertEqual(reading.item_sig(c1, sch), reading.item_sig(c2, sch))
 
 
+class TestCheckCalibration(unittest.TestCase):
+    """False alarms of the reading check, measured on live one-shot reads (2026-10-23: most first-pass errors), are
+    accepted; what the check exists to catch still fails."""
+
+    def setUp(self):
+        self.store = {"order": ["a1", "a2", "a3", "a4", "a5", "a6"], "units": {
+            "a1": {"page": 5, "text": "|  | FY 2025-26 | FY 2024-25 | Y-o-Y change |"},
+            "a2": {"page": 5, "text": "| Gross Revenues | 1,129,954 | 1,002,500 | 13% |"},
+            "a3": {"page": 5, "text": "Convergence play\nWe continue to bundle mobile, home and DTH services for families."},
+            "a4": {"page": 5, "text": "In our opinion the consolidated financial statements"},
+            "a5": {"page": 5, "text": "give a true and fair view of the state of affairs of the Group."},
+            "a6": {"page": 6, "text": "Revenue grew by 12.7% to 500 million."}}}
+        self.kpi = reading.schema()["types"]["kpi"]
+
+    def quote(self, **it):
+        it.setdefault("type", "kpi")
+        it.setdefault("fields", {})
+        return reading.derive_quote(it, self.store, reading.schema()["types"][it["type"]], [])
+
+    def test_a_table_rows_label_or_a_whole_line_is_an_anchor(self):
+        self.assertEqual(self.quote(unit="a2", anchor="Gross Revenues",
+                                    fields={"name": "Gross Revenues", "value": "1,129,954"})[1], "")
+        self.assertEqual(self.quote(type="other_fact", unit="a3", anchor="Convergence play",
+                                    fields={"description": "bundling"})[1], "")
+        err = self.quote(type="other_fact", unit="a3", anchor="We continue", fields={"description": "bundling"})[1]
+        self.assertIn("copy at least", err, "two words that are not a whole line are still too short")
+
+    def test_a_year_from_the_tables_heading_row_may_label_a_row(self):
+        self.assertEqual(self.quote(unit="a2", anchor="Gross Revenues",
+                                    fields={"name": "Gross Revenues", "value": "1,129,954", "period_label": "FY 2025-26"})[1], "")
+        err = self.quote(unit="a2", anchor="Gross Revenues", fields={"name": "Gross Revenues 14.2% growth",
+                                                                     "value": "1,129,954"})[1]
+        self.assertIn("14.2", err, "a number printed nowhere is still refused")
+        err = self.quote(unit="a6", anchor="Revenue grew by", fields={"name": "Revenue FY 2025-26", "value": "500"})[1]
+        self.assertIn("2025", err, "a year printed only on another page is refused")
+
+    def test_a_spans_anchor_may_sit_anywhere_in_the_span(self):
+        self.assertEqual(self.quote(type="other_fact", unit="a4", to="a5", anchor="give a true and fair view",
+                                    fields={"description": "opinion"})[1], "")
+        err = self.quote(type="other_fact", unit="a4", anchor="give a true and fair view", fields={"description": "x"})[1]
+        self.assertIn("must start there", err, "without a span the anchor must be in the cited passage")
+
+
 class TestPrimaryAndSecondReads(unittest.TestCase):
     """Opus is the primary read; the second read adds its checked extra finds on non-critical sections and Opus
     adjudicates them on critical ones."""
@@ -1438,9 +1481,21 @@ if not ONESHOT and agent not in ("reader", "critical-reader", "scanner"):
             rows = [("C001", "FACT", "12,345"), ("C002", "CALCULATION" if not unseen else "FACT", "98,765")]
             if "The verifier re-opened" in msg:
                 state["corrected"] = True
+            if "propagation.csv" in msg and not os.environ.get("FAKE_NO_PROPAGATION"):   # review what is built on it
+                state.setdefault("fix_msgs", []).append(msg[:2000])
+                pw = run_dir / "specialists" / ("%%s_workpapers" %% agent)
+                pw.mkdir(parents=True, exist_ok=True)
+                deps = re.findall(r"\b([A-Z]+-C\d{3}) \(built on ([A-Z]+-C\d{3})\)", msg)
+                deps += [(d, c) for c in re.findall(r"\b([A-Z]+-C\d{3}):", msg) for d in
+                         re.findall(r"Built on them \(claim_graph.py down\): ([^;]*)", msg)[0].split(", ") if d != "none"] \
+                    if "Built on them" in msg else []
+                (pw / "propagation.csv").write_text("claim,dependent,action,reason\n" + "".join(
+                    "%%s,%%s,updated,recomputed from the corrected input\n" %% (c, d) for d, c in deps))
             hdr = "claim_id,author,claim,tag,metric,value,unit,period,basis,source_title,source_issuer,source_url_or_id,source_date,retrieved_date,locator,source_tier,primary,confidence,corroborated_by,contradicted_by,formula_or_inputs,notes\n"
-            led.write_text(hdr + "".join("%%s-%%s,%%s,claim,%%s,,\"%%s\",INR mn,FY2025,consolidated,Report,Co,https://example.com/report.pdf,,,,1,Y,H,,,,\n" %% (
-                {"filings": "FIL"}.get(agent, "X"), cid, agent, tag, "12,000" if cid == "C001" and state.get("corrected") else val)
+            pre = {"filings": "FIL"}.get(agent, "X")
+            led.write_text(hdr + "".join("%%s-%%s,%%s,claim,%%s,,\"%%s\",INR mn,FY2025,consolidated,Report,Co,https://example.com/report.pdf,,,,1,Y,H,,,%%s,\n" %% (
+                pre, cid, agent, tag, "12,000" if cid == "C001" and state.get("corrected") else val,
+                "%%s-C001 x 8" %% pre if tag == "CALCULATION" else "")
                 for cid, tag, val in rows))
         finish("STATUS: complete")
     finish("Reached maximum number of turns (%%d)" %% max_turns, "error_max_turns", True)
@@ -1489,9 +1544,18 @@ if ONESHOT:
           "model": "claude-%%s-5-5" %% model, "usage": {"input_tokens": 10, "output_tokens": 100},
           "content": [{"type": "text", "text": "items"}]}})
     one = state.setdefault("oneshot", {})
-    m = re.search(r"role (\w+)\. Read every line of chunk (\S+) below", msg)
+    at = msg.find("FIX. The reading check found")      # a fresh-call fix: the chunk, then the fix block
+    head, fixtext = (msg[:at], msg[at:]) if at >= 0 else (msg, "")
+    if fixtext:
+        state.setdefault("fixmsg", {})[sid] = fixtext
+    elif msg.startswith("Your answer was interrupted. Answer the FIX block"):
+        fixtext = state.get("fixmsg", {}).get(sid, "")
+    elif msg.startswith("The reading check found"):     # a resumed fix (ONESHOT_FRESH_FIX off)
+        fixtext = msg
+    m = re.search(r"role (\w+)\. Read every line of chunk (\S+) below", head)
     if m:
         one[sid] = {"role": m.group(1), "cid": m.group(2)}
+    if m and not fixtext:
         bad = bool(os.environ.get("FAKE_BAD_ONCE")) and not state.get("bad_done")
         rows = chunk_rows(run_dir, m.group(2), m.group(1), bad)
         if bad and any(r.get("anchor") == "Claims acknowledged" for r in rows):
@@ -1501,16 +1565,21 @@ if ONESHOT:
         if os.environ.get("FAKE_ONESHOT_GARBLE"):
             lines = ["I could not read the chunk."]
         finish("\n".join(lines))
-    if msg.startswith("Your answer was interrupted"):
+    if msg.startswith("Your answer was interrupted") and not fixtext:
         finish("\n".join(json.dumps(r) for r in chunk_rows(run_dir, one[sid]["cid"], one[sid]["role"], False)))
-    if msg.startswith("The reading check found"):
+    if fixtext and os.environ.get("FAKE_FIX_CRASH_ONCE") and not state.get("fix_crashed"):
+        state["fix_crashed"] = True                   # the session exists (transcript written) but gives no result
+        state_path.write_text(json.dumps(state))
+        sys.exit(1)
+    if fixtext:
+        state.setdefault("fix_calls", []).append({"sid": sid, "with_chunk": bool(m), "msg": fixtext[:200]})
         out = []
-        for lab, obj in re.findall(r"^(E\d+) (\{.*\})$", msg, re.M):
+        for lab, obj in re.findall(r"^(E\d+) (\{.*\})$", fixtext, re.M):
             o = json.loads(obj)
             if o.get("anchor") == "Claims acknowledged":
                 o["anchor"] = "Claims not acknowledged as debts"
             out.append("%%s %%s" %% (lab, json.dumps(o)))
-        if "passages not accounted for" in msg and sid in one:
+        if "passages not accounted for" in fixtext and sid in one:
             rows = chunk_rows(run_dir, one[sid]["cid"], one[sid]["role"], False)
             out.append(json.dumps(rows[-1]))
         if os.environ.get("FAKE_ONESHOT_GARBLE"):
@@ -1616,7 +1685,7 @@ class EngineCase(unittest.TestCase):
         self.fx.cleanup()
 
     def env(self, **extra):
-        return mock.patch.dict(os.environ, dict({"CLAUDE_TRANSCRIPTS_DIR": str(self.tdir), "EQR_NO_CAFFEINATE": "1",
+        return mock.patch.dict(os.environ, dict({"CLAUDE_TRANSCRIPTS_DIR": str(self.tdir), "EQR_NO_CAFFEINATE": "1", "EQR_SKIP_ISOLATION_PROBE": "1",
                                                  "EQR_USAGE_LOG": str(self.fx.tmp / "usage.jsonl"),
                                                  "FAKE_STATE": str(self.fx.tmp / "fake_state.json"),
                                                  "FAKE_RUN_DIR": str(self.fx.dir)}, **extra))
@@ -1739,6 +1808,7 @@ class TestOneShotReading(EngineCase):
         self.assertIn("ACCOUNTING (checked by script)", sysf.read_text())
         self.assertIn("READING_SCHEMA:BEGIN", sysf.read_text())
 
+    @mock.patch.object(agent_driver, "ONESHOT_FRESH_FIX", True)
     def test_a_forgotten_passage_gets_a_fix_turn_naming_it(self):
         with self.env(FAKE_GAP_ONCE="1"):
             eng = self.engine()
@@ -1746,11 +1816,19 @@ class TestOneShotReading(EngineCase):
                 rc = agent_driver.cmd_reading(eng, False, 1, 1)
         self.assertEqual(rc, 0, self.logs)
         l = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"][0]
-        self.assertEqual([a["kind"] for a in l["sessions"][0]["attempts"]], ["start", "fix"])
-        fix = [c for c in self.calls() if c["msg"].startswith("The reading check found")]
-        self.assertTrue(fix)
+        self.assertEqual([[a["kind"] for a in s["attempts"]] for s in l["sessions"]], [["start"], ["fixfresh"]],
+                         "the fix is a fresh call, not a resume of the first answer")
+        self.assertEqual(l["sessions"][1].get("purpose"), "fix")
+        fixes = json.loads((self.fx.tmp / "fake_state.json").read_text())["fix_calls"]
+        self.assertTrue(fixes and all(f["with_chunk"] for f in fixes), "the fresh call carries the chunk, then the fix")
+        self.assertTrue(any("passages not accounted for" in f["msg"] or "FIX." in f["msg"] for f in fixes))
+        fix_sid = l["sessions"][1]["session_id"]
+        self.assertFalse(next(c for c in self.calls() if c.get("sid") == fix_sid)["resume"])
         self.assertEqual(l["outcome"], "pass")
+        res = reading_audit.run_audit(self.fx.dir, self.tdir)
+        self.assertEqual(res["errors"], [], "a fresh fix session is audited like the first")
 
+    @mock.patch.object(agent_driver, "ONESHOT_FRESH_FIX", True)
     def test_a_bad_anchor_is_corrected_by_its_label(self):
         with self.env(FAKE_BAD_ONCE="1"):
             eng = self.engine()
@@ -1759,6 +1837,29 @@ class TestOneShotReading(EngineCase):
         self.assertEqual(rc, 0, self.logs)
         l = next(l for l in json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
                  if l["chunks"] == ["AR-FY2025-c02"] and l["role"] == "critical")
+        self.assertEqual([[a["kind"] for a in s["attempts"]] for s in l["sessions"]], [["start"], ["fixfresh"]])
+
+    @mock.patch.object(agent_driver, "ONESHOT_FRESH_FIX", True)
+    def test_an_interrupted_fix_call_is_resumed_with_the_fix_not_a_new_read(self):
+        with self.env(FAKE_GAP_ONCE="1", FAKE_FIX_CRASH_ONCE="1"), mock.patch.object(agent_driver, "RESUME_WAIT_S", 0):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 1, 1)
+        self.assertEqual(rc, 0, self.logs)
+        l = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"][0]
+        self.assertEqual([[a["kind"] for a in s["attempts"]] for s in l["sessions"]], [["start"], ["fixfresh", "fixresume"]])
+        self.assertEqual(l["outcome"], "pass")
+        rows = reading.read_jsonl(reading.extraction_path(self.fx.dir, l["chunks"][0], l["role"]), rl.Result(""))
+        self.assertIn("page_receipt", [r.get("type") for r in rows],
+                      "the lines of the first answer are kept (a resume that replaced them would lose its receipts)")
+
+    def test_fix_turns_resume_the_session_by_default(self):
+        with self.env(FAKE_GAP_ONCE="1"):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 1, 1)
+        self.assertEqual(rc, 0, self.logs)
+        l = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"][0]
         self.assertEqual([a["kind"] for a in l["sessions"][0]["attempts"]], ["start", "fix"])
 
     def test_a_one_shot_read_that_cannot_pass_falls_back_to_the_agentic_reader(self):
@@ -1977,6 +2078,19 @@ class TestVerificationLoop(EngineCase):
         self.assertEqual(rec["status"], "PASS", rec)
         self.assertEqual(rec["tier_b"]["results"], {"Confirmed": 1}, "the corrected claim is confirmed on re-check")
         self.assertTrue(rec["rounds"])
+        self.assertEqual(rec["corrected"], ["FIL-C001"], "the corrected claim is remembered across re-checks")
+        state = json.loads((self.fx.tmp / "fake_state.json").read_text())
+        self.assertTrue(any("FIL-C002" in m and "propagation.csv" in m for m in state.get("fix_msgs", [])),
+                        "the specialist was told which claim is built on the corrected one")
+        prop = (self.fx.dir / "specialists" / "filings_workpapers" / "propagation.csv").read_text()
+        self.assertIn("FIL-C001,FIL-C002,updated", prop)
+
+    def test_a_claim_built_on_a_corrected_claim_must_be_reviewed(self):
+        rc, jobs = self.run_specialist(FAKE_UNSEEN="1", FAKE_DISCREPANCY="1", FAKE_NO_PROPAGATION="1")
+        self.assertEqual(rc, 1, self.logs)
+        rec = json.loads((self.fx.dir / "qc" / "verification" / "filings.json").read_text())
+        dep = [f for f in rec["tier_a"] if f["check"] == "DEPENDENT_NOT_REVIEWED"]
+        self.assertTrue(dep and dep[0]["claims"] == ["FIL-C002 (built on FIL-C001)"], rec["tier_a"])
 
     def test_tier_a_reads_the_transcripts(self):
         rc, jobs = self.run_specialist()

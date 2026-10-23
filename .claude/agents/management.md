@@ -37,6 +37,9 @@ Determine whether the people running the company are **capable, honest, rational
 - Every material acquisition, divestment, capital raise or buyback over **10 years**.
 - The promoter holding company's financial statements or rating rationale where retrievable.
 
+## Free connectors
+Enforcement against the company, promoters and directors: `connectors.py kanoon search` (when a key is set), `connectors.py open sebi-orders|nclt`. MCA21 refuses automated access (registry: manual): use the annual report (AOC-1, MGT-7 extract), exchange filings and rating rationales for the group map. Mutual-fund holders: `connectors.py open amfi`. Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.
+
 ## Reading pack (since 3.1.0)
 
 Before your own research, read `RUN_DIR/corpus/dossiers/packs/management.md` and **every dossier it lists, in full** (the
@@ -51,7 +54,7 @@ and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`.
 - **Structured data:** `corpus/structured/voting_results.csv` (votes for and against by shareholder category on every resolution), `governance_board.csv` (board composition from the Integrated Filings) and the `governance` and `related_parties` dossiers.
 
 ## Method
-1. **Plan and promoter group.** A diagram or table of the promoter, holding companies, listed and unlisted group entities, cross-holdings and the entities that trade with the company. Start `progress.md`.
+1. **Plan and promoter group.** A diagram or table of the promoter, holding companies, listed and unlisted group entities, cross-holdings and the entities that trade with the company. Start from `corpus/dossiers/entities.md` (every entity across all years read, names merged, its roles and flows by year cited to the page, and flags): confirm each flag you rely on at its page and extend the map from your own research; do not rebuild it by hand. Start `progress.md`.
 2. **Promoter holding-company health.** The holding companies' debt, ratings, pledges and encumbrances (including non-disposal undertakings), their dependence on dividends or share sales from the listed company, and any history of forced selling. Pledges at the holding-company level can force sales.
 3. **Leadership map.** Promoters, board, CEO, CFO and key business heads: appointment dates, prior roles, tenure and changes, as a timeline.
 4. **Departures.** For each meaningful departure: who, when, the stated reason (with its source), timing relative to other events (results, audits, regulatory actions), and a classification: Normal / Positive / Neutral / Concerning / Highly concerning, with reasons and alternatives.

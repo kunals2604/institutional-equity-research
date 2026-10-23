@@ -319,6 +319,11 @@
       "id": "P1",
       "statement": "FY2027 consolidated revenue growth >= 12%",
       "metric": "revenue_growth",
+      "comparator": ">=",
+      "threshold": 12,
+      "unit": "%",
+      "period": "FY2027",
+      "resolution_source": "results_xbrl",
       "due": "2027-06-30",
       "probability": 0.6,
       "claim_ids": [
@@ -327,9 +332,14 @@
     },
     {
       "id": "P2",
-      "statement": "FY2027 ROCE stays >= 18%",
-      "metric": "roce",
-      "due": "2027-06-30",
+      "statement": "Q4 FY2026 EBITDA margin stays >= 18%",
+      "metric": "ebitda_margin",
+      "comparator": ">=",
+      "threshold": 18,
+      "unit": "%",
+      "period": "Q4FY2026",
+      "resolution_source": "results_xbrl",
+      "due": "2026-05-31",
       "probability": 0.7,
       "claim_ids": [
         "FIN-C022"
@@ -338,7 +348,10 @@
     {
       "id": "P3",
       "statement": "No equity dilution above 2% by 2028-03-31",
-      "metric": "share_count_change",
+      "metric": "other:share_count_change",
+      "comparator": "event",
+      "resolution_rule": "Hit if the share count filed with the exchange on 2028-03-31 is at most 2% above the count at the as-of date; miss otherwise",
+      "resolution_source": "filing",
       "due": "2028-03-31",
       "probability": 0.8,
       "claim_ids": [
@@ -365,7 +378,7 @@
     "sizing_basis": "no ceiling: IPS risk limits not set"
   },
   "next_review_due": "2026-07-01",
-  "methodology_version": "3.0.0",
+  "methodology_version": "3.1.0",
   "price_metrics": {
     "margin_of_safety": -0.0526,
     "expected_irr": 0.08,
