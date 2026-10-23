@@ -76,8 +76,9 @@ import research_lib as rl  # noqa: E402
 READING = "corpus/reading"
 DOSSIERS = "corpus/dossiers"
 CACHE = "_cache/reading"
-ROLES = ("critical", "reader", "resolved")
-ROLE_AGENT = {"critical": "critical-reader", "reader": "reader", "resolved": "critical-reader"}
+ROLES = ("critical", "reader", "scan", "resolved")
+ROLE_AGENT = {"critical": "critical-reader", "reader": "reader", "scan": "scanner", "resolved": "critical-reader"}
+SECOND_ROLES = ("reader", "scan")         # the independent second reads: Sonnet (reader), Haiku (scan)
 CORE_TYPES = ("annual_report", "transcript", "investor_presentation")
 VISUAL_FLAGS = {"image_only", "blank_or_graphic", "rotated_text", "encoding_suspect"}   # no reliable text: read the image
 VERIFY_FLAGS = {"table_numbers_mismatch", "table_alignment_uncertain", "cell_layout"}  # confirm the numbers on the image
@@ -890,7 +891,7 @@ def reusable_documents(run_dir: Path, docs: List[dict], sch: dict, log=print) ->
             for c in chunks:
                 state, _ = chunk_state(prior, c, pol, write=False)
                 need = set(required_roles(c, pol))
-                if need == {"critical", "reader"} and compare_chunk(prior, c["id"], write=False):
+                if second_role(sorted(need)) and compare_chunk(prior, c["id"], write=False):
                     need.add("resolved")
                 if state != "read" or not all((c["id"], r) in audited for r in need):
                     ok = False
@@ -977,11 +978,13 @@ def finish_calibration(run_dir: Path, log=print) -> dict:
     out = bakeoff_score(run_dir, log=lambda m: None)
     cal = load_json(calibration_path(run_dir), {})
     eligible = out["eligible_single_read_classes"]
-    cal.update(status="passed" if eligible else "failed", single_read_classes=eligible, computed_at=now_iso(),
+    haiku = out.get("eligible_haiku_classes", [])
+    cal.update(status="passed" if eligible or haiku else "failed", single_read_classes=eligible, haiku_classes=haiku,
+               computed_at=now_iso(),
                rows=out["rows"], material_misses=len(out["material_misses"]))
     write_json(calibration_path(run_dir), cal)
-    log("calibration: %s; single Sonnet read for %s; every other class stays double-read (corpus/reading/BAKEOFF.md)" % (
-        cal["status"], ", ".join(eligible) or "no class"))
+    log("calibration: %s; Haiku alone for %s; Sonnet alone for %s; every other class is read by Opus with a second "
+        "read (corpus/reading/BAKEOFF.md)" % (cal["status"], ", ".join(haiku) or "no class", ", ".join(eligible) or "no class"))
     return cal
 
 
@@ -1100,7 +1103,7 @@ def plan(run_dir: Path, years: int = DEFAULT_YEARS, quarters: int = 24, ppt_quar
         fresh = [c for c in p["chunks"] if not c.get("reused")]
     all_tok = sum(c["est_tokens"] for c in fresh)
     pol = run_policy(run_dir)
-    double = sum(c["est_tokens"] for c in fresh if required_roles(c, pol) == ["critical", "reader"])
+    double = sum(c["est_tokens"] for c in fresh if "critical" in required_roles(c, pol))
     if gaps:
         log("accepted gaps: %s" % "; ".join("%s (%s)" % (g["key"], acc[g["key"]]["reason"]) for g in gaps))
     log("plan: %d documents (%d reused from earlier runs), %d chunks to read; about %dk tokens of text and page images: "
@@ -1181,6 +1184,8 @@ CHUNK_LEGEND = [
     "- `(running header)`, `(page number)` and `[L half]` / `[R half]` lines are page furniture, not passages.",
     "- A page marked `VIEW REQUIRED` is opened on the rendered PDF page as its marker says. A fact printed only in the "
     "image cites unit `p<page>` with `\"source\": \"rendered\"`; a fact in a passage cites the passage.",
+    "- Account for everything: every passage is cited by an item or listed in the chunk receipt's `no_fact`, and every "
+    "significant number a cited passage prints is recorded in an item or set aside in `numbers_not_facts` (rule 7a).",
     "- Tag, do not transcribe: a fact over several passages carries `to` (its last passage); a table printed row by row "
     "(`| … |`) or cell by cell is tagged once with a `table` item and the check writes its rows "
     "(methodology/READING_SCHEMAS.md rules 3 and 3a).",
@@ -1266,6 +1271,7 @@ def write_chunk_files(run_dir: Path, c: dict, doc_records: List[dict], sch: dict
         body.append("")
     c["new_units"] = k
     store["new_units"] = k
+    store["accounting"] = True                # passage and number accounting apply to this chunk's reads
     head = ["# Reading chunk %s — %s" % (c["id"], c["doc_label"]),
             "PDF: `%s` · pages %s · classes: %s · %s" % (c["pdf"], page_ranges(c["pages"]), ", ".join(c["classes"]),
                                                         "CRITICAL (read twice, independently)" if c["critical"] else "standard"),
@@ -1306,13 +1312,32 @@ def page_ranges(pages: List[int]) -> str:
 # --------------------------------------------------------------------------------------------------------------
 
 def required_roles(chunk: dict, policy: Optional[dict] = None) -> List[str]:
-    """critical + reader for a critical chunk, a bake-off chunk, or any class not yet calibrated for a single read."""
-    if chunk.get("critical") or chunk.get("bakeoff"):
+    """Opus reads every chunk (role `critical`, the primary read); an independent second read follows: Sonnet
+    (`reader`) on critical sections, Haiku (`scan`) on the others; a non-critical calibration chunk is read by all three
+    (so the run can score both cheaper models). A non-critical class this run proved for a cheaper model is read by that
+    model alone (Haiku first, then Sonnet). Measured 2026-10-22: one-shot Opus with accounting recalled 92 % of an
+    exhaustive read of an auditor's report, Sonnet 41 %, so the cheaper models start as second pairs of eyes only.
+    The first second read listed is the one reconciled with Opus, as in production (on a non-critical calibration
+    chunk Haiku; the Sonnet read there is only scored)."""
+    if chunk.get("critical"):
         return ["critical", "reader"]
+    if chunk.get("bakeoff"):
+        return ["critical", "scan", "reader"]
     cal = (policy or rl.model_policy()).get("calibration", {})
-    if cal.get("status") == "passed" and set(chunk.get("classes", [])) <= set(cal.get("single_read_classes", [])):
-        return ["reader"]
-    return ["critical", "reader"]
+    classes = set(chunk.get("classes", []))
+    if cal.get("status") == "passed" and classes:
+        if classes <= set(cal.get("haiku_classes", [])):
+            return ["scan"]
+        if classes <= set(cal.get("single_read_classes", [])):
+            return ["reader"]
+    return ["critical", "scan"]
+
+
+def second_role(roles: List[str]) -> Optional[str]:
+    """The second read that is reconciled with the primary Opus read: the first one `required_roles` lists."""
+    if "critical" not in roles:
+        return None
+    return next((r for r in roles if r in SECOND_ROLES), None)
 
 
 def extraction_path(run_dir: Path, chunk_id: str, role: str) -> Path:
@@ -1347,6 +1372,9 @@ def pending_for(run_dir: Path, p: dict, role: str, pol: dict, only_bakeoff: bool
     return out
 
 
+LAUNCH_ONE_CHUNK = False                  # the engine's one-shot reads take one chunk per call
+
+
 def take_launch(chunks: List[dict]) -> List[dict]:
     """Chunks in plan order, up to LAUNCH_TOKENS and LAUNCH_MAX_CHUNKS (at least one): about one full chunk per
     launch, small chunks packed together. A reader's context holds everything it has read and written, and every turn
@@ -1354,7 +1382,7 @@ def take_launch(chunks: List[dict]) -> List[dict]:
     about four times what the same chunks cost one launch each, and its long turns let the prompt cache expire."""
     batch, tok = [], 0
     for c in chunks:
-        if batch and (tok + c["est_tokens"] > LAUNCH_TOKENS or len(batch) >= LAUNCH_MAX_CHUNKS):
+        if batch and (LAUNCH_ONE_CHUNK or tok + c["est_tokens"] > LAUNCH_TOKENS or len(batch) >= LAUNCH_MAX_CHUNKS):
             break
         batch.append(c)
         tok += c["est_tokens"]
@@ -1517,20 +1545,20 @@ def plan_next(run_dir: Path, p: dict, pol: dict, only_bakeoff: bool = False,
     for c in p["chunks"]:
         if skip(c):
             continue
-        if required_roles(c, pol) == ["critical", "reader"] and check(run_dir, c["id"], "critical").ok \
-                and check(run_dir, c["id"], "reader").ok:
+        roles = required_roles(c, pol)
+        if second_role(roles) and all(check(run_dir, c["id"], r).ok for r in roles):
             if compare_chunk(run_dir, c["id"]) and not check(run_dir, c["id"], "resolved").ok:
                 need_resolve.append(c)
     if need_resolve:
         batch, n_dis = [], 0                  # resolutions are small: pack chunks up to about 60 disagreements
         for c in need_resolve:
             k = len(compare_chunk(run_dir, c["id"], write=False))
-            if batch and (n_dis + k > 60 or len(batch) >= 6):
+            if batch and (LAUNCH_ONE_CHUNK or n_dis + k > 60 or len(batch) >= 6):
                 break
             batch.append(c)
             n_dis += k
         return "resolved", batch
-    for role in ("critical", "reader"):
+    for role in ("critical", "reader", "scan"):
         pend = [c for c in pending_for(run_dir, p, role, pol, only_bakeoff, exclude) if not skip(c)]
         if pend:
             return role, take_launch(pend)
@@ -1747,6 +1775,11 @@ def check_item(it: dict, store: dict, sch: dict, res: rl.Result, where: str) -> 
     missing = [f for f in spec.get("key", spec["fields"]) if f not in fields]
     if missing:
         res.error("%s (%s): key fields missing %s (use \"\" when not stated)" % (where, t, missing))
+    if t == "caro_clause" and len(caro_clause_ids(str(fields.get("clause", "")))) > 1:
+        res.error("%s (caro_clause): clause %r names several clauses (%s): write one item per clause, each with its own "
+                  "answer and adverse flag (a table of clauses per company: one item per company and clause, the company "
+                  "in `report`, the clause's footnote as its answer)" % (where, fields.get("clause"),
+                                                                         ", ".join(caro_clause_ids(str(fields.get("clause", ""))))))
     for f, v in fields.items():
         if f not in spec.get("key", spec["fields"]) and len(str(v).split()) > NON_KEY_WORDS:
             res.warn("%s (%s): %s has %d words: a non-key field is a short label; the dossier prints the passage itself"
@@ -1810,6 +1843,104 @@ def check_item(it: dict, store: dict, sch: dict, res: rl.Result, where: str) -> 
 
 
 VALUE_RE = re.compile(r"^(?:%s)$" % NUM_TOKEN, re.I)
+SIG_NUM_RE = re.compile(r"(?<![\w.,])\(?[-–−]?[₹$€£]?(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+(?:\.\d+)?)(%?)\)?(?![\w])")
+REF_BEFORE_RE = re.compile(r"(?:note|notes|section|sections|rule|rules|regulation|regulations|schedule|clause|annexure|"
+                           r"page|pages|form|item|chapter|article|para|paragraph|din|cin|pan|frn|membership no\.?|"
+                           r"registration no\.?|sub-section|sub-rule|act|circular|no\.)\s*[:\-]?\s*\(?$", re.I)
+MONTHS_RE = re.compile(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s*$", re.I)
+SPAN_COVERS_NUMBERS = 8           # a span item of at most this many passages carries their numbers in its quote
+SPAN_STATUS = ("no_fact", "numbers_not_facts")
+
+
+def significant_numbers(text: str) -> List[str]:
+    """The numbers a passage prints that a reader must record or expressly set aside: amounts, percentages, counts;
+    not years, days of a date, note, section, rule or page references, identifiers (six or more digits printed
+    without separators) or single digits without a decimal, percent or currency sign."""
+    out = []
+    for m in SIG_NUM_RE.finditer(text or ""):
+        raw, pct = m.group(1), m.group(2)
+        before = text[max(0, m.start() - 25):m.start()]
+        after = text[m.end():m.end() + 12]
+        sig = re.sub(r"\D", "", raw).strip("0")
+        if REF_BEFORE_RE.search(before):
+            continue
+        if re.fullmatch(r"(19[5-9]\d|20[0-3]\d)", raw) and not pct:
+            continue                                   # a year
+        if re.fullmatch(r"\d{2}", raw) and not pct and (re.search(r"(?:19|20)\d{2}\s*[-–—/]\s*$", before) or
+                                                     re.search(r"\b(?:[HQ][1-4]\s*)?FY\s*['’]?\s*$", before, re.I)):
+            continue                                   # a fiscal year: the tail of 2025–26, or FY 26, FY'26, Q1 FY26
+        if re.fullmatch(r"\d{1,2}", raw) and not pct and (MONTHS_RE.search(before) or re.match(r"\s*(?:st|nd|rd|th)?\s*"
+                                                         r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)", after, re.I)):
+            continue                                   # the day of a date
+        if re.fullmatch(r"\d{6,}", raw) and not pct:
+            continue                                   # an identifier, a phone or PIN code
+        if len(sig) < 2 and not pct and "." not in raw and not re.search(r"[₹$€£]", m.group(0)):
+            continue
+        out.append(raw + pct)
+    return out
+
+
+def accounting_gaps(store: dict, rows: List[dict]) -> Tuple[List[str], Dict[str, List[str]]]:
+    """(passages not accounted for, {passage: numbers no item records}) of a read. A passage is accounted for when an
+    item cites it (its unit, inside a `to` span or a table span) or the chunk receipt lists it in `no_fact`; a number
+    a cited passage prints is accounted for when an item citing that passage carries it in a field, when a short span
+    item (a key audit matter, a claim) quotes it whole, or when the receipt sets it aside in `numbers_not_facts`."""
+    order = store.get("order", [])
+    pos = {u: i for i, u in enumerate(order)}
+    rc = next((r for r in rows if r.get("type") == "chunk_receipt"), {})
+
+    def ids(spec) -> set:
+        out = set()
+        for x in spec if isinstance(spec, list) else []:
+            m = re.fullmatch(r"(a\d+)\s*-\s*(a\d+)", str(x).strip())
+            if m and m.group(1) in pos and m.group(2) in pos:
+                out.update(order[pos[m.group(1)]:pos[m.group(2)] + 1])
+            elif str(x).strip() in pos:
+                out.add(str(x).strip())
+        return out
+    no_fact = ids(rc.get("no_fact"))
+    cited, digits_at, quoted = set(), defaultdict(set), set()
+    for it in rows:
+        if it.get("type") in ("chunk_receipt", "page_receipt", "resolution"):
+            continue
+        u, to = str(it.get("unit")), str(it.get("to") or it.get("unit"))
+        if u not in pos:
+            continue
+        span = order[pos[u]:pos[to] + 1] if to in pos and pos[to] >= pos[u] else [u]
+        cited.update(span)
+        if it.get("type") == "table":
+            continue
+        ds = {re.sub(r"\D", "", x).strip("0") for v in (it.get("fields") or {}).values() for x in NUMBER_RE.findall(str(v))}
+        for s in span:
+            digits_at[s] |= ds
+        if len(span) > 1 and len(span) <= SPAN_COVERS_NUMBERS:
+            quoted.update(span)
+    aside = rc.get("numbers_not_facts") if isinstance(rc.get("numbers_not_facts"), dict) else {}
+    unaccounted = [u for u in order if u not in cited and u not in no_fact]
+    untagged = {}
+    for u in order:
+        if u not in cited or u in no_fact or u in quoted:
+            continue
+        ok = digits_at[u] | {re.sub(r"\D", "", str(x)).strip("0") for x in (aside.get(u) or [])}
+        miss = [n for n in significant_numbers(store["units"][u]["text"]) if re.sub(r"\D", "", n).strip("0") not in ok]
+        if miss:
+            untagged[u] = miss
+    return unaccounted, untagged
+
+
+def compress_ids(ids: List[str], order: List[str]) -> str:
+    pos = {u: i for i, u in enumerate(order)}
+    out, run = [], []
+    for u in sorted(ids, key=lambda x: pos.get(x, 0)):
+        if run and pos[u] == pos[run[-1]] + 1:
+            run.append(u)
+            continue
+        if run:
+            out.append(run[0] if len(run) == 1 else "%s-%s" % (run[0], run[-1]))
+        run = [u]
+    if run:
+        out.append(run[0] if len(run) == 1 else "%s-%s" % (run[0], run[-1]))
+    return ", ".join(out)
 
 
 def is_table_row(text: str) -> bool:
@@ -2072,6 +2203,17 @@ def _check(run_dir: Path, chunk_id: str, role: str) -> Tuple[rl.Result, Optional
         items += rows_
     for it in items:
         check_item(it, store, sch, res, it["_where"])
+    if store.get("accounting"):                # every passage and every significant number accounted for
+        unacc, untagged = accounting_gaps(store, items + tables + receipts)
+        if unacc:
+            res.error("passages not accounted for (%d): %s — cite each in an item (unit, or inside a `to` or table span), "
+                      "or list it in the chunk receipt's no_fact" % (len(unacc), compress_ids(unacc, store["order"])))
+        for u, nums in list(untagged.items())[:40]:
+            res.error("passage %s prints numbers no item records: %s — record each in an item's fields, or set it aside "
+                      "in the chunk receipt's numbers_not_facts {\"%s\": [...]} (a reference, not a fact)" % (
+                          u, ", ".join(nums[:8]), u))
+        if len(untagged) > 40:
+            res.error("... and %d more passages with unrecorded numbers" % (len(untagged) - 40))
     if expanded:                       # the assembled extraction carries every expanded row after its table tag
         rows = [x for r in rows for x in [r] + expanded.get(id(r), [])]
     need_pages = set(store["pages"])
@@ -2117,46 +2259,89 @@ def items_of(run_dir: Path, chunk_id: str, role: str) -> List[dict]:
     return [r for r in read_jsonl(path, res) if r.get("type") not in ("chunk_receipt", "page_receipt", "resolution", "table")]
 
 
+CARO_GROUP_RE = re.compile(r"\(\s*([A-Za-z]{1,6})\s*\)")
+OPINION_RE = re.compile(r"\b(unmodified|unqualified|qualified|adverse|disclaimer|disclaim)", re.I)
+
+
+def caro_clause_ids(text: str) -> List[str]:
+    """The CARO clauses a field names, canonical: `Clause 3(i)(a) 1, (b) 2` names 3(i)(a) and 3(i)(b); `3(xvii) 7,
+    Clause 3(xix) 8` names 3(xvii) and 3(xix). Sub-clauses are letters a-h, so they never collide with the roman
+    numerals i, v, x; a capital sub-item ((A), (B)) belongs to its clause."""
+    out, roman, extend = [], None, False
+    for g in CARO_GROUP_RE.findall(text or ""):
+        if re.fullmatch(r"[ivx]+", g):
+            roman, extend = g, True
+            out.append("3(%s)" % g)
+        elif re.fullmatch(r"[a-h]", g) and roman:
+            cid = "3(%s)(%s)" % (roman, g)
+            if extend:
+                out[-1] = cid
+            else:
+                out.append(cid)
+            extend = False
+    return list(dict.fromkeys(out))
+
+
+def key_answer(t: str, k: str, v) -> str:
+    """A key answer as two reads must agree on it: an opinion by its kind (unmodified, qualified, adverse, disclaimer),
+    not its wording; a CARO clause by its canonical number; anything else by its normalized text."""
+    s = norm_quote(str(v)).lower()
+    if k == "opinion":
+        m = OPINION_RE.search(s)
+        return {"unqualified": "unmodified", "disclaim": "disclaimer"}.get(m.group(1), m.group(1)) if m else s
+    if t == "caro_clause" and k == "clause":
+        return ",".join(caro_clause_ids(str(v))) or s
+    return s
+
+
 def item_sig(it: dict, sch: dict) -> tuple:
     """What two reads must agree on: each amount in its own field (a current-year value given as the prior year's is a
-    disagreement), and the key answers (opinion, CARO answer, rating, outcome)."""
+    disagreement), and the key answers (the kind of opinion, the CARO clause and whether it is adverse, the rating,
+    the outcome)."""
     spec = sch["types"].get(it.get("type"), {"amounts": []})
     f = it.get("fields") or {}
     amounts = tuple((a, norm_amount(f.get(a, ""))) for a in spec.get("amounts", []) if str(f.get(a, "")).strip())
-    keys = tuple(norm_quote(str(f.get(k, ""))).lower() for k in KEY_FIELDS.get(it.get("type"), ()))
+    keys = tuple(key_answer(it.get("type"), k, f.get(k, "")) for k in KEY_FIELDS.get(it.get("type"), ()))
     return amounts, keys
 
 
 def compare_chunk(run_dir: Path, chunk_id: str, write: bool = True) -> List[dict]:
+    """What Opus must adjudicate between the primary read (A, Opus) and the second read (B): a passage both tagged but
+    where B states something A does not (`differ`: another amount, answer or fact on the same passage and type), and,
+    on a critical section, a passage and type only B tagged (`only_B`). An item only the primary read has stands; on a
+    non-critical section an item only the second read has is added once it passes the check (final_items)."""
     sch = schema()
-    a, b = items_of(run_dir, chunk_id, "critical"), items_of(run_dir, chunk_id, "reader")
+    store = load_json(run_dir / CACHE / "chunks" / ("%s.json" % chunk_id), {"units": {}})
+    pref = SECOND_ROLES if store.get("critical") else tuple(reversed(SECOND_ROLES))   # as required_roles orders them
+    second = next((r for r in pref if extraction_path(run_dir, chunk_id, r).exists()), pref[0])
+    a, b = items_of(run_dir, chunk_id, "critical"), items_of(run_dir, chunk_id, second)
     ga, gb = defaultdict(list), defaultdict(list)
     for it in a:
         ga[(it.get("unit"), it.get("type"))].append(it)
     for it in b:
         gb[(it.get("unit"), it.get("type"))].append(it)
-    dis = []
+    dis, agreed = [], 0
     for key in sorted(set(ga) | set(gb), key=lambda k: (str(k[0]), str(k[1]))):
         xa, xb = ga.get(key, []), gb.get(key, [])
-        if not xa or not xb:
-            kind = "only_A" if xa else "only_B"
-        else:
-            sa = sorted(item_sig(i, sch) for i in xa)
-            sb = sorted(item_sig(i, sch) for i in xb)
-            if sa == sb:
-                continue
+        sa = {item_sig(i, sch) for i in xa}
+        extra = [i for i in xb if item_sig(i, sch) not in sa]
+        if not extra:
+            agreed += bool(xa and xb)
+            continue
+        if xa:
             kind = "differ"
+        elif store.get("critical"):
+            kind = "only_B"
+        else:
+            continue
         page = (xa or xb)[0].get("page")
         dis.append({"id": "%s-d%03d" % (chunk_id, len(dis) + 1), "kind": kind, "unit": key[0], "type": key[1], "page": page,
                     "A": [{k: v for k, v in i.items() if not k.startswith("_")} for i in xa],
                     "B": [{k: v for k, v in i.items() if not k.startswith("_")} for i in xb]})
     if write:
-        store = load_json(run_dir / CACHE / "chunks" / ("%s.json" % chunk_id), {"units": {}})
         for d in dis:
-            u = store["units"].get(str(d["unit"]), {})
-            d["passage"] = u.get("text", "")
-        data = {"chunk": chunk_id, "count": len(dis), "disagreements": dis,
-                "agreed": sum(1 for k in set(ga) & set(gb) if sorted(item_sig(i, sch) for i in ga[k]) == sorted(item_sig(i, sch) for i in gb[k]))}
+            d["passage"] = store["units"].get(str(d["unit"]), {}).get("text", "")
+        data = {"chunk": chunk_id, "second_read": second, "count": len(dis), "disagreements": dis, "agreed": agreed}
         path = run_dir / READING / "disagreements" / ("%s.json" % chunk_id)
         if load_json(path) != data:
             write_json(path, data)
@@ -2164,20 +2349,21 @@ def compare_chunk(run_dir: Path, chunk_id: str, write: bool = True) -> List[dict
 
 
 def final_items(run_dir: Path, chunk: dict, policy: Optional[dict] = None) -> List[dict]:
+    """The chunk's reconciled items: the primary read, except where a disagreement was adjudicated (the resolution's
+    items replace both reads there); on a non-critical section, the second read's checked extra finds, marked
+    `second_read`; a single-read class: that read."""
     roles = required_roles(chunk, policy)
-    if roles == ["reader"]:
-        return items_of(run_dir, chunk["id"], "reader")
+    second = second_role(roles)
+    if not second:
+        return items_of(run_dir, chunk["id"], roles[0])
     sch = schema()
-    a, b = items_of(run_dir, chunk["id"], "critical"), items_of(run_dir, chunk["id"], "reader")
-    ga, gb = defaultdict(list), defaultdict(list)
-    for it in a:
-        ga[(it.get("unit"), it.get("type"))].append(it)
-    for it in b:
-        gb[(it.get("unit"), it.get("type"))].append(it)
-    out = []
-    for k in set(ga) & set(gb):
-        if sorted(item_sig(i, sch) for i in ga[k]) == sorted(item_sig(i, sch) for i in gb[k]):
-            out.extend(ga[k])
+    a, b = items_of(run_dir, chunk["id"], "critical"), items_of(run_dir, chunk["id"], second)
+    disputed = {(d["unit"], d["type"]) for d in compare_chunk(run_dir, chunk["id"], write=False)}
+    out = [i for i in a if (i.get("unit"), i.get("type")) not in disputed]
+    if not chunk.get("critical"):
+        seen = {(i.get("unit"), i.get("type"), item_sig(i, sch)) for i in a}
+        out += [dict(i, second_read=second) for i in b if (i.get("unit"), i.get("type")) not in disputed
+                and (i.get("unit"), i.get("type"), item_sig(i, sch)) not in seen]
     path = extraction_path(run_dir, chunk["id"], "resolved")
     if path.exists():
         for r in read_jsonl(path, rl.Result("")):
@@ -2189,6 +2375,97 @@ def final_items(run_dir: Path, chunk: dict, policy: Optional[dict] = None) -> Li
 # --------------------------------------------------------------------------------------------------------------
 # Dossiers and packs
 # --------------------------------------------------------------------------------------------------------------
+
+EVENT_STOP = set("the and for with from that this which were been have has had into over under about after before "
+                 "company companies limited group india indian crore crores million billion lakh year years fiscal "
+                 "announced announces said says report reported reports".split())
+
+
+def doc_fiscal_year(doc: dict, fy_end_month: int = 3) -> int:
+    """The fiscal year a document belongs to: its label (AR-FY2025, Q1FY2026) or, for a filing, its date."""
+    m = re.search(r"FY(\d{4})", doc.get("period") or doc.get("key") or "")
+    if m:
+        return int(m.group(1))
+    m = re.match(r"(\d{4})-(\d{2})", str(doc.get("period") or ""))
+    if m:
+        y, mo = int(m.group(1)), int(m.group(2))
+        return y + 1 if mo > fy_end_month else y
+    return 0
+
+
+def events_check(run_dir: Path, log=print) -> dict:
+    """The historian's events (corpus/events.csv) against what the readers extracted: an event of fiscal year Y is
+    looked for in the reconciled items of that year's documents and of the next year's annual report (which reports the
+    year before), matched on its entities, its distinctive words and its amounts. An event with no match is a lead for
+    the specialists and a line in the CIO's gap register: the reading missed it, or the company did not disclose it.
+    An event before the reading window is listed as such (the specialists' own research covers it)."""
+    path = run_dir / "corpus" / "events.csv"
+    if not path.exists():
+        return {}
+    with path.open(encoding="utf-8", newline="") as f:
+        events = list(csv.DictReader(f))
+    p = load_json(run_dir / READING / "plan.json")
+    pol = run_policy(run_dir)
+    m = rl.load_json(run_dir / rl.RUN_MANIFEST)
+    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
+    by_fy = defaultdict(list)
+    for d in p["documents"]:
+        by_fy[doc_fiscal_year(d, fy_end)].append(d)
+    texts = {}
+    for c in p["chunks"]:
+        for it in final_items(run_dir, c, pol):
+            blob = " ".join([norm_space(it.get("quote", "")), " ".join(str(v) for v in (it.get("fields") or {}).values())])
+            texts.setdefault(c["doc"], []).append((blob.lower(), it, c))
+    results = []
+    for e in events:
+        fy = int(re.sub(r"\D", "", e.get("fiscal_year") or "0") or 0)
+        docs = [d for d in by_fy.get(fy, []) + [d for d in by_fy.get(fy + 1, []) if d["doc_type"] == "annual_report"]]
+        names = [x.strip().lower() for x in (e.get("entities") or "").split(";") if len(x.strip()) >= 4]
+        words = {w.lower() for w in re.findall(r"[A-Za-z][A-Za-z&-]{4,}", e.get("event") or "")} - EVENT_STOP
+        nums = {re.sub(r"\D", "", n).strip("0") for n in NUMBER_RE.findall((e.get("amount") or "") + " " + (e.get("event") or ""))}
+        nums = {n for n in nums if len(n) >= 3 and not re.fullmatch(r"(19|20)\d\d", n)}
+        best = []
+        for d in docs:
+            for blob, it, c in texts.get(d["key"], []):
+                digits = {re.sub(r"\D", "", n).strip("0") for n in NUMBER_RE.findall(blob)}
+                score = 2 * sum(1 for n in names if n in blob) + sum(1 for w in words if w in blob) + 3 * len(nums & digits)
+                if score >= 3:
+                    best.append((score, d["key"], it.get("page"), it.get("unit"), it.get("type")))
+        best.sort(reverse=True)
+        if not docs:
+            status = "outside_reading"
+        elif best:
+            status = "matched"
+        else:
+            status = "unmatched"
+        results.append(dict(e, status=status, matches=["%s p.%s %s (%s)" % (k, pg, u, t_) for _, k, pg, u, t_ in best[:3]]))
+    out = {"events": len(results), "matched": sum(r["status"] == "matched" for r in results),
+           "unmatched": sum(r["status"] == "unmatched" for r in results),
+           "outside_reading": sum(r["status"] == "outside_reading" for r in results), "rows": results}
+    write_json(run_dir / READING / "events_check.json", out)
+    order = {"unmatched": 0, "outside_reading": 1, "matched": 2}
+    lines = ["# Events: the outside view against the reading — run %s" % p["run_id"], "",
+             "The historian's timeline of the company's major events from news and the web (`corpus/EVENTS.md`, each event "
+             "with the source it opened), checked against the items the readers extracted from that year's documents and "
+             "the next year's annual report. **Leads, not evidence:** confirm any event you use in a primary source. An "
+             "event **not found in the reports read** means the reading missed it or the company did not disclose it; "
+             "both matter.", "",
+             "%d events: %d found in the reports read, **%d not found**, %d before the reading window." % (
+                 out["events"], out["matched"], out["unmatched"], out["outside_reading"]), "",
+             "| Event | Date | Category | What happened | Source | In the reports read |", "|---|---|---|---|---|---|"]
+    for r in sorted(results, key=lambda r: (order[r["status"]], r.get("date", ""))):
+        where = {"unmatched": "**not found**", "outside_reading": "before the reading window"}.get(r["status"]) or \
+            "; ".join(r["matches"])
+        lines.append("| %s | %s | %s | %s | [%s](%s) | %s |" % (r.get("event_id"), r.get("date"), r.get("category"),
+                                                            (r.get("event") or "").replace("|", "/"), (r.get("source_title") or
+                                                            "source").replace("|", "/")[:60], r.get("source_url"), where))
+    dpath = run_dir / DOSSIERS / "events.md"
+    dpath.parent.mkdir(parents=True, exist_ok=True)
+    dpath.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log("events check: %d events, %d found in the reports read, %d not found, %d before the window -> %s" % (
+        out["events"], out["matched"], out["unmatched"], out["outside_reading"], rel(run_dir, dpath)))
+    return out
+
 
 SERIES_TYPES = ("statement_line", "segment_data", "kpi", "esg_metric", "revenue_disaggregation", "csr",
                 "subsidiary_financials", "auditor_fee", "dividend", "remuneration", "contingent_liability", "commitment",
@@ -2388,6 +2665,8 @@ def dossiers(run_dir: Path, log=print) -> dict:
             for t_, title, ns, nm, nr, tok, rtok, own in index_rows]
     idx += ["", "## Documents", "", "| Key | Document | PDF |", "|---|---|---|"]
     idx += ["| %s | %s | `%s` |" % (d["key"], d["label"], d["pdf"]) for d in p["documents"]]
+    ev = events_check(run_dir, log=log) if (run_dir / "corpus" / "events.csv").exists() else {}
+    ev_tok = est_tokens(len((out_dir / "events.md").read_text(encoding="utf-8"))) if ev else 0
     packs = out_dir / "packs"
     packs.mkdir(exist_ok=True)
     sizes = {}
@@ -2402,6 +2681,12 @@ def dossiers(run_dir: Path, log=print) -> dict:
                  "definition requires.", "",
                  "| Dossier (read in full) | Contents | Series | Material items | ≈ tokens |", "|---|---|---|---|---|"]
         lines += ["| `corpus/dossiers/%s.md` | %s | %d | %d | %d |" % (r[0], r[1], r[2], r[3], r[5]) for r in mine]
+        if ev:
+            lines.append("| `corpus/dossiers/events.md` | The company's major events from news and the web, checked against "
+                         "the reports read (%d not found in them: leads to check) | - | %d | %d |" % (ev["unmatched"],
+                                                                                                    ev["events"], ev_tok))
+            must += ev_tok
+            sizes[name] = must
         lines += ["", "Must-read total ≈ %s tokens%s." % (format(must, ","), (
             ": more than one session reads comfortably (%s). Read it in order across your sessions, recording in your "
             "workpapers what each dossier established; a fresh session continues from those notes" % format(PACK_BUDGET, ","))
@@ -2434,7 +2719,7 @@ def chunk_state(run_dir: Path, c: dict, pol: dict, write: bool = True) -> Tuple[
         r = check(run_dir, c["id"], role, write=write)
         if not r.ok:
             errs.append("%s: %s" % (role, r.errors[0] if r.errors else "failed"))
-    if not errs and roles == ["critical", "reader"]:
+    if not errs and second_role(roles):
         dis = compare_chunk(run_dir, c["id"], write=write)
         if dis:
             r = check(run_dir, c["id"], "resolved", write=write)
@@ -2671,7 +2956,9 @@ def bakeoff_score(run_dir: Path, log=print) -> dict:
             continue
         units = chunk_cache(run_dir, c["id"]).get("units", {})
         final = Counter(key(i) for i in final_items(run_dir, dict(c, bakeoff=True)))
-        for role, label in (("critical", "opus"), ("reader", "sonnet")):
+        for role, label in (("critical", "opus"), ("reader", "sonnet"), ("scan", "haiku")):
+            if not extraction_path(run_dir, c["id"], role).exists():
+                continue
             got = Counter(key(i) for i in items_of(run_dir, c["id"], role))
             for k in set(final) | set(got):
                 cls = units.get(k[0], {}).get("class") or (c["classes"][0] if c["classes"] else "narrative")
@@ -2689,9 +2976,12 @@ def bakeoff_score(run_dir: Path, log=print) -> dict:
         precision = cnt["found"] / cnt["items"] if cnt["items"] else 1.0
         rows.append({"class": cls, "model": label, "final_items": cnt["final"], "recall": round(recall, 4),
                      "precision": round(precision, 4), "material_misses": cnt["material_miss"]})
-    eligible = sorted({r["class"] for r in rows if r["model"] == "sonnet" and r["material_misses"] == 0 and r["recall"] >= 0.98
+    def eligible_for(model):
+        return sorted({r["class"] for r in rows if r["model"] == model and r["material_misses"] == 0 and r["recall"] >= 0.98
                        and r["final_items"] >= BAKEOFF_MIN_ITEMS and not sch["classes"].get(r["class"], {}).get("critical")})
-    out = {"rows": rows, "material_misses": misses, "eligible_single_read_classes": eligible}
+    eligible = eligible_for("sonnet")
+    out = {"rows": rows, "material_misses": misses, "eligible_single_read_classes": eligible,
+           "eligible_haiku_classes": eligible_for("haiku")}
     write_json(run_dir / READING / "bakeoff_score.json", out)
     lines = ["# Bake-off result — run %s" % p["run_id"], "", "| Class | Model | Final items | Recall | Precision | Material misses |",
              "|---|---|---|---|---|---|"]
@@ -2699,6 +2989,7 @@ def bakeoff_score(run_dir: Path, log=print) -> dict:
                                                       r["material_misses"]) for r in rows]
     lines += ["", "Eligible for a single Sonnet read (non-critical, at least %d adjudicated items, zero material misses, recall ≥ 0.98): %s"
               % (BAKEOFF_MIN_ITEMS, ", ".join(eligible) or "none"),
+              "Eligible for a single Haiku read (same rule): %s" % (", ".join(out["eligible_haiku_classes"]) or "none"),
               "", "Recall is measured against the adjudicated union of both reads: an item both models missed is invisible here, "
               "which is why the auditor's per-run sample of Sonnet-read pages remains."]
     (run_dir / READING / "BAKEOFF.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -2733,7 +3024,8 @@ def reference_save(run_dir: Path, chunk_ids: List[str], log=print) -> List[str]:
 
 
 def reference_score(run_dir: Path, log=print) -> dict:
-    """Recall of the current reads against the reference, per section class and model: a reference item is found when
+    """Recall of the current reads against the reference, per section class and model, and of the reconciled record
+    (`final`: the primary read, the second read's checked extras and the resolutions): a reference item is found when
     a current item of the same type, with the same amounts and key answers, cites its passage or a span that covers it
     (a table row expanded by script counts like a row written by hand). Every material item missed is listed, and so
     is every current item the reference lacks (to review: a miss of the reference, or an error)."""
@@ -2743,6 +3035,7 @@ def reference_score(run_dir: Path, log=print) -> dict:
     sch = schema()
     launches = load_json(launches_path(run_dir), {"launches": []})["launches"]
     p = load_json(run_dir / READING / "plan.json")
+    pol = run_policy(run_dir)
     est = {c["id"]: c["est_tokens"] for c in p["chunks"]}
     agg, misses, extras, costs = defaultdict(Counter), [], [], defaultdict(Counter)
     for l in launches:
@@ -2762,25 +3055,39 @@ def reference_score(run_dir: Path, log=print) -> dict:
             continue
         ref_items = [r for r in read_jsonl(rpath, rl.Result("")) if r.get("type") not in
                      ("chunk_receipt", "page_receipt", "resolution", "table")]
-        for role, label in (("critical", "opus"), ("reader", "sonnet")):
-            cur = items_of(run_dir, cid, role)
+        chunk = next((c for c in p["chunks"] if c["id"] == cid), {"id": cid})
+        for role, label in (("critical", "opus"), ("reader", "sonnet"), ("scan", "haiku"), ("final", "final")):
+            if role == "final":                           # the reconciled record: what the dossiers are built from
+                done = chunk_state(run_dir, chunk, pol, write=False)[0] == "read"
+                cur = final_items(run_dir, chunk, pol) if done else []
+            else:
+                cur = items_of(run_dir, cid, role)
             if not cur:
                 continue
             cover = defaultdict(set)                      # (type, sig) -> passages covered
+            on = defaultdict(list)                        # passage -> the amounts of each item covering it
             for it in cur:
                 u, to = str(it.get("unit")), str(it.get("to") or it.get("unit"))
                 span = order[pos[u]:pos[to] + 1] if u in pos and to in pos else [u]
                 cover[(it.get("type"), item_sig(it, sch))].update(span)
+                vals = {norm_amount(v) for v in (it.get("fields") or {}).values() if str(v).strip()}
+                for x in span:
+                    on[x].append(vals)
             matched = set()
             for r in ref_items:
                 cls = st["units"].get(str(r.get("unit")), {}).get("class") or (st.get("classes") or ["?"])[0]
                 k = (r.get("type"), item_sig(r, sch))
                 ok = str(r.get("unit")) in cover.get(k, set())
+                need = {norm_amount((r.get("fields") or {}).get(a, "")) for a in
+                        sch["types"].get(r.get("type"), {}).get("amounts", []) if str((r.get("fields") or {}).get(a, "")).strip()}
+                content = ok or any(need <= vals for vals in on.get(str(r.get("unit")), []))
                 mat = sch["types"].get(r.get("type"), {}).get("material")
                 agg[(cls, label)]["ref"] += 1
                 agg[(cls, label)]["found"] += ok
+                agg[(cls, label)]["content"] += content
                 agg[(cls, label)]["ref_material"] += bool(mat)
                 agg[(cls, label)]["found_material"] += bool(mat and ok)
+                agg[(cls, label)]["content_material"] += bool(mat and content)
                 if ok:
                     matched.add(k)
                 elif mat:
@@ -2794,16 +3101,23 @@ def reference_score(run_dir: Path, log=print) -> dict:
     for (cls, label), c in sorted(agg.items()):
         if cls == "all":
             continue
-        rows.append({"class": cls, "model": label, "reference_items": c["ref"], "recall": round(c["found"] / c["ref"], 4) if c["ref"] else 1.0,
-                     "material_items": c["ref_material"], "material_recall": round(c["found_material"] / c["ref_material"], 4)
-                     if c["ref_material"] else 1.0})
+        ratio = (lambda n, d: round(n / d, 4) if d else 1.0)
+        rows.append({"class": cls, "model": label, "reference_items": c["ref"], "recall": ratio(c["found"], c["ref"]),
+                     "content_recall": ratio(c["content"], c["ref"]), "material_items": c["ref_material"],
+                     "material_recall": ratio(c["found_material"], c["ref_material"]),
+                     "material_content_recall": ratio(c["content_material"], c["ref_material"])})
     out = {"rows": rows, "material_misses": misses, "extras_sample": extras,
            "cost": {"%s %s" % k: {"usd": round(v["usd"], 2), "minutes": round(v["min"], 1)} for k, v in costs.items()}}
     write_json(run_dir / READING / "reference_score.json", out)
     lines = ["# Reading against the reference — run %s" % p["run_id"], "",
-             "| Class | Model | Reference items | Recall | Material items | Material recall |", "|---|---|---|---|---|---|"]
-    lines += ["| %s | %s | %d | %.3f | %d | %.3f |" % (r["class"], r["model"], r["reference_items"], r["recall"],
-                                                    r["material_items"], r["material_recall"]) for r in rows]
+             "Strict: an item of the same type with the same amounts and key answers cites the passage. Content: some "
+             "item cites the passage and carries every amount of the reference item, whatever its type (the dossier "
+             "prints the passage itself).", "",
+             "| Class | Model | Reference items | Recall | Content recall | Material items | Material recall | "
+             "Material content recall |", "|---|---|---|---|---|---|---|---|"]
+    lines += ["| %s | %s | %d | %.3f | %.3f | %d | %.3f | %.3f |" % (
+        r["class"], r["model"], r["reference_items"], r["recall"], r["content_recall"], r["material_items"],
+        r["material_recall"], r["material_content_recall"]) for r in rows]
     lines += ["", "Material items missed: %d" % len(misses)] + ["- %s %s %s %s: %s" % (
         m["chunk"], m["model"], m["unit"], m["type"], json.dumps(m["fields"], ensure_ascii=False)[:160]) for m in misses[:60]]
     lines += ["", "| Chunk · role | Cost $ | Minutes |", "|---|---|---|"] + [
@@ -2933,9 +3247,16 @@ def render(run_dir: Path, chunk_id: str, page: int, dpi: int = RENDER_DPI, rotat
     if not tool:
         raise SystemExit("pdftoppm (poppler) is not installed: open the page with the Read tool (pages: \"%d\")" % page)
     dpi, parts = max(50, min(int(dpi), 300)), max(1, min(int(parts), 4))
-    data = subprocess.run([tool, "-gray", "-r", str(dpi), "-f", str(page), "-l", str(page), str(pdf_path(store["pdf"]))],
-                          capture_output=True, timeout=180).stdout
-    w, h, pix = rotate_gray(*pgm_parse(data), rotate)
+    pdf = pdf_path(store["pdf"])
+    if not pdf.is_file():
+        raise SystemExit("the PDF of chunk %s is missing: %s (the document map's cached copy was moved or deleted)"
+                         % (chunk_id, pdf))
+    got = subprocess.run([tool, "-gray", "-r", str(dpi), "-f", str(page), "-l", str(page), str(pdf)],
+                         capture_output=True, timeout=180)
+    if got.returncode or not got.stdout:
+        raise SystemExit("pdftoppm could not render page %d of %s: %s" % (
+            page, pdf, got.stderr.decode("utf-8", "replace").strip()[:300] or "exit %d" % got.returncode))
+    w, h, pix = rotate_gray(*pgm_parse(got.stdout), rotate)
     out_dir = run_dir / CACHE / "render"
     out_dir.mkdir(parents=True, exist_ok=True)
     pieces = split_gray(w, h, pix, parts)
@@ -3050,10 +3371,11 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "compare":
         p = load_json(run_dir / READING / "plan.json", {"chunks": []})
-        ids = a.chunks or [c["id"] for c in p["chunks"] if required_roles(c) == ["critical", "reader"]]
+        ids = a.chunks or [c["id"] for c in p["chunks"] if second_role(required_roles(c))]
         total = 0
         for cid in ids:
-            if extraction_path(run_dir, cid, "critical").exists() and extraction_path(run_dir, cid, "reader").exists():
+            if extraction_path(run_dir, cid, "critical").exists() and any(extraction_path(run_dir, cid, r).exists()
+                                                                          for r in SECOND_ROLES):
                 n = len(compare_chunk(run_dir, cid))
                 total += n
                 print("%s: %d disagreement(s)" % (cid, n))

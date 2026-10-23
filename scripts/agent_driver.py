@@ -3,10 +3,12 @@
 
   python3 scripts/agent_driver.py reading     RUN_DIR [--parallel N] [--bakeoff] [--max-launches N]   # Stage 0b
   python3 scripts/agent_driver.py librarian   RUN_DIR --message-file F                                # Stage 0
+  python3 scripts/agent_driver.py events      RUN_DIR [--years 10]                                    # Stage 0
   python3 scripts/agent_driver.py specialists RUN_DIR [--only a,b] [--parallel N]                     # Stage 1
   python3 scripts/agent_driver.py verify      RUN_DIR [--only a,b]                                    # the verifier
   python3 scripts/agent_driver.py followup    RUN_DIR AGENT --message-file F --purpose "<why>" [--stage 2|3|4] [--output REL]
   python3 scripts/agent_driver.py audit       RUN_DIR --message-file F                                # Stage 4
+  python3 scripts/agent_driver.py estimate    RUN_DIR               # cost, windows and weeks of the run, from its plan
   python3 scripts/agent_driver.py prompt      RUN_DIR SPECIALIST    # the filled Stage-1 brief (for the Agent-tool fallback)
   python3 scripts/agent_driver.py show        RUN_DIR [--last N]    # every session: time, tokens, cost, usage used
   python3 scripts/agent_driver.py usage       [--probe]             # the account's five-hour and weekly utilization
@@ -67,7 +69,7 @@ import tempfile
 import threading
 import time
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -266,6 +268,11 @@ class Assignment:
     outcome: str = ""
     polish: Optional[Callable[[], List[str]]] = None   # issues worth one fix round that do not block the check
     subject: str = ""               # the verifier: the specialist it checks
+    oneshot: bool = False           # one call per turn, no tools: the message carries the chunk (and page images)
+    system_file: Optional[Path] = None
+    message: Optional[Callable[[str, str], str]] = None   # (kind, text) -> the stream-json user message line
+    on_result: Optional[Callable[[str, str], None]] = None  # (kind, result text): the engine records the read
+    fix_builder: Optional[Callable[[List[str]], str]] = None
 
 
 def run_paths(run_dir: Path) -> List[Path]:
@@ -326,7 +333,7 @@ def validator_errors(cmd: List[str]) -> List[str]:
     return errs[:40] or [out.strip()[-2000:] or "the validator exited %d" % rc]
 
 
-def reader_assignment(run_dir: Path, act: dict) -> Assignment:
+def reader_assignment(run_dir: Path, act: dict, oneshot: Optional[bool] = None) -> Assignment:
     """A reading launch: read, write parts, run the check. Writes only into the parts directories; the shell only for
     `reading.py check` and `render`; nothing else of the run, no web."""
     parts = (run_dir / reading.CACHE / "parts").resolve()
@@ -339,7 +346,7 @@ def reader_assignment(run_dir: Path, act: dict) -> Assignment:
             if outside(d, [rl.ROOT] + dirs) and d not in dirs:
                 dirs.append(d)
     lid = act["launch"]
-    others = [r for r in ("critical", "reader") if r != act["role"]] if act["role"] != "resolved" else []
+    others = [r for r in ("critical", "reader", "scan") if r != act["role"]] if act["role"] != "resolved" else []
     four_eyes = []                    # the two reads of a double-read chunk stay independent until they are compared
     for r in others:
         four_eyes += [abs_rule("Read", parts, "/*.%s/**" % r),
@@ -355,7 +362,7 @@ def reader_assignment(run_dir: Path, act: dict) -> Assignment:
             if not res.ok:
                 errs += ["%s: %s" % (cid, e) for e in res.errors[:25]]
         return errs
-    return Assignment(kind="reader", agent=act["agent"], model=act["model"], effort=act["effort"], prompt=act["prompt"],
+    base = Assignment(kind="reader", agent=act["agent"], model=act["model"], effort=act["effort"], prompt=act["prompt"],
                       label=lid, tools=["Read", "Write", "Edit", "Bash"],
                       allowed=["Read", abs_rule("Write", parts, "/**"), abs_rule("Edit", parts, "/**"),
                                "Bash(python3 scripts/reading.py check:*)", "Bash(python3 scripts/reading.py render:*)"],
@@ -363,6 +370,148 @@ def reader_assignment(run_dir: Path, act: dict) -> Assignment:
                       fix_msg=READER_FIX_MSG, fix_rounds=FIX_ROUNDS, chunks=tuple(act["chunks"]), role=act["role"],
                       record="launch",
                       stage="0b", purpose="%s %s" % (act["role"], ", ".join(act["chunks"])))
+    if (ONESHOT_READING if oneshot is None else oneshot) and len(act["chunks"]) == 1:
+        return oneshot_reader(run_dir, act, base)
+    return base
+
+
+ONESHOT_READING = True          # measured 2026-10-22: one call per chunk with accounting, 3-4x cheaper than a session
+ONESHOT_FIX_ROUNDS = 2          # fix turns before a chunk falls back to the agentic reader
+ONESHOT_PREFACE = ("ONE-SHOT MODE. The engine puts the chunk file (and its rendered VIEW REQUIRED pages) in the message, "
+                   "runs the reading check on your answer, and sends you back exactly what the check found. Ignore every "
+                   "instruction below about tools, files, parts directories and running the check yourself: you answer "
+                   "with JSON lines only. Everything else below applies in full.")
+ONESHOT_RULES = ("ACCOUNTING (checked by script): every passage a1..aN of the chunk is cited by an item (its unit, inside "
+                 "an item's unit..to span, or inside a table tag's span) or listed in the chunk_receipt's \"no_fact\" "
+                 "(ids or ranges such as \"a10-a14\") because it states no fact of any schema type. Every significant "
+                 "number a cited passage prints (amounts, percentages, counts; not years, dates or note, section or page "
+                 "references) is recorded in a field of an item citing that passage, or set aside in the chunk_receipt's "
+                 "\"numbers_not_facts\" ({\"a12\": [\"135\"]}) because it is a reference, not a fact. Work through the "
+                 "passages in order; before you finish, check that every passage and every number is accounted for.\n\n"
+                 "OUTPUT: only JSON lines, nothing else (no prose, no code fences): the items and table tags, one "
+                 "page_receipt per page of the chunk, then one chunk_receipt with the role, your model id, units_read (the "
+                 "number of passages the chunk header states), pages_viewed (every VIEW REQUIRED page you were shown), "
+                 "no_fact and numbers_not_facts.\n\nFIX TURNS: when the engine sends errors, answer with JSON lines only: "
+                 "to correct an item, its label and the corrected line (E7 {...}); to remove one, E7 DELETE; new items as "
+                 "plain JSON lines; and, when your no_fact, numbers_not_facts or receipts change, the new complete "
+                 "chunk_receipt (and page_receipts), which replace the old ones.")
+JSON_LINE_RE = re.compile(r"^(?:(E\d+)\s+)?(\{.*\}|DELETE)\s*$")
+
+
+def agent_body(agent: str) -> str:
+    text = (rl.AGENTS_DIR / ("%s.md" % agent)).read_text(encoding="utf-8")
+    return re.sub(r"\A---\n.*?\n---\n", "", text, flags=re.S).strip()
+
+
+def oneshot_system(run_dir: Path, role: str) -> Path:
+    """The one-shot reader's system prompt: identical for every chunk of a role (so it is cached across calls)."""
+    agent = reading.ROLE_AGENT[role]
+    parts = [ONESHOT_PREFACE, "", "# Reading rules and schema", "", (rl.ROOT / "methodology" / "READING_SCHEMAS.md").read_text(
+        encoding="utf-8"), "", "# Your role: %s (agent %s)" % (role, agent), "", agent_body(agent)]
+    if role == "critical":
+        parts += ["", "# The reader method the critical role follows", "", agent_body("reader")]
+    parts += ["", "# One-shot output", "", ONESHOT_RULES]
+    out = run_dir / "_cache" / "engine" / "system" / ("oneshot-%s.md" % role)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    text = "\n".join(parts) + "\n"
+    if not out.exists() or out.read_text(encoding="utf-8") != text:
+        out.write_text(text, encoding="utf-8")
+    return out
+
+
+def parse_lines(text: str) -> List[Tuple[str, Optional[dict]]]:
+    """[(label or "", object or None for DELETE)] from a one-shot answer; anything that is not a JSON line is ignored."""
+    out = []
+    for line in (text or "").splitlines():
+        m = JSON_LINE_RE.match(line.strip())
+        if not m:
+            continue
+        if m.group(2) == "DELETE":
+            if m.group(1):
+                out.append((m.group(1), None))
+            continue
+        try:
+            obj = json.loads(m.group(2))
+        except ValueError:
+            continue
+        if isinstance(obj, dict):
+            out.append((m.group(1) or "", obj))
+    return out
+
+
+def oneshot_reader(run_dir: Path, act: dict, base: "Assignment") -> "Assignment":
+    """Turn a reading launch of one chunk into a one-shot read: the message carries the chunk (or, for `resolved`, the
+    disagreements) and the rendered VIEW REQUIRED pages; the engine records the answer as the chunk's part 01.jsonl,
+    applies labelled corrections on fix turns, and the existing check (anchors, numbers, receipts, passage and number
+    accounting) decides. The model needs no tools and no write permission."""
+    cid, role = act["chunks"][0], act["role"]
+    part = reading.parts_dir(run_dir, cid, role) / "01.jsonl"
+    rid = reading.run_id_of(run_dir)
+    if role == "resolved":
+        dis = (run_dir / reading.READING / "disagreements" / ("%s.json" % cid)).read_text(encoding="utf-8")
+        launch = (run_dir / reading.CACHE / "launches" / ("%s.md" % act["launch"])).read_text(encoding="utf-8")
+        first = ("Run %s, launch %s. Resolve every disagreement of chunk %s against the passages and the page, per your "
+                 "role `resolved`. The launch instructions and the disagreements file follow.\n\n%s\n\n# Disagreements "
+                 "(%s)\n\n%s" % (rid, act["launch"], cid, launch, cid, dis))
+    else:
+        chunk = (run_dir / reading.CACHE / "chunks" / ("%s.md" % cid)).read_text(encoding="utf-8")
+        first = ("Run %s, launch %s, role %s. Read every line of chunk %s below and write its items as JSON lines per "
+                 "the rules; the rendered VIEW REQUIRED pages follow the chunk.\n\n%s" % (rid, act["launch"], role, cid, chunk))
+
+    def message(kind: str, text: str) -> str:
+        content = [{"type": "text", "text": first if kind == "start" else text}]
+        if kind == "start" and role != "resolved":
+            import base64
+            st = reading.chunk_cache(run_dir, cid)
+            for pg in reading.view_pages(st):
+                for img in reading.render(run_dir, cid, pg):
+                    content.append({"type": "text", "text": "[VIEW REQUIRED page %d of %s, rendered]" % (pg, st["doc"])})
+                    content.append({"type": "image", "source": {"type": "base64", "media_type": "image/png",
+                                                                "data": base64.b64encode(img.read_bytes()).decode()}})
+        return json.dumps({"type": "user", "message": {"role": "user", "content": content}}) + "\n"
+
+    def current() -> List[str]:
+        return part.read_text(encoding="utf-8").splitlines() if part.exists() else []
+
+    def on_result(kind: str, text: str) -> None:
+        got = parse_lines(text)
+        if not got:
+            return
+        lines = [] if kind in ("start", "resume", "continue") else current()
+        for label, obj in got:
+            if label:
+                n = int(label[1:]) - 1
+                if 0 <= n < len(lines):
+                    lines[n] = "" if obj is None else json.dumps(obj, ensure_ascii=False)
+        new = [obj for label, obj in got if not label and obj is not None]
+        if any(o.get("type") == "chunk_receipt" for o in new):
+            lines = [l for l in lines if '"chunk_receipt"' not in l]
+        pages = {o.get("page") for o in new if o.get("type") == "page_receipt"}
+        if pages:
+            lines = [l for l in lines if not ('"page_receipt"' in l and json.loads(l).get("page") in pages)]
+        lines = [l for l in lines if l.strip()] + [json.dumps(o, ensure_ascii=False) for o in new]
+        part.parent.mkdir(parents=True, exist_ok=True)
+        part.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def fix_builder(errs: List[str]) -> str:
+        lines = current()
+        by_line, other = defaultdict(list), []
+        for e in errs:
+            m = re.search(r"\b01\.jsonl line (\d+)", e)
+            (by_line[int(m.group(1))] if m else other).append(e.split(": ", 1)[-1] if m else e)
+        out = ["The reading check found what follows. Answer with JSON lines only: corrections as the label and the "
+               "corrected line (E7 {...}), removals as E7 DELETE, new items as plain lines, and a new complete "
+               "chunk_receipt when no_fact or numbers_not_facts change.", ""]
+        for n in sorted(by_line):
+            out.append("E%d %s" % (n, lines[n - 1] if 0 < n <= len(lines) else "(line not found)"))
+            out += ["   error: %s" % x for x in by_line[n][:4]]
+        if other:
+            out += ["", "Other errors:"] + ["- %s" % x for x in other]
+        return "\n".join(out)
+    resume = ("Your answer was interrupted. Output all the JSON lines for chunk %s again, complete, per the rules." % cid)
+    return dataclasses.replace(base, oneshot=True, system_file=oneshot_system(run_dir, role), message=message,
+                               on_result=on_result, fix_builder=fix_builder, tools=[], allowed=[], denied=[],
+                               resume_msg=resume, fix_rounds=ONESHOT_FIX_ROUNDS)
 
 
 def specialist_prompt(run_dir: Path, name: str) -> str:
@@ -477,6 +626,36 @@ def verifier_assignment(run_dir: Path, name: str, prompt: str) -> Assignment:
                                "scripts/verify.py claims RUN_DIR " + name + "` until it reports no errors, then give "
                                "your one-line result."), stage="1-verify", purpose="re-check %s's claims" % name,
                       subject=name)
+
+
+def historian_assignment(run_dir: Path, prompt: str, years: int = 10) -> Assignment:
+    """The historian builds the run's event timeline from news and the web: it writes only its two files and checks them
+    with verify.py events; every cited source must be opened in its own session."""
+    model, effort = reading.pinned(run_dir, "historian")
+    files = [run_dir / "corpus" / "events.csv", run_dir / "corpus" / "EVENTS.md"]
+    allowed = ["Read", "WebSearch", "WebFetch"] + [abs_rule(t_, f) for f in files for t_ in ("Write", "Edit")] + [
+        "Bash(python3 scripts/%s:*)" % s for s in ("fetch_source.py", "exchange_index.py", "corpus.py", "verify.py events")]
+
+    def check() -> List[str]:
+        import verify
+        return verify.events_errors(run_dir, years)
+    return Assignment(kind="historian", agent="historian", model=model, effort=effort, prompt=prompt, label="",
+                      tools=agent_tools("historian"), allowed=allowed,
+                      denied=[r for r in independence_denies(run_dir, "historian") if "/qc/" not in r] + shell_denies(),
+                      dirs=run_paths(run_dir), check=check, resume_msg=RESUME_MSG % "corpus/EVENTS.md",
+                      fix_msg=("The timeline check still fails:\n%s\nFix every error, re-run python3 scripts/verify.py "
+                               "events RUN_DIR until it passes, then give your one-line result."),
+                      stage="0", purpose="the company's ten-year event timeline")
+
+
+def historian_prompt(run_dir: Path, years: int = 10) -> str:
+    m = rl.load_json(run_dir / rl.RUN_MANIFEST)
+    cutoff = str(m.get("research_cutoff") or reading.now_iso()[:10])
+    return ("You are the HISTORIAN for run %s: %s (%s, %s). RUN_DIR: %s\nBuild the company's timeline of major events per "
+            "your definition, from FY%d (or the listing, if later) to the research cutoff %s, and check it with "
+            "python3 scripts/verify.py events %s --years %d." % (
+                m.get("run_id", run_dir.name), m.get("company", ""), m.get("ticker", ""), m.get("exchange", ""),
+                reading.rel_run(run_dir), int(cutoff[:4]) - years, cutoff, reading.rel_run(run_dir), years))
 
 
 def librarian_assignment(run_dir: Path, prompt: str) -> Assignment:
@@ -823,6 +1002,11 @@ class Engine:
 
     # -- one segment ----------------------------------------------------------------------------------------
     def command(self, a: Assignment, sid: str, message: str, resume: bool, max_turns: int) -> List[str]:
+        if a.oneshot:                  # the message goes on stdin (text and page images); no tools, no agent loop
+            return [self.claude, "-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose",
+                    "--resume" if resume else "--session-id", sid, "--model", a.model, "--effort", a.effort, "--tools", "",
+                    "--system-prompt-file", str(a.system_file), "--strict-mcp-config", "--disable-slash-commands",
+                    "--permission-mode", "dontAsk"]
         cmd = [self.claude, "-p", message]
         cmd += ["--resume", sid] if resume else ["--session-id", sid]
         cmd += ["--agent", a.agent, "--model", a.model, "--effort", a.effort, "--output-format", "stream-json", "--verbose",
@@ -837,13 +1021,19 @@ class Engine:
             cmd += ["--add-dir", str(d)]
         return cmd
 
-    def run_process(self, cmd: List[str], out: Path, label: str, on_start=None) -> dict:
+    def run_process(self, cmd: List[str], out: Path, label: str, on_start=None, stdin_data: Optional[str] = None) -> dict:
         out.parent.mkdir(parents=True, exist_ok=True)
         timed = {"out": False}
         with out.open("w", encoding="utf-8") as fo, Path(str(out) + ".err").open("w", encoding="utf-8") as fe:
             proc = subprocess.Popen(cmd, cwd=str(rl.ROOT), env=child_env(), stdout=subprocess.PIPE, stderr=fe,
-                                    stdin=subprocess.DEVNULL, start_new_session=True, text=True, bufsize=1,
-                                    encoding="utf-8", errors="replace")
+                                    stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
+                                    start_new_session=True, text=True, bufsize=1, encoding="utf-8", errors="replace")
+            if stdin_data is not None:
+                try:
+                    proc.stdin.write(stdin_data)
+                    proc.stdin.close()
+                except OSError:
+                    pass
             with self.lock:
                 self.children.add(proc)
             if on_start:
@@ -898,13 +1088,26 @@ class Engine:
                 self.log("%s: the session process %s of an earlier engine still runs; waiting for it to end" % (a.label, sess["pid"]))
                 while alive(sess.get("pid")):
                     time.sleep(30)
-            kind, message = "resume", a.resume_msg
-            self.log("%s: resuming session %s (%s)" % (a.label, sess["session_id"][:8], a.agent))
+            if Path(sess["transcript"]).exists():
+                kind, message = "resume", a.resume_msg
+                self.log("%s: resuming session %s (%s)" % (a.label, sess["session_id"][:8], a.agent))
+            else:                   # the CLI never created it (stopped before its first call): start it, same id
+                kind = "start"
+                message = a.prompt if len(sessions) == 1 else self.continuation(a, sessions[:-1])
+                self.log("%s: starting session %s (%s), never started" % (a.label, sess["session_id"][:8], a.agent))
         else:
             message = a.prompt if not sessions else self.continuation(a, sessions)
             sess = self.new_session(a, sessions, tdir)
             kind = "start"
+        start_msg = message
+
+        def again() -> Tuple[str, str]:     # resume the session, or start it when the CLI never created it
+            if not Path(sess["transcript"]).exists():
+                return "start", start_msg
+            return "resume", a.resume_msg
         while True:
+            if kind == "start":
+                start_msg = message
             if self.stop:
                 return self.pause(a, sessions, sess)
             try:
@@ -924,9 +1127,16 @@ class Engine:
                 sess["pid"] = pid
                 self.update_record(a, runner="headless", sessions=sessions)
             out = logs / ("%s-%s-%d.jsonl" % (a.label, sess["session_id"][:8], len(sess["attempts"]) + 1))
-            got = self.run_process(cmd, out, a.label, on_start)
+            got = self.run_process(cmd, out, a.label, on_start, a.message(kind, message) if a.oneshot else None)
             sess["pid"] = None
             res = got["result"] or {}
+            total = res.get("total_cost_usd")            # the CLI reports a session's cost cumulatively across resumes
+            if total is not None:
+                delta = total - sess.get("cost_seen", 0.0) if total >= sess.get("cost_seen", 0.0) else total
+                sess["cost_seen"] = total
+                res = dict(res, total_cost_usd=round(delta, 6))
+            if a.on_result and got["result"] and not res.get("is_error"):
+                a.on_result(kind, str(res.get("result") or ""))
             att = {"kind": kind, "at": dt.datetime.fromtimestamp(started, dt.timezone.utc).replace(microsecond=0).isoformat(),
                    "seconds": round(time.time() - started), "rc": got["rc"], "timed_out": got["timed_out"],
                    "is_error": bool(res.get("is_error")), "subtype": res.get("subtype", ""), "turns": res.get("num_turns"),
@@ -956,7 +1166,7 @@ class Engine:
                     return self.pause(a, sessions, sess)
                 self.log("%s: usage limit; waiting until %s (local), then resuming the same session" % (a.label, local))
                 time.sleep(max(0.0, wait))
-                kind, message = "resume", a.resume_msg
+                kind, message = again()
                 continue
             if res.get("subtype") == "error_max_turns" and got["rc"] in (0, 1) and not got["timed_out"]:
                 ctx = att["context_after"]
@@ -982,7 +1192,7 @@ class Engine:
                     self.close(a, sessions, "abandoned", "the session could not be brought to an end")
                     return "abandoned"
                 time.sleep(60 * resumes)
-                kind, message = "resume", a.resume_msg
+                kind, message = again()
                 continue
             errs = a.check()
             if not errs and a.polish and not polished:
@@ -1017,7 +1227,7 @@ class Engine:
                 self.end_session(sess, transcript)
                 self.close(a, sessions, "failed", "; ".join(errs[:5]))
                 return "failed"
-            kind, message = "fix", a.fix_msg % "\n".join(errs[:40])
+            kind, message = "fix", (a.fix_builder(errs) if a.fix_builder else a.fix_msg % "\n".join(errs[:40]))
 
     def new_session(self, a: Assignment, sessions: List[dict], tdir: Path) -> dict:
         sid = str(uuid.uuid4())
@@ -1108,7 +1318,7 @@ class Engine:
     def _run_thread(self, a: Assignment) -> None:
         try:
             a.outcome = self.run(a)
-        except Exception as exc:                      # recorded, never silent: the next run resumes the session
+        except (Exception, SystemExit) as exc:        # recorded, never silent: the next run resumes the session
             self.log("%s: engine error: %s" % (a.label, exc))
             a.outcome = a.outcome or "paused"
             self.stop = self.stop or "engine error in %s" % a.label
@@ -1245,8 +1455,27 @@ def launch_assignment(run_dir: Path, launch: dict) -> dict:
 
 
 def cmd_reading(eng: Engine, bakeoff: bool, max_launches: int, parallel: int) -> int:
+    saved = reading.LAUNCH_ONE_CHUNK
+    try:
+        return _cmd_reading(eng, bakeoff, max_launches, parallel)
+    finally:
+        reading.LAUNCH_ONE_CHUNK = saved
+
+
+def _cmd_reading(eng: Engine, bakeoff: bool, max_launches: int, parallel: int) -> int:
     run_dir = eng.run_dir
     skip, failed, restarts, n = set(), [], Counter(), {"started": 0}
+    agentic = set()                    # "<chunk>:<role>" whose one-shot read failed: read again by the agentic reader
+    reading.LAUNCH_ONE_CHUNK = ONESHOT_READING
+    for l in reading.load_json(reading.launches_path(run_dir), {"launches": []})["launches"]:
+        if l.get("mode") == "oneshot" and l.get("outcome") in ("failed", "abandoned"):
+            agentic.update("%s:%s" % (c, l["role"]) for c in l["chunks"])
+
+    def assign(act: dict) -> Assignment:
+        one = ONESHOT_READING and len(act["chunks"]) == 1 and \
+            not any("%s:%s" % (c, act["role"]) in agentic for c in act["chunks"])
+        reading.update_launch(run_dir, act["launch"], mode="oneshot" if one else "agentic")
+        return reader_assignment(run_dir, act, oneshot=one)
     resumable = [l for l in reading.load_json(reading.launches_path(run_dir), {"launches": []})["launches"]
                  if l.get("runner") == "headless" and not l.get("closed_at") and not l.get("superseded_at")]
 
@@ -1258,7 +1487,7 @@ def cmd_reading(eng: Engine, bakeoff: bool, max_launches: int, parallel: int) ->
             l = resumable.pop(0)
             if not {"%s:%s" % (c, l["role"]) for c in l["chunks"]} & in_flight:
                 n["started"] += 1
-                return reader_assignment(run_dir, launch_assignment(run_dir, l))
+                return assign(launch_assignment(run_dir, l))
         act = reading.next_action(run_dir, bakeoff, exclude=skip | in_flight)
         if act["action"] == "done":
             if not busy:
@@ -1269,9 +1498,13 @@ def cmd_reading(eng: Engine, bakeoff: bool, max_launches: int, parallel: int) ->
             eng.stop = eng.stop or act.get("message", "nothing to launch")
             return None
         n["started"] += 1
-        return reader_assignment(run_dir, act)
+        return assign(act)
 
     def on_done(a: Assignment, outcome: str):
+        if a.oneshot and outcome in ("failed", "abandoned"):
+            agentic.update("%s:%s" % (c, a.role) for c in a.chunks)
+            eng.log("%s: the one-shot read of %s did not pass; the agentic reader reads it afresh" % (a.label, ", ".join(a.chunks)))
+            return
         if outcome == "abandoned":
             restarts[a.chunks] += 1
             if restarts[a.chunks] <= RESTARTS:
@@ -1559,6 +1792,96 @@ def show(run_dir: Path, last: int = 0) -> None:
             "%.0f" % wc["five_hour"] if "five_hour" in wc else "?", "%.0f" % wc["seven_day"] if "seven_day" in wc else "?"))
 
 
+# Measured 2026-10-23 end to end on the scratch run (one-shot reads of two 12.6-13k-token chunks with passage and
+# number accounting, fix turns and resolutions; output tokens are about two thirds of an Opus read's cost)
+READ_COST_PER_12K = {"critical": 1.23, "reader": 0.60, "scan": 0.20, "resolved": 0.31}
+JUDGMENT_DEFAULT = {"specialists": 150.0, "verifier": 15.0, "auditor": 12.0, "cio": 40.0, "historian": 5.0}
+WINDOW_DEFAULT = 28.0           # $ of API-equivalent work in one five-hour window (measured twice)
+WEEK_WINDOWS = 7.0              # five-hour windows in one weekly window (weekly +9 % while five-hour +63 %)
+
+
+def measured_read_costs(run_dirs: List[Path]) -> Dict[str, Tuple[float, int]]:
+    """{role: ($ per 12k chunk tokens, launches)} from passed launches' recorded costs."""
+    acc = defaultdict(lambda: [0.0, 0, 0])
+    for rd in run_dirs:
+        p = reading.load_json(rd / reading.READING / "plan.json", {"chunks": []})
+        est = {c["id"]: c["est_tokens"] for c in p["chunks"]}
+        for l in reading.load_json(reading.launches_path(rd), {"launches": []})["launches"]:
+            if l.get("outcome") != "pass" or l.get("superseded_at"):
+                continue
+            cost = sum((a.get("cost_usd") or 0) for s in l.get("sessions", []) for a in s.get("attempts", []))
+            tok = sum(est.get(c, 0) for c in l["chunks"])
+            if cost and tok:
+                a = acc[l["role"]]
+                a[0] += cost
+                a[1] += tok
+                a[2] += 1
+    return {r: (v[0] / v[1] * 12000, v[2]) for r, v in acc.items() if v[2] >= 5}
+
+
+def estimate(run_dir: Path, log=print) -> dict:
+    """Cost, five-hour windows and calendar weeks of a run from its reading plan: each chunk's reads by role (this
+    run's measured cost per chunk once five launches of a role have passed, else earlier runs', else the measured
+    defaults) plus the judgment layer (earlier runs' engine ledgers, else defaults)."""
+    p = reading.load_json(run_dir / reading.READING / "plan.json")
+    if not p:
+        raise SystemExit("no plan: run reading.py plan first")
+    pol = reading.run_policy(run_dir)
+    runs = [run_dir] + [d for d in sorted((rl.ROOT / "research" / "companies").glob("*/runs/*")) if d != run_dir]
+    measured = measured_read_costs([run_dir]) or {}
+    earlier = measured_read_costs(runs[1:])
+    rate = {r: (measured.get(r) or earlier.get(r) or (READ_COST_PER_12K[r], 0)) for r in READ_COST_PER_12K}
+    reading_cost, by_role, left = 0.0, Counter(), 0.0
+    for c in p["chunks"]:
+        if c.get("reused"):
+            continue
+        roles = reading.required_roles(c, pol)
+        done = reading.chunk_state(run_dir, c, pol, write=False)[0] == "read"
+        for r in roles + (["resolved"] if reading.second_role(roles) else []):
+            x = rate[r][0] * c["est_tokens"] / 12000.0
+            by_role[r] += x
+            reading_cost += x
+            left += 0 if done else x
+    judg, jsrc = dict(JUDGMENT_DEFAULT), "defaults"
+    past = [j for d in runs[1:] for j in reading.load_json(d / "engine" / "jobs.json", {"jobs": []})["jobs"]]
+    if [j for j in past if j["kind"] == "specialist" and j.get("status") == "pass"]:
+        spec = [job_cost(j["sessions"]) for j in past if j["kind"] in ("specialist", "followup")]
+        n_runs = len({d for d in runs[1:] if (d / "engine" / "jobs.json").exists()}) or 1
+        judg["specialists"] = sum(spec) / n_runs
+        judg["verifier"] = sum(job_cost(j["sessions"]) for j in past if j["kind"] == "verifier") / n_runs
+        judg["auditor"] = sum(job_cost(j["sessions"]) for j in past if j["kind"] == "auditor") / n_runs
+        jsrc = "earlier runs' engine ledgers (CIO: default)"
+    attempts = [a for d in runs for l in reading.load_json(reading.launches_path(d), {"launches": []})["launches"]
+                for s in l.get("sessions", []) for a in s.get("attempts", [])]
+    attempts += [a for d in runs for j in reading.load_json(d / "engine" / "jobs.json", {"jobs": []})["jobs"]
+                 for s in j.get("sessions", []) for a in s.get("attempts", [])]
+    window = window_cost(attempts).get("five_hour") or WINDOW_DEFAULT
+    total = reading_cost + sum(judg.values())
+    remaining = left + sum(judg.values())
+    out = {"reading": round(reading_cost, 2), "reading_by_role": {k: round(v, 2) for k, v in by_role.items()},
+           "reading_remaining": round(left, 2), "judgment": {k: round(v, 2) for k, v in judg.items()},
+           "judgment_source": jsrc, "total": round(total, 2), "remaining": round(remaining, 2),
+           "window_usd": round(window, 2), "windows": round(total / window, 1), "windows_remaining": round(remaining / window, 1),
+           "weeks_remaining": round(remaining / window / WEEK_WINDOWS, 1),
+           "rates": {r: {"usd_per_12k": round(v[0], 3), "measured_launches": v[1]} for r, v in rate.items()}}
+    lines = ["# Run estimate — %s" % reading.run_id_of(run_dir), "",
+             "Generated by `scripts/agent_driver.py estimate`; API-equivalent dollars, the common unit of usage.", "",
+             "| Part | Cost $ |", "|---|---|"]
+    lines += ["| Reading: %s | %.0f |" % (r, v) for r, v in sorted(by_role.items())]
+    lines += ["| Judgment: %s | %.0f |" % (k, v) for k, v in judg.items()]
+    lines += ["| **Total** | **%.0f** |" % total, "",
+              "Still to spend: ≈ $%.0f ≈ %.1f five-hour windows (≈ $%.0f each) ≈ %.1f weeks at %.0f windows a week." % (
+                  remaining, out["windows_remaining"], window, out["weeks_remaining"], WEEK_WINDOWS), "",
+              "Reading rates ($ per 12k-token chunk): %s. Judgment from %s." % (
+                  "; ".join("%s %.2f (%s)" % (r, v[0], "measured, %d launches" % v[1] if v[1] else "default") for r, v in rate.items()),
+                  jsrc)]
+    path = run_dir / "engine" / "ESTIMATE.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    log("\n".join(lines))
+    return out
+
+
 def probe(eng: Engine) -> int:
     """The headless counterpart of `--validate-only --probe`: one specialist, configuration only, on Haiku."""
     msg = ("CONFIGURATION CHECK ONLY. Do not research, use web tools, write files or run commands. Reply in one line: "
@@ -1606,6 +1929,9 @@ def main(argv=None) -> int:
     r.add_argument("--bakeoff", action="store_true", help="only the calibration chunks (reading.py bakeoff plan)")
     r.add_argument("--max-launches", type=int, default=0, help="stop after this many launches (0: until done)")
     r.add_argument("--parallel", type=int, default=1)
+    hs = sub.add_parser("events")
+    common(hs, 120)
+    hs.add_argument("--years", type=int, default=10)
     lb = sub.add_parser("librarian")
     common(lb, 120)
     lb.add_argument("--message-file", required=True)
@@ -1628,6 +1954,8 @@ def main(argv=None) -> int:
     au = sub.add_parser("audit")
     common(au, 120)
     au.add_argument("--message-file", required=True)
+    es = sub.add_parser("estimate")
+    es.add_argument("run_dir")
     pp = sub.add_parser("prompt")
     pp.add_argument("run_dir")
     pp.add_argument("specialist", choices=sorted(rl.SPECIALISTS))
@@ -1670,6 +1998,9 @@ def main(argv=None) -> int:
     if a.cmd == "prompt":
         print(specialist_prompt(run_dir, a.specialist))
         return 0
+    if a.cmd == "estimate":
+        estimate(run_dir)
+        return 0
     claude = find_claude(a.claude)
     if not claude:
         print("no claude binary found (set CLAUDE_BIN or pass --claude). Without it, launch the agents through the Agent "
@@ -1695,6 +2026,9 @@ def main(argv=None) -> int:
             return cmd_specialists(eng, [x.strip() for x in a.only.split(",") if x.strip()], a.parallel, not a.no_verify)
         if a.cmd == "verify":
             return cmd_verify(eng, [x.strip() for x in a.only.split(",") if x.strip()])
+        if a.cmd == "events":
+            job = open_job(eng, "historian", "historian")
+            return run_jobs(eng, [(historian_assignment(run_dir, historian_prompt(run_dir, a.years), a.years), job)], 1)
         message = Path(a.message_file).read_text(encoding="utf-8")
         if a.cmd == "followup":
             return cmd_followup(eng, a.agent, message, a.purpose, a.stage, a.output)

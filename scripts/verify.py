@@ -8,6 +8,7 @@ owns them; what it finds is remembered, so the next run's agents are warned and 
   python3 scripts/verify.py run RUN_DIR --stage specialists|final   # the whole research -> qc/VERIFICATION.md
   python3 scripts/verify.py waive RUN_DIR FINDING_ID --reason "<why>"   # the CIO accepts a finding, with the reason
   python3 scripts/verify.py lessons [--agent NAME]                  # what verification found in earlier runs
+  python3 scripts/verify.py events RUN_DIR [--years 10]             # the historian's timeline, checked
 
 Why. Run BHARTIARTL 20261012T132311Z passed every validator while its reports implied annual reports had been read
 that the agents had seen 11-17 % of. A validator checks the shape of the work; this checks the work against what the
@@ -83,6 +84,7 @@ CHECKS = {
     "READING_AUDIT": ("blocking", "cio", False, ""),
     "SPECIALIST_UNVERIFIED": ("blocking", "cio", False, ""),
     "AUDIT_OPEN": ("blocking", "cio", False, ""),
+    "EVENTS_NOT_FOUND": ("major", "cio", False, ""),
 }
 FACT_TAGS = ("FACT", "MANAGEMENT STATEMENT")
 SOURCE_BLOCK = (3, 0.10)       # SOURCE_NOT_OPENED blocks above 3 claims or 10 % of the checked claims
@@ -481,6 +483,86 @@ def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier") -> List
     return picked
 
 
+def verifier_opened(run_dir: Path, name: str, claim_ids: List[str], tdir: Optional[Path] = None) -> List[str]:
+    """Verify the verifier: from its own transcripts, each sampled claim's cited source was opened by a verifier session
+    of this specialist (a result written without opening the source is not a re-check). Not measurable without the
+    transcripts (an Agent-tool run on another machine): nothing is claimed either way."""
+    tdir = tdir or ra.transcripts_dir()
+    jobs = rl.load_json(run_dir / "engine" / "jobs.json").get("jobs", []) if (run_dir / "engine" / "jobs.json").exists() else []
+    mine = {j["id"] for j in jobs if j["agent"] == "verifier" and j.get("subject") == name}
+    sessions = [s for s in agent_sessions(run_dir, "verifier", tdir) if not mine or s.get("job") in mine]
+    if not sessions:
+        return []
+    seen, keys = Seen(sessions), source_keys(run_dir)
+    rows = {r.get("claim_id"): r for r in ledger_rows(ledgers_of(run_dir, name))}
+    out = []
+    for c in claim_ids:
+        r = rows.get(c)
+        if r and checkable_source(r.get("source_url_or_id") or "") and not seen.opened(claim_keys(r, keys)):
+            out.append("%s: the verifier never opened its source (%s): open it and re-check the claim" % (
+                c, (r.get("source_url_or_id") or "")[:90]))
+    return out
+
+
+EVENT_COLUMNS = ["event_id", "date", "fiscal_year", "category", "event", "entities", "amount", "source_title", "source_url"]
+EVENT_CATEGORIES = ("acquisition_or_merger", "divestment_or_demerger", "capital_raise", "capital_return",
+                    "leadership_change", "auditor_change", "regulatory_or_legal", "penalty", "fraud_or_investigation",
+                    "default_or_restructuring", "credit_rating", "major_contract_or_licence", "operations_incident",
+                    "promoter_action", "controversy", "accounting_restatement", "other")
+
+
+def events_rows(run_dir: Path) -> List[dict]:
+    path = run_dir / "corpus" / "events.csv"
+    if not path.exists():
+        return []
+    with path.open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def events_errors(run_dir: Path, years: int = 10, tdir: Optional[Path] = None) -> List[str]:
+    """The historian's timeline: the columns, a date in the window and a category for every event, the search log, and
+    (from its own transcripts) every cited source opened in its session."""
+    path = run_dir / "corpus" / "events.csv"
+    if not path.exists():
+        return ["corpus/events.csv does not exist yet"]
+    with path.open(encoding="utf-8", newline="") as f:
+        rd = csv.DictReader(f)
+        cols, rows = rd.fieldnames or [], list(rd)
+    errs = []
+    if cols != EVENT_COLUMNS:
+        errs.append("events.csv columns must be exactly %s" % ",".join(EVENT_COLUMNS))
+    if not (run_dir / "corpus" / "EVENTS.md").exists():
+        errs.append("corpus/EVENTS.md (the timeline and the search log) does not exist yet")
+    if not rows:
+        errs.append("events.csv has no events: record the searches in EVENTS.md and the events they found")
+    cutoff = str(rl.load_json(run_dir / rl.RUN_MANIFEST).get("research_cutoff") or now()[:10])
+    low = "%04d" % (int(cutoff[:4]) - years - 1)
+    sessions = agent_sessions(run_dir, "historian", tdir)
+    seen = Seen(sessions) if sessions else None
+    ids = Counter(r.get("event_id") for r in rows)
+    for r in rows:
+        e = r.get("event_id") or "?"
+        if ids[e] > 1:
+            errs.append("%s: duplicate event_id" % e)
+        d = (r.get("date") or "").strip()
+        if not re.fullmatch(r"\d{4}-\d{2}(-\d{2})?", d):
+            errs.append("%s: date %r must be YYYY-MM-DD (or YYYY-MM)" % (e, d))
+        elif d > cutoff or d[:4] < low:
+            errs.append("%s: date %s is outside the window (%s to %s)" % (e, d, low, cutoff))
+        if not re.fullmatch(r"FY\d{4}", (r.get("fiscal_year") or "").strip()):
+            errs.append("%s: fiscal_year must look like FY2024" % e)
+        if r.get("category") not in EVENT_CATEGORIES:
+            errs.append("%s: category %r is not one of %s" % (e, r.get("category"), ", ".join(EVENT_CATEGORIES)))
+        if not (r.get("event") or "").strip():
+            errs.append("%s: the event is empty" % e)
+        url = (r.get("source_url") or "").strip()
+        if not re.match(r"^https?://", url):
+            errs.append("%s: source_url must be the http(s) address of the source opened" % e)
+        elif seen is not None and not seen.opened({url, re.sub(r"^https?://", "", url).rstrip("/")}):
+            errs.append("%s: its source was never opened in your session (%s): open it and confirm the event" % (e, url[:90]))
+    return errs[:60]
+
+
 def refresh_sample(run_dir: Path, name: str) -> None:
     """After the specialist corrected claims: the sample keeps its claim IDs with their current ledger rows (a claim the
     specialist removed leaves the sample: it is no longer made)."""
@@ -516,6 +598,7 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
              for c, r in got.items() if c in want and r.get("result") not in VERIFIER_RESULTS]
     errs += ["%s: %s needs the evidence (what the source says, and where)" % (cp.name, c)
              for c, r in got.items() if c in want and r.get("result") != "Confirmed" and not (r.get("evidence") or "").strip()]
+    errs += verifier_opened(run_dir, name, want)
     if errs:
         return {}, errs
     cnt = Counter(got[c]["result"] for c in want)
@@ -581,6 +664,14 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
     if (run_dir / "corpus" / "reading" / "plan.json").exists() and not st.get("complete"):
         findings.append(finding("READING_INCOMPLETE", "cio", "the reading stage is not complete (reading.py status --strict)",
                                 "Finish the reading stage before Stage 1."))
+    ev = rl.load_json(run_dir / "corpus" / "reading" / "events_check.json") if (run_dir / "corpus" / "reading" / "events_check.json").exists() else {}
+    if ev.get("unmatched"):
+        findings.append(finding("EVENTS_NOT_FOUND", "cio", "%d major event(s) from news and the web were not found in the "
+                                "reports read (corpus/dossiers/events.md)" % ev["unmatched"],
+                                "Put each in the gap register and send it to its owning specialist: confirm it in a primary "
+                                "source, and say whether the reading missed it or the company did not disclose it.",
+                                ["%s %s" % (r.get("event_id"), (r.get("event") or "")[:80]) for r in ev.get("rows", [])
+                                 if r.get("status") == "unmatched"]))
     for name in rl.SPECIALISTS:
         if not (run_dir / "specialists" / ("%s.md" % name)).exists():
             continue
@@ -601,6 +692,12 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
         else:
             findings.append(finding("READING_AUDIT", "cio", "no reading audit", "Run reading_audit.py run RUN_DIR."))
         findings += cio_findings(run_dir, tdir)
+        aud_ledgers = sorted((run_dir / "audit").glob("*_ledger.csv"))
+        aud_sessions = agent_sessions(run_dir, rl.AUDITOR, tdir)
+        if aud_ledgers and aud_sessions:      # the auditor's own claims, against what its sessions read
+            for f in claim_checks(ledger_rows(aud_ledgers), Seen(aud_sessions), source_keys(run_dir), rl.AUDITOR):
+                f["owner"] = "auditor"
+                findings.append(f)
         ar = run_dir / rl.AUDIT_REPORT
         if ar.exists():
             res = rl.Result("audit")
@@ -610,8 +707,11 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
                                                                                           "audit finding (cio.md Stage 4)."))
     waived = rl.load_json(vdir(run_dir) / "run_waivers.json") if (vdir(run_dir) / "run_waivers.json").exists() else {}
     for f in findings:
-        f["id"] = "run-%s" % f["check"] if f["agent"] == "cio" and f["check"] not in ("NUMBER_NOT_SEEN", "SOURCE_NOT_OPENED",
-                                                                                     "PAGE_NOT_OPENED") else "cio-%s" % f["check"]
+        if f["agent"] == rl.AUDITOR:
+            f["id"] = "auditor-%s" % f["check"]
+        else:
+            f["id"] = "run-%s" % f["check"] if f["agent"] == "cio" and f["check"] not in (
+                "NUMBER_NOT_SEEN", "SOURCE_NOT_OPENED", "PAGE_NOT_OPENED") else "cio-%s" % f["check"]
         if f["id"] in waived:
             f["waived"] = waived[f["id"]]
     blocking = [f for f in findings if f["severity"] == "blocking" and not f.get("waived")]
@@ -738,6 +838,9 @@ def main(argv=None) -> int:
     r = sub.add_parser("run")
     r.add_argument("run_dir")
     r.add_argument("--stage", choices=["specialists", "final"], required=True)
+    ev = sub.add_parser("events")
+    ev.add_argument("run_dir")
+    ev.add_argument("--years", type=int, default=10)
     w = sub.add_parser("waive")
     w.add_argument("run_dir")
     w.add_argument("finding_id")
@@ -770,6 +873,12 @@ def main(argv=None) -> int:
             print("ERROR: %s" % e)
         print(json.dumps(rec.get("results", {})))
         return 1 if errs or any(f["severity"] == "blocking" for f in rec.get("findings", [])) else 0
+    if a.cmd == "events":
+        errs = events_errors(run_dir, a.years)
+        for e in errs:
+            print("ERROR: %s" % e)
+        print("events: %s (%d events)" % ("FAIL" if errs else "PASS", len(events_rows(run_dir))))
+        return 1 if errs else 0
     if a.cmd == "waive":
         waive(run_dir, a.finding_id, a.reason)
         print("waived %s" % a.finding_id)

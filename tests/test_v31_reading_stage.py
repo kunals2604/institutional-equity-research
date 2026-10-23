@@ -66,6 +66,13 @@ def make_text_layer(base: Path, key: str, pages, flags=None) -> Path:
     return d / "pages.md"
 
 
+def accounted(store, rows):
+    """The receipt's accounting for a fixture read: every passage it does not cite is listed as no fact, and every
+    number a cited passage prints that no item records is set aside (the dedicated tests check what is missing)."""
+    gaps, untagged = reading.accounting_gaps(store, [r for r in rows if r.get("type") != "chunk_receipt"])
+    return {"no_fact": gaps, "numbers_not_facts": untagged}
+
+
 class ReadingFixture:
     def __init__(self, pages25=None, pages24=None, flags25=None, flags24=None, tmp=None, run_id="20260301T090000Z",
                  years=2, core_years=0, plan_now=True):
@@ -129,8 +136,8 @@ class ReadingFixture:
         for pg in st["pages"]:
             rows.append({"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
                          "reason": "" if pg in cited else "headings only", "viewed": pg in view})
-        rows.append({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
-                     "units_read": st["new_units"], "pages_viewed": sorted(view)})
+        rows.append(dict({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
+                          "units_read": st["new_units"], "pages_viewed": sorted(view)}, **accounted(st, rows)))
         if mutate:
             rows = mutate(rows)
         path = reading.extraction_path(self.dir, cid, role)
@@ -204,10 +211,12 @@ class TestReadingLoop(unittest.TestCase):
         self.assertIn(self.fx.run_id, act["description"])
         chunks = [c["id"] for c in self.fx.plan["chunks"]]
         crit_chunk = next(c["id"] for c in self.fx.plan["chunks"] if c["critical"] and c["doc"] == "AR-FY2025")
+        by_id = {c["id"]: c for c in self.fx.plan["chunks"]}
         for cid in chunks:
-            self.fx.write_extraction(cid, "critical")
-            self.fx.write_extraction(cid, "reader", drop_cl=(cid == crit_chunk))
-            for role in ("critical", "reader"):
+            roles = reading.required_roles(by_id[cid], reading.run_policy(self.fx.dir))
+            self.assertIn("critical", roles, "Opus reads every chunk")
+            for role in roles:                   # the primary read misses the claims row; the second read has it
+                self.fx.write_extraction(cid, role, drop_cl=(cid == crit_chunk and role == "critical"))
                 res = reading.check(self.fx.dir, cid, role)
                 self.assertTrue(res.ok, (cid, role, res.errors))
         act = reading.next_action(self.fx.dir)
@@ -216,8 +225,9 @@ class TestReadingLoop(unittest.TestCase):
         dis = json.loads((self.fx.dir / reading.READING / "disagreements" / ("%s.json" % crit_chunk)).read_text())
         self.assertEqual(dis["count"], 1)
         d = dis["disagreements"][0]
-        self.assertEqual((d["kind"], d["type"]), ("only_A", "contingent_liability"))
-        res_rows = [{"type": "resolution", "id": d["id"], "decision": "A", "reason": "the row is on the page", "items": d["A"]},
+        self.assertEqual((d["kind"], d["type"]), ("only_B", "contingent_liability"),
+                         "on a critical section, what only the second read found is adjudicated")
+        res_rows = [{"type": "resolution", "id": d["id"], "decision": "B", "reason": "the row is on the page", "items": d["B"]},
                     {"type": "chunk_receipt", "chunk": crit_chunk, "role": "resolved", "model": "fixture-model"}]
         reading.extraction_path(self.fx.dir, crit_chunk, "resolved").write_text(
             "\n".join(json.dumps(r) for r in res_rows) + "\n", encoding="utf-8")
@@ -376,14 +386,14 @@ class TestReadingAudit(unittest.TestCase):
         self.assertTrue(res["readers"])
 
     def test_missing_lines_views_and_effort_are_errors(self):
-        self.transcript("agent-b", "critical-reader", "critical-reader %s %s" % (self.fx.run_id, self.launch), "claude-opus-5-5", "high",
+        self.transcript("agent-b", "critical-reader", "critical-reader %s %s" % (self.fx.run_id, self.launch), "claude-opus-5-5", "medium",
                         full=False, view=False)
         res = reading_audit.run_audit(self.fx.dir, self.tdir)
         self.assertEqual(res["status"], "FAIL")
         text = " | ".join(res["errors"])
         self.assertIn("did not receive every line", text)
         self.assertIn("did not open VIEW REQUIRED pages", text)
-        self.assertIn("ran at effort ['high'], pinned xhigh", text)
+        self.assertIn("ran at effort ['medium'], pinned high", text)
 
     def test_wrong_model_is_an_error(self):
         self.transcript("agent-c", "critical-reader", "critical-reader %s %s" % (self.fx.run_id, self.launch), "claude-sonnet-5-5", "max")
@@ -485,10 +495,19 @@ class TestPolicyAndContracts(unittest.TestCase):
         chunk = {"critical": False, "classes": ["narrative"]}
         pending = {"calibration": {"status": "pending", "single_read_classes": []}}
         passed = {"calibration": {"status": "passed", "single_read_classes": ["narrative"]}}
-        self.assertEqual(reading.required_roles(chunk, pending), ["critical", "reader"])
-        self.assertEqual(reading.required_roles(chunk, passed), ["reader"])
-        self.assertEqual(reading.required_roles(dict(chunk, critical=True), passed), ["critical", "reader"])
-        self.assertEqual(reading.required_roles(dict(chunk, classes=["narrative", "mdna"]), passed), ["critical", "reader"])
+        self.assertEqual(reading.required_roles(chunk, pending), ["critical", "scan"], "Opus, then Haiku as second eyes")
+        self.assertEqual(reading.required_roles(chunk, passed), ["reader"], "a class Sonnet proved in this run")
+        haiku = {"calibration": {"status": "passed", "single_read_classes": ["narrative"], "haiku_classes": ["narrative"]}}
+        self.assertEqual(reading.required_roles(chunk, haiku), ["scan"], "Haiku first when it proved the class")
+        self.assertEqual(reading.required_roles(dict(chunk, critical=True), haiku), ["critical", "reader"],
+                         "critical sections: Opus and Sonnet, always")
+        self.assertEqual(reading.required_roles(dict(chunk, classes=["narrative", "mdna"]), passed), ["critical", "scan"])
+        self.assertEqual(reading.required_roles(dict(chunk, bakeoff=True), pending), ["critical", "scan", "reader"],
+                         "the calibration sample is read by all three")
+        self.assertEqual(reading.second_role(reading.required_roles(dict(chunk, bakeoff=True), pending)), "scan",
+                         "a non-critical calibration chunk is reconciled with Haiku, as in production")
+        self.assertEqual(reading.second_role(reading.required_roles(dict(chunk, critical=True, bakeoff=True), pending)),
+                         "reader", "a critical one with Sonnet")
 
 
 CASH_FLOW = ("Consolidated Statement of Cash Flows\n\nFor the year ended\n\nMarch 31, 2025\n\nMarch 31, 2024\n\n"
@@ -749,8 +768,8 @@ def anchored_rows(store, cid, role, bad_anchor=False):
     view = set(reading.view_pages(store))
     receipts = [{"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
                  "reason": "" if pg in cited else "headings only", "viewed": pg in view} for pg in store["pages"]]
-    receipts.append({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
-                     "units_read": store["new_units"], "pages_viewed": sorted(view)})
+    receipts.append(dict({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
+                          "units_read": store["new_units"], "pages_viewed": sorted(view)}, **accounted(store, rows)))
     return rows, receipts
 
 
@@ -766,8 +785,8 @@ def receipts_for(store, cid, role, rows):
     view = set(reading.view_pages(store))
     out = [{"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
             "reason": "" if pg in cited else "headings only", "viewed": pg in view} for pg in store["pages"]]
-    out.append({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
-                "units_read": store["new_units"], "pages_viewed": sorted(view)})
+    out.append(dict({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fixture-model",
+                     "units_read": store["new_units"], "pages_viewed": sorted(view)}, **accounted(store, rows)))
     return out
 
 
@@ -934,13 +953,198 @@ class TestInRunCalibration(unittest.TestCase):
             self.assertEqual(cal["single_read_classes"], [])
             self.assertTrue((fx.dir / reading.READING / "BAKEOFF.md").exists())
             c = next(c for c in p["chunks"] if c["id"] == held[0])
-            self.assertEqual(reading.required_roles(c, reading.run_policy(fx.dir)), ["critical", "reader"])
+            self.assertEqual(reading.required_roles(c, reading.run_policy(fx.dir)), ["critical", "scan"])
             passed = dict(cal, status="passed", single_read_classes=c["classes"])
             reading.calibration_path(fx.dir).write_text(json.dumps(passed))
             self.assertEqual(reading.required_roles(c, reading.run_policy(fx.dir)), ["reader"],
                              "a class this run proved is read by Sonnet alone")
         finally:
             fx.cleanup()
+
+
+class TestAccounting(unittest.TestCase):
+    """Passage and number accounting: a read must cite every passage or call it no fact, and record every significant
+    number a cited passage prints (or set it aside expressly), so a dense passage cannot be half-read."""
+
+    def setUp(self):
+        self.fx = ReadingFixture()
+        self.cid = "AR-FY2025-c02"
+        self.st = self.fx.store(self.cid)
+
+    def tearDown(self):
+        self.fx.cleanup()
+
+    def receipt(self, **acc):
+        return [dict({"type": "chunk_receipt", "chunk": self.cid, "role": "critical", "model": "m",
+                      "units_read": self.st["new_units"], "pages_viewed": sorted(reading.view_pages(self.st))}, **acc)]
+
+    def claims(self, prior="1,10,234"):
+        return {"type": "contingent_liability", "unit": "a8", "page": 3, "period": "as at 31-Mar", "basis": "standalone",
+                "anchor": "Claims not acknowledged as debts", "fields": {"category": "Claims not acknowledged as debts",
+                "amount_current": "1,23,456", "amount_prior": prior, "unit_of_amount": "INR million"}}
+
+    def errors(self, rows):
+        items = [r for r in rows if r["type"] != "chunk_receipt"]
+        cited, view = {r["page"] for r in items}, set(reading.view_pages(self.st))
+        pages = [{"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
+                  "reason": "" if pg in cited else "headings only", "viewed": pg in view} for pg in self.st["pages"]]
+        write_parts(self.fx.dir, self.cid, "critical", [rows + pages])
+        return " | ".join(reading.check(self.fx.dir, self.cid, "critical").errors)
+
+    def test_every_passage_is_cited_or_called_no_fact(self):
+        errs = self.errors([self.claims()] + self.receipt(no_fact=["a1-a7"]))
+        self.assertIn("passages not accounted for (1): a9", errs)
+        self.assertNotIn("a8", errs.split("passages not accounted for")[1][:20])
+        self.assertEqual(self.errors([self.claims()] + self.receipt(no_fact=["a1-a7", "a9"])), "",
+                         "a guarantees row called no fact is the reader's stated decision (the double read checks it)")
+
+    def test_every_number_of_a_cited_passage_is_recorded_or_set_aside(self):
+        errs = self.errors([self.claims(prior="")] + self.receipt(no_fact=["a1-a7", "a9"]))
+        self.assertIn("passage a8 prints numbers no item records: 1,10,234", errs)
+        self.assertEqual(self.errors([self.claims(prior="")] + self.receipt(no_fact=["a1-a7", "a9"],
+                                                                            numbers_not_facts={"a8": ["1,10,234"]})), "")
+
+    def test_a_short_span_quotes_its_numbers_and_years_or_references_need_nothing(self):
+        self.assertEqual(reading.significant_numbers("as at March 31, 2025 (refer Note 34) Section 135; 5 years"), [])
+        # fiscal years printed as ranges or labels (measured: the live read of an MD&A, 2026-10-23)
+        self.assertEqual(reading.significant_numbers("In FY 2025–26, mobile revenues grew by 12.7% to ₹1,129,954 million"),
+                         ["12.7%", "1,129,954"])
+        self.assertEqual(reading.significant_numbers("|  | FY 2025-26 | FY 2024-25 | Y-o-Y change |"), [])
+        self.assertEqual(reading.significant_numbers("guidance for FY'26 and Q1 FY 27; 2019/20 base"), [])
+        self.assertEqual(reading.significant_numbers("Top 45 Most Sustainable Companies 2024–25"), ["45"])
+        kam = {"type": "other_matter", "unit": "a4", "to": "a5", "page": 2, "period": "FY2025", "basis": "standalone",
+               "anchor": "We have audited the accompanying", "fields": {"report": "standalone"}}
+        errs = self.errors([kam, self.claims()] + self.receipt(no_fact=["a1-a3", "a6-a7", "a9"]))
+        self.assertEqual(errs, "")
+
+
+class TestOneFactPerItem(unittest.TestCase):
+    """Measured on the live reads of 2026-10-23: a one-shot Opus read grouped a CARO table's clauses per company
+    ("Clause 3(i)(a) 1, (b) 2, (c) 3&4") and lost each clause's footnote; reads that agreed on an unmodified opinion
+    differed only in its wording."""
+
+    def test_caro_clauses_are_parsed_and_one_item_names_one_clause(self):
+        self.assertEqual(reading.caro_clause_ids("Clause 3(i)(a) 1 , (b) 2 , (c) 3&4"), ["3(i)(a)", "3(i)(b)", "3(i)(c)"])
+        self.assertEqual(reading.caro_clause_ids("Nxtra Vizag Limited (Subsidiary): Clause 3(xvii) 7 , Clause 3(xix) 8"),
+                         ["3(xvii)", "3(xix)"])
+        self.assertEqual(reading.caro_clause_ids("Clause (xxi) of paragraph 3"), ["3(xxi)"])
+        self.assertEqual(reading.caro_clause_ids("3(i)(a)(A) and (B)"), ["3(i)(a)"])
+        store = {"units": {"a1": {"page": 3, "text": "Bharti Airtel Limited Parent Clause 3(i)(a) 1 , (b) 2"}}, "order": ["a1"]}
+        it = {"type": "caro_clause", "unit": "a1", "page": 3, "period": "FY2026", "basis": "consolidated",
+              "anchor": "Bharti Airtel Limited Parent", "fields": {"report": "Bharti Airtel Limited",
+                                                                   "clause": "Clause 3(i)(a) 1 , (b) 2", "answer": "", "adverse": "yes"}}
+        res = rl.Result("x")
+        reading.check_item(it, store, reading.schema(), res, "01.jsonl line 1")
+        self.assertTrue(any("names several clauses (3(i)(a), 3(i)(b))" in e for e in res.errors), res.errors)
+        res = rl.Result("x")
+        reading.check_item(dict(it, fields=dict(it["fields"], clause="Clause 3(i)(a) 1")), store, reading.schema(), res, "l1")
+        self.assertFalse([e for e in res.errors if "several clauses" in e])
+
+    def test_reads_agree_on_the_kind_of_opinion_and_the_clause_not_the_wording(self):
+        sch = reading.schema()
+        a = {"type": "audit_opinion", "fields": {"opinion": "Unmodified: the consolidated financial statements give a true "
+                                                            "and fair view", "report": "x", "auditor_firm": "y"}}
+        b = {"type": "audit_opinion", "fields": {"opinion": "unmodified (true and fair view)", "report": "z", "auditor_firm": ""}}
+        q = {"type": "audit_opinion", "fields": {"opinion": "Qualified, except for the effects of", "report": "x"}}
+        self.assertEqual(reading.item_sig(a, sch), reading.item_sig(b, sch))
+        self.assertNotEqual(reading.item_sig(a, sch), reading.item_sig(q, sch))
+        c1 = {"type": "caro_clause", "fields": {"clause": "Clause 3(ix)(d) 6", "adverse": "Yes"}}
+        c2 = {"type": "caro_clause", "fields": {"clause": "3(ix)(d)", "adverse": "yes"}}
+        self.assertEqual(reading.item_sig(c1, sch), reading.item_sig(c2, sch))
+
+
+class TestPrimaryAndSecondReads(unittest.TestCase):
+    """Opus is the primary read; the second read adds its checked extra finds on non-critical sections and Opus
+    adjudicates them on critical ones."""
+
+    def test_a_second_read_extra_find_is_added_and_marked_on_a_non_critical_section(self):
+        fx = ReadingFixture()
+        try:
+            c = next(c for c in fx.plan["chunks"] if c["id"] == "AR-FY2025-c01")
+            c = dict(c, bakeoff=False)
+            st = fx.store(c["id"])
+            lid = next(k for k in st["order"] if st["units"][k]["text"].startswith("The company also completed"))
+            extra = {"type": "other_fact", "unit": lid, "page": 1, "period": "", "basis": "na",
+                     "anchor": "The company also completed", "fields": {"description": "platform upgrade"}}
+            fx.write_extraction(c["id"], "critical")
+            fx.write_extraction(c["id"], "scan", mutate=lambda r: [extra] + r)
+            for role in ("critical", "scan"):
+                self.assertTrue(reading.check(fx.dir, c["id"], role).ok, reading.check(fx.dir, c["id"], role).errors)
+            self.assertEqual(reading.compare_chunk(fx.dir, c["id"]), [], "nothing to adjudicate")
+            items = reading.final_items(fx.dir, c, {"calibration": {"status": "pending"}})
+            got = [i for i in items if i.get("unit") == lid]
+            self.assertEqual(len(got), 1)
+            self.assertEqual(got[0]["second_read"], "scan")
+            crit = dict(c, critical=True)                         # the same find on a critical section is adjudicated
+            store_path = fx.dir / reading.CACHE / "chunks" / ("%s.json" % c["id"])
+            store = json.loads(store_path.read_text())
+            store["critical"] = True
+            store_path.write_text(json.dumps(store))
+            dis = reading.compare_chunk(fx.dir, c["id"])
+            self.assertEqual([(d["kind"], d["unit"]) for d in dis], [("only_B", lid)])
+            self.assertFalse([i for i in reading.final_items(fx.dir, crit) if i.get("unit") == lid], "until resolved")
+        finally:
+            fx.cleanup()
+
+
+class TestEventsTimeline(unittest.TestCase):
+    """The historian's outside view: a sourced timeline of major events, checked by script, then matched against what
+    the readers extracted; an event the reports read do not show is a lead in every pack and a gap for the CIO."""
+
+    HEADER = "event_id,date,fiscal_year,category,event,entities,amount,source_title,source_url\n"
+
+    def setUp(self):
+        self.fx = ReadingFixture()
+        for c in self.fx.plan["chunks"]:
+            for role in reading.required_roles(c, reading.run_policy(self.fx.dir)):
+                self.fx.write_extraction(c["id"], role)
+
+    def tearDown(self):
+        self.fx.cleanup()
+
+    def write(self, rows):
+        (self.fx.dir / "corpus" / "events.csv").write_text(self.HEADER + "".join(rows), encoding="utf-8")
+        (self.fx.dir / "corpus" / "EVENTS.md").write_text("# Events\n\nSearch log: ...\n", encoding="utf-8")
+
+    def test_the_timeline_is_checked_row_by_row(self):
+        self.write(['E001,2025-02-10,FY2025,regulatory_or_legal,Claims not acknowledged as debts rose,Fixture Co,"1,23,456",'
+                    'News,https://news.example.com/a\n',
+                    'E002,1999-01-01,FY1999,gossip,,X,,News,ftp://x\n'])
+        errs = " | ".join(verify.events_errors(self.fx.dir, 10, self.fx.tmp / "no-transcripts"))
+        for msg in ("E002: date 1999-01-01 is outside the window", "category 'gossip' is not one of",
+                    "E002: the event is empty", "E002: source_url must be"):
+            self.assertIn(msg, errs)
+        self.assertNotIn("E001", errs)
+
+    def test_events_are_matched_against_the_reading_and_the_rest_reach_every_pack(self):
+        self.write(['E001,2025-03-31,FY2025,regulatory_or_legal,Claims against the company not acknowledged as debts '
+                    'reached a new high,Fixture Co Limited,"1,23,456",News,https://news.example.com/a\n',
+                    'E002,2024-11-02,FY2025,acquisition_or_merger,Fixture Co acquired Nimbus Towers for a large sum,'
+                    'Nimbus Towers,"9,876",News,https://news.example.com/b\n',
+                    'E003,2016-05-05,FY2017,leadership_change,The chief executive resigned,Fixture Co,,News,'
+                    'https://news.example.com/c\n'])
+        reading.dossiers(self.fx.dir, log=lambda m: None)
+        ev = json.loads((self.fx.dir / reading.READING / "events_check.json").read_text())
+        st = {r["event_id"]: r["status"] for r in ev["rows"]}
+        self.assertEqual(st, {"E001": "matched", "E002": "unmatched", "E003": "outside_reading"})
+        text = (self.fx.dir / reading.DOSSIERS / "events.md").read_text()
+        self.assertLess(text.index("E002"), text.index("E001"), "what the reports do not show comes first")
+        self.assertIn("**not found**", text)
+        for name in rl.SPECIALISTS:
+            self.assertIn("| `corpus/dossiers/events.md` |", (self.fx.dir / reading.DOSSIERS / "packs" / ("%s.md" % name)).read_text())
+        out = verify.run(self.fx.dir, "specialists", self.fx.tmp / "no-transcripts")
+        f = next(f for f in out["run_findings"] if f["check"] == "EVENTS_NOT_FOUND")
+        self.assertEqual((f["severity"], f["owner"]), ("major", "cio"))
+        self.assertIn("E002", " ".join(f["claims"]))
+
+    def test_historian_writes_only_its_two_files_and_checks_them(self):
+        a = agent_driver.historian_assignment(self.fx.dir, "p")
+        writes = [x for x in a.allowed if x.startswith(("Write(", "Edit("))]
+        self.assertEqual(len(writes), 4)
+        self.assertTrue(all(x.endswith(("corpus/events.csv)", "corpus/EVENTS.md)")) for x in writes))
+        self.assertIn("Bash(python3 scripts/verify.py events:*)", a.allowed)
+        self.assertIn("Read(/%s/specialists/moat.md)" % self.fx.dir.resolve(), a.denied, "no specialist's work")
+        self.assertIn("FY20", agent_driver.historian_prompt(self.fx.dir))
 
 
 class TestReferenceScore(unittest.TestCase):
@@ -1127,7 +1331,13 @@ import reading
 args = sys.argv[1:]
 def opt(n):
     return args[args.index(n) + 1] if n in args else None
-msg, sid = args[args.index("-p") + 1], opt("--session-id") or opt("--resume")
+ONESHOT = "--input-format" in args
+if ONESHOT:                                     # the one-shot reader: the message (text and images) arrives on stdin
+    _blocks = json.loads(sys.stdin.readline())["message"]["content"]
+    msg = "\n".join(b.get("text", "") for b in _blocks if b.get("type") == "text")
+else:
+    msg = args[args.index("-p") + 1]
+sid = opt("--session-id") or opt("--resume")
 model, effort, agent = opt("--model"), opt("--effort"), opt("--agent")
 week_reset = time.time() + float(os.environ.get("FAKE_WEEK_RESET_S", 3 * 86400))
 print(json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "allowed", "unifiedWindows": {
@@ -1137,10 +1347,13 @@ if not sid:                                     # the engine's usage probe
     print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "OK"}))
     sys.exit(0)
 tj = Path(os.environ["CLAUDE_TRANSCRIPTS_DIR"]) / (sid + ".jsonl")
+if opt("--resume") and not tj.exists():          # like the real CLI: no such session to resume
+    sys.exit(1)
 state_path = Path(os.environ["FAKE_STATE"])
 state = json.loads(state_path.read_text()) if state_path.exists() else {}
 now = time.strftime("%%Y-%%m-%%dT%%H:%%M:%%SZ", time.gmtime())
-call = {"id": uuid.uuid4().hex, "sid": sid, "agent": agent, "max_turns": opt("--max-turns"), "msg": msg[:80], "t": time.time()}
+call = {"id": uuid.uuid4().hex, "sid": sid, "agent": agent, "max_turns": opt("--max-turns"), "msg": msg[:80], "t": time.time(),
+        "resume": bool(opt("--resume"))}
 with open(os.environ["FAKE_STATE"] + ".calls", "a") as f:     # append-only: sessions may run at the same time
     f.write(json.dumps(call) + "\n")
 def emit(*entries):
@@ -1150,11 +1363,13 @@ def emit(*entries):
 def finish(result, subtype="success", is_error=False):
     with open(os.environ["FAKE_STATE"] + ".calls", "a") as f:
         f.write(json.dumps({"id": call["id"], "end": time.time()}) + "\n")
+    spent = state.setdefault("spent", {})          # like the real CLI: a session's cost is cumulative across resumes
+    spent[sid] = spent.get(sid, 0) + 0.5
     state_path.write_text(json.dumps(state))
     print(json.dumps({"type": "result", "subtype": subtype, "is_error": is_error, "result": result, "session_id": sid,
-                      "total_cost_usd": 0.5, "num_turns": 1}))
+                      "total_cost_usd": spent[sid], "num_turns": 1}))
     sys.exit(0)
-if agent not in ("reader", "critical-reader"):
+if not ONESHOT and agent not in ("reader", "critical-reader", "scanner"):
     run_dir = Path(os.environ["FAKE_RUN_DIR"])
     total = int(os.environ.get("FAKE_UNITS", 10))
     ctx = state.setdefault("ctx", {})
@@ -1191,8 +1406,14 @@ if agent not in ("reader", "critical-reader"):
     if agent == "verifier":
         import csv as _csv
         name = re.search(r"checking the ([\w-]+) specialist|the ([\w-]+) specialist corrected", msg)
-        name = name.group(1) or name.group(2)
-        sample = list(_csv.DictReader((run_dir / "qc" / "verification" / (name + "_sample.csv")).open()))
+        vof = state.setdefault("verifier_of", {})
+        name = (name.group(1) or name.group(2)) if name else vof.get(sid)
+        vof[sid] = name
+        with (run_dir / "qc" / "verification" / (name + "_sample.csv")).open() as fh:
+            sample = list(_csv.DictReader(fh))
+        if not os.environ.get("FAKE_VERIFIER_LAZY"):
+            for r in sample:                      # a real re-check opens every source
+                turn(("WebFetch", {"url": r["source_url_or_id"]}))
         bad = os.environ.get("FAKE_DISCREPANCY") and not state.get("discrepancy_sent")
         state["discrepancy_sent"] = True
         rows = [{"claim_id": r["claim_id"], "result": "Material discrepancy" if bad and i == 0 else "Confirmed",
@@ -1223,6 +1444,86 @@ if agent not in ("reader", "critical-reader"):
                 for cid, tag, val in rows))
         finish("STATUS: complete")
     finish("Reached maximum number of turns (%%d)" %% max_turns, "error_max_turns", True)
+def chunk_rows(run_dir, cid, role, bad):
+    st = reading.chunk_cache(run_dir, cid)
+    rows = []
+    for lid in st["order"]:
+        u = st["units"][lid]
+        if "Claims not acknowledged" in u["text"]:
+            amounts = [c.strip() for c in u["text"].strip("| ").split("|")][1:]
+            rows.append({"type": "contingent_liability", "unit": lid, "page": u["page"], "period": "as at 31-Mar", "basis": "standalone",
+                         "anchor": "Claims acknowledged" if bad else "Claims not acknowledged as debts",
+                         "fields": {"category": "Claims not acknowledged as debts", "amount_current": amounts[0], "amount_prior": amounts[1],
+                                    "unit_of_amount": "INR million", "description": ""}})
+    for k, u in st["units"].items():
+        if u.get("visual"):
+            rows.append({"type": "other_fact", "unit": k, "page": u["page"], "period": "", "basis": "na", "source": "rendered",
+                         "fields": {"description": "photograph"}})
+    cited = {r["page"] for r in rows}
+    view = set(reading.view_pages(st))
+    rows += [{"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
+              "reason": "" if pg in cited else "headings only", "viewed": pg in view} for pg in st["pages"]]
+    gaps, untagged = reading.accounting_gaps(st, rows)
+    if os.environ.get("FAKE_GAP_ONCE") and not state.get("gap_done"):
+        gaps = gaps[1:]                          # forgets one passage: the check names it, the fix turn adds it
+    rows.append({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fake", "units_read": st["new_units"],
+                 "pages_viewed": sorted(view), "no_fact": gaps, "numbers_not_facts": untagged})
+    return rows
+if ONESHOT:
+    run_dir = Path(os.environ["FAKE_RUN_DIR"])
+    emit({"type": "user", "timestamp": now, "message": {"role": "user", "content": msg}})
+    one = state.setdefault("oneshot", {})
+    m0 = re.search(r"role (\w+)\. Read every line of chunk (\S+) below", msg)
+    if m0:
+        one[sid] = {"role": m0.group(1), "cid": m0.group(2)}
+    time.sleep(float(os.environ.get("FAKE_SLEEP", 0)))
+    if os.environ.get("FAKE_LIMIT_ONCE") and not state.get("limited"):
+        state["limited"] = True
+        state_path.write_text(json.dumps(state))
+        emit({"type": "assistant", "timestamp": now, "error": "rate_limit", "isApiErrorMessage": True,
+              "apiError": "usage_limit_reached", "quotaLimits": {"status": "rejected", "resetsAt": time.time() + 1},
+              "message": {"model": "<synthetic>", "content": [{"type": "text", "text": "You've hit your session limit"}]}})
+        print(json.dumps({"type": "result", "is_error": True, "result": "You've hit your session limit", "session_id": sid}))
+        sys.exit(1)
+    emit({"type": "assistant", "timestamp": now, "effort": effort, "message": {"id": "m" + uuid.uuid4().hex,
+          "model": "claude-%%s-5-5" %% model, "usage": {"input_tokens": 10, "output_tokens": 100},
+          "content": [{"type": "text", "text": "items"}]}})
+    one = state.setdefault("oneshot", {})
+    m = re.search(r"role (\w+)\. Read every line of chunk (\S+) below", msg)
+    if m:
+        one[sid] = {"role": m.group(1), "cid": m.group(2)}
+        bad = bool(os.environ.get("FAKE_BAD_ONCE")) and not state.get("bad_done")
+        rows = chunk_rows(run_dir, m.group(2), m.group(1), bad)
+        if bad and any(r.get("anchor") == "Claims acknowledged" for r in rows):
+            state["bad_done"] = True
+        lines = [json.dumps(r) for r in rows]
+        state["gap_done"] = True
+        if os.environ.get("FAKE_ONESHOT_GARBLE"):
+            lines = ["I could not read the chunk."]
+        finish("\n".join(lines))
+    if msg.startswith("Your answer was interrupted"):
+        finish("\n".join(json.dumps(r) for r in chunk_rows(run_dir, one[sid]["cid"], one[sid]["role"], False)))
+    if msg.startswith("The reading check found"):
+        out = []
+        for lab, obj in re.findall(r"^(E\d+) (\{.*\})$", msg, re.M):
+            o = json.loads(obj)
+            if o.get("anchor") == "Claims acknowledged":
+                o["anchor"] = "Claims not acknowledged as debts"
+            out.append("%%s %%s" %% (lab, json.dumps(o)))
+        if "passages not accounted for" in msg and sid in one:
+            rows = chunk_rows(run_dir, one[sid]["cid"], one[sid]["role"], False)
+            out.append(json.dumps(rows[-1]))
+        if os.environ.get("FAKE_ONESHOT_GARBLE"):
+            out = ["still nothing"]
+        finish("\n".join(out))
+    m = re.search(r"Resolve every disagreement of chunk (\S+) against", msg)
+    if m:
+        dis = json.loads((run_dir / "corpus" / "reading" / "disagreements" / (m.group(1) + ".json")).read_text())
+        out = [json.dumps({"type": "resolution", "id": d["id"], "decision": "A" if d["A"] else "B", "reason": "on the page",
+                           "items": d["A"] or d["B"]}) for d in dis["disagreements"]]
+        out.append(json.dumps({"type": "chunk_receipt", "chunk": m.group(1), "role": "resolved", "model": "fake"}))
+        finish("\n".join(out))
+    finish("")
 m = re.search(r"Read and follow (\S+) exactly", msg)
 if m:
     state.setdefault("launch_of", {})[sid] = m.group(1)
@@ -1277,8 +1578,9 @@ for cid in re.findall(r"^\| ([A-Z]+-[A-Za-z0-9]+-c\d+) \|", text, re.M):
     view = set(reading.view_pages(st))
     receipts = [{"type": "page_receipt", "page": pg, "status": "items" if pg in cited else "no_items",
                  "reason": "" if pg in cited else "headings only", "viewed": pg in view} for pg in st["pages"]]
+    gaps, untagged = reading.accounting_gaps(st, rows)
     receipts.append({"type": "chunk_receipt", "chunk": cid, "role": role, "model": "fake", "units_read": st["new_units"],
-                     "pages_viewed": sorted(view)})
+                     "pages_viewed": sorted(view), "no_fact": gaps, "numbers_not_facts": untagged})
     d = reading.parts_dir(run_dir, cid, role)
     d.mkdir(parents=True, exist_ok=True)
     (d / "01.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
@@ -1303,6 +1605,11 @@ class EngineCase(unittest.TestCase):
         self.saved = (agent_driver.LIMIT_SLACK_S, agent_driver.POLL_S)
         agent_driver.LIMIT_SLACK_S, agent_driver.POLL_S = 0, 0.05
         self.logs = []
+        png = self.fx.tmp / "page.png"           # fixtures have no PDF: a stand-in rendered page
+        png.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        self.render = mock.patch.object(reading, "render", lambda *a, **k: [png])
+        self.render.start()
+        self.addCleanup(self.render.stop)
 
     def tearDown(self):
         agent_driver.LIMIT_SLACK_S, agent_driver.POLL_S = self.saved
@@ -1364,7 +1671,7 @@ class TestEngineReading(EngineCase):
         launches = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
         keys = [(c, l["role"]) for l in launches for c in l["chunks"]]
         self.assertEqual(len(keys), len(set(keys)), "each chunk and role is read by one launch")
-        calls = [c for c in self.calls() if c["agent"] in ("reader", "critical-reader")]
+        calls = [c for c in self.calls() if c["agent"] in (None, "reader", "critical-reader", "scanner")]
         overlap = any(a["t"] < b.get("end", 0) and b["t"] < a.get("end", 0) for i, a in enumerate(calls) for b in calls[i + 1:])
         self.assertTrue(overlap, "sessions ran at the same time while the five-hour window had room")
         self.assertTrue(reading.status(self.fx.dir, log=lambda m: None)["complete"])
@@ -1376,12 +1683,12 @@ class TestEngineReading(EngineCase):
             with agent_driver.Session(eng, "reading"):
                 rc = agent_driver.cmd_reading(eng, False, 0, 3)
         self.assertEqual(rc, 0, self.logs)
-        calls = [c for c in self.calls() if c["agent"] in ("reader", "critical-reader")]
+        calls = [c for c in self.calls() if c["agent"] in (None, "reader", "critical-reader", "scanner")]
         self.assertFalse(any(a["t"] < b.get("end", 0) and b["t"] < a.get("end", 0)
                              for i, a in enumerate(calls) for b in calls[i + 1:]), "one at a time above the ceiling")
 
     def test_a_failing_check_resumes_the_session_with_the_errors(self):
-        with self.env(FAKE_BAD_ONCE="1"):
+        with self.env(FAKE_BAD_ONCE="1"), mock.patch.object(agent_driver, "ONESHOT_READING", False):
             eng = self.engine()
             with agent_driver.Session(eng, "reading"):
                 rc = agent_driver.cmd_reading(eng, False, 1, 1)
@@ -1410,6 +1717,103 @@ class TestEngineReading(EngineCase):
         self.assertNotIn("CLAUDE_EFFORT", env)
         self.assertNotIn("CLAUDE_CODE_SESSION_ID", env)
         self.assertIn("CLAUDE_CODE_USE_BEDROCK", env)
+
+
+class TestOneShotReading(EngineCase):
+    """One call per chunk: the chunk and its page images in the message, the answer recorded by the engine, fix turns
+    naming exactly what the check found, and the agentic reader when a one-shot read cannot pass."""
+
+    def test_one_shot_reads_pass_the_check_and_the_audit(self):
+        with self.env():
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 0, 1)
+        self.assertEqual(rc, 0, self.logs)
+        launches = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
+        self.assertTrue(all(l["mode"] == "oneshot" and len(l["chunks"]) == 1 for l in launches), "one chunk per call")
+        self.assertEqual({l["role"] for l in launches} - {"resolved"}, {"critical", "reader", "scan"})
+        self.assertTrue(reading.status(self.fx.dir, log=lambda m: None)["complete"])
+        res = reading_audit.run_audit(self.fx.dir, self.tdir)
+        self.assertEqual(res["errors"], [], "every line and every VIEW page reached the reader in its message")
+        sysf = self.fx.dir / "_cache" / "engine" / "system" / "oneshot-critical.md"
+        self.assertIn("ACCOUNTING (checked by script)", sysf.read_text())
+        self.assertIn("READING_SCHEMA:BEGIN", sysf.read_text())
+
+    def test_a_forgotten_passage_gets_a_fix_turn_naming_it(self):
+        with self.env(FAKE_GAP_ONCE="1"):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 1, 1)
+        self.assertEqual(rc, 0, self.logs)
+        l = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"][0]
+        self.assertEqual([a["kind"] for a in l["sessions"][0]["attempts"]], ["start", "fix"])
+        fix = [c for c in self.calls() if c["msg"].startswith("The reading check found")]
+        self.assertTrue(fix)
+        self.assertEqual(l["outcome"], "pass")
+
+    def test_a_bad_anchor_is_corrected_by_its_label(self):
+        with self.env(FAKE_BAD_ONCE="1"):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 0, 1)
+        self.assertEqual(rc, 0, self.logs)
+        l = next(l for l in json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
+                 if l["chunks"] == ["AR-FY2025-c02"] and l["role"] == "critical")
+        self.assertEqual([a["kind"] for a in l["sessions"][0]["attempts"]], ["start", "fix"])
+
+    def test_a_one_shot_read_that_cannot_pass_falls_back_to_the_agentic_reader(self):
+        with self.env(FAKE_ONESHOT_GARBLE="1"):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 2, 1)
+        self.assertEqual(rc, 0, self.logs)
+        launches = json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
+        self.assertEqual([(l["mode"], l["outcome"]) for l in launches[:2]], [("oneshot", "failed"), ("agentic", "pass")])
+        self.assertEqual(launches[0]["chunks"], launches[1]["chunks"], "the same chunk, read afresh")
+        self.assertTrue(any("agentic reader reads it afresh" in m for m in self.logs))
+
+    def test_an_engine_stopped_before_its_first_call_starts_the_session_next_time(self):
+        def missing(*a, **k):
+            raise SystemExit("the PDF of chunk x is missing")
+        with self.env():
+            with mock.patch.object(reading, "render", missing):
+                eng = self.engine()
+                with agent_driver.Session(eng, "reading"):
+                    agent_driver.cmd_reading(eng, False, 0, 1)
+            self.assertTrue(any("engine error" in m and "PDF" in m for m in self.logs), "the error is recorded, not lost")
+            stopped = [l for l in json.loads(reading.launches_path(self.fx.dir).read_text())["launches"]
+                       if l["sessions"] and not l["sessions"][0]["attempts"]]
+            self.assertEqual(len(stopped), 1, "the launch that needed a page image made no call")
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 0, 1)
+        self.assertEqual(rc, 0, self.logs)
+        l = next(x for x in json.loads(reading.launches_path(self.fx.dir).read_text())["launches"] if x["id"] == stopped[0]["id"])
+        self.assertEqual((l["outcome"], l["sessions"][0]["attempts"][0]["kind"]), ("pass", "start"))
+        sid = l["sessions"][0]["session_id"]
+        self.assertFalse(next(c for c in self.calls() if c.get("sid") == sid)["resume"], "started, never resumed")
+
+    def test_one_shot_command_has_no_tools_and_a_cached_system_prompt(self):
+        act = {"agent": "critical-reader", "model": "opus", "effort": "high", "chunks": ["AR-FY2025-c02"],
+               "role": "critical", "launch": "L001", "prompt": "p"}
+        a = agent_driver.reader_assignment(self.fx.dir, act)
+        self.assertTrue(a.oneshot)
+        cmd = self.engine().command(a, "sid", "", False, 0)
+        self.assertEqual(cmd[cmd.index("--tools") + 1], "")
+        self.assertIn("--input-format", cmd)
+        self.assertNotIn("--allowedTools", cmd, "nothing to allow: the reader writes nothing itself")
+        msg = json.loads(a.message("start", ""))["message"]["content"]
+        self.assertIn("Claims not acknowledged as debts", msg[0]["text"], "the chunk is in the message")
+        self.assertEqual(agent_driver.reader_assignment(self.fx.dir, dict(act, chunks=["a", "b"])).oneshot, False)
+
+    def test_the_agentic_reader_still_reads_when_one_shot_is_off(self):
+        with self.env(), mock.patch.object(agent_driver, "ONESHOT_READING", False):
+            eng = self.engine()
+            with agent_driver.Session(eng, "reading"):
+                rc = agent_driver.cmd_reading(eng, False, 0, 1)
+        self.assertEqual(rc, 0, self.logs)
+        self.assertTrue(reading.status(self.fx.dir, log=lambda m: None)["complete"])
+        self.assertEqual(reading_audit.run_audit(self.fx.dir, self.tdir)["errors"], [])
 
 
 class TestEngineSpecialists(EngineCase):
@@ -1601,6 +2005,13 @@ class TestVerificationLoop(EngineCase):
             out = verify.run(self.fx.dir, "specialists", self.tdir)
         self.assertIn("filings", out["specialists"])
         self.assertTrue((self.fx.dir / "qc" / "VERIFICATION.md").exists())
+
+    def test_a_verifier_that_never_opens_the_sources_is_refused(self):
+        rc, jobs = self.run_specialist(FAKE_VERIFIER_LAZY="1")
+        self.assertEqual(rc, 1)
+        ver = [j for j in jobs if j["agent"] == "verifier"]
+        self.assertEqual(ver[-1]["status"], "failed")
+        self.assertIn("the verifier never opened its source", ver[-1]["note"])
 
     def test_validate_run_requires_a_passing_verification(self):
         import validate_run

@@ -20,6 +20,11 @@ edit it here, then run the tests.
    decided later by the specialists. When a fact (a number, date, party, obligation, commitment, event or
    condition) fits no type, record it as `other_fact`. Anything non-standard, inconsistent or surprising is also
    recorded as `unusual`.
+   - **One fact per item.** An item records one fact: one amount per field, one opinion per report, **one CARO
+     clause per item** (a table listing several clauses per company is one item per company and clause, the company
+     in `report`, the clause's footnote or remark as its `answer`; the check rejects an item naming several
+     clauses). Choose the type the fact is (an explanation of a change is `explanation_of_variance`; a statement on
+     where capital goes is `capital_allocation_statement`), not the nearest general type.
 3. **Tag, do not transcribe.** An item is a tag on the page, not a restatement of it: the dossier prints the
    passage itself, so never paraphrase it.
    - `anchor` is a few consecutive words copied verbatim from the cited passage that state the fact: at least three
@@ -83,6 +88,13 @@ edit it here, then run the tests.
    sits under **on the page**, not to the passage printed before it. Whenever the order or a number looks wrong, open
    that page of your chunk on the rendered PDF (allowed for any page of your chunk; list it in `pages_viewed`, and its
    receipt says `"viewed": true`) and say what you found in the chunk receipt's `notes`.
+7a. **Account for every passage and every number** (checked by script). Every passage of the chunk is cited by an item
+    (its `unit`, inside a `to` span or a table span) or listed in the chunk receipt's `"no_fact"` (ids or ranges such as
+    `"a10-a14"`) because it states no fact of any type. Every significant number a cited passage prints (amounts,
+    percentages, counts; not years, the day of a date, or note, section, rule or page references) is recorded in a field
+    of an item citing that passage, or set aside in the receipt's `"numbers_not_facts"` (`{"a12": ["135"]}`) because it
+    is a reference, not a fact (a short span item of up to eight passages, such as a key audit matter, carries its
+    numbers in its quote). The check names every passage and number left over.
 8. **One page receipt per page** of the chunk: `items` when at least one item cites the page, otherwise `no_items`
    with the reason (for example `"photograph and caption only"`).
 9. **No outside knowledge, no web, no other files**: only the chunk files, this schema and the document PDFs (and

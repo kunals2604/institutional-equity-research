@@ -73,7 +73,7 @@ AUDITOR_PREFIX = "AUD"
 # Workers (methodology 3.1.0): they acquire and read documents for everyone (Stage 0) or re-check claims at their
 # sources (the verifier, after each specialist); they hold no views, write no claim ledger and never score. Their model
 # and effort are pinned by methodology/MODEL_POLICY.md.
-WORKERS = ("reader", "critical-reader", "librarian", "verifier")
+WORKERS = ("reader", "critical-reader", "scanner", "librarian", "verifier", "historian")
 ALL_PREFIXES = set(SPECIALISTS.values()) | {CIO_PREFIX, AUDITOR_PREFIX}
 AGENT_NAMES = set(SPECIALISTS) | {"cio", AUDITOR} | set(WORKERS)
 

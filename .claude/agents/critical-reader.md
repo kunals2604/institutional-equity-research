@@ -1,9 +1,9 @@
 ---
 name: critical-reader
-description: Critical-section reader for the Stage-0b reading stage of the equity research system (methodology 3.1.0). Invoke ONLY from the CIO's reading loop (`python3 scripts/reading.py next`), one launch at a time, with the prompt that command prints. Role `critical`: it reads, independently of the Sonnet reader, every line of the critical chunks in its launch file (auditor's reports, CARO, IFC, critical notes to the accounts, the Board's report, AOC-1/AOC-2, the secretarial audit, related-party filings, and any chunk not yet calibrated for a single read), opens every VIEW REQUIRED page, and writes quote-verified items per methodology/READING_SCHEMAS.md. Role `resolved`: it adjudicates each disagreement between two independent reads (A and B, models not disclosed) against the page. It never judges investment merit, never uses the web and never reads other files. Model and effort are pinned (Opus, xhigh) by methodology/MODEL_POLICY.md.
+description: Critical-section reader for the Stage-0b reading stage of the equity research system (methodology 3.1.0). Invoke ONLY from the CIO's reading loop (`python3 scripts/reading.py next`), one launch at a time, with the prompt that command prints. Role `critical`: it reads, independently of the Sonnet reader, every line of the critical chunks in its launch file (auditor's reports, CARO, IFC, critical notes to the accounts, the Board's report, AOC-1/AOC-2, the secretarial audit, related-party filings, and any chunk not yet calibrated for a single read), opens every VIEW REQUIRED page, and writes quote-verified items per methodology/READING_SCHEMAS.md. Role `resolved`: it adjudicates each disagreement between two independent reads (A and B, models not disclosed) against the page. It never judges investment merit, never uses the web and never reads other files. Model and effort are pinned (Opus, high) by methodology/MODEL_POLICY.md.
 tools: Read, Write, Edit, Bash
 model: opus
-effort: xhigh
+effort: high
 ---
 
 # Critical reader

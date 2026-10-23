@@ -61,6 +61,13 @@ Execute continuously through all stages without asking permission between milest
       registers what it finds (`document_map.py add`); re-run `reading.py fetch-filings` if it added filings. Put every remaining gap, with
       the librarian's attempt log, into the brief and the gap register; put every cross-check flag into the brief (which
       copy to use) and list suspected local-library defects for the owner.
+9b. **The outside view of the company's history:** `python3 scripts/agent_driver.py events RUN_DIR` (Bash, in the
+   background). The `historian` (Sonnet) builds a dated timeline of the company's major events over ten years from news,
+   the web, the exchanges' indexes, rating agencies and regulators, each with the source it opened
+   (`corpus/events.csv`, `corpus/EVENTS.md`; checked by `verify.py events`). Leads, never evidence. At Stage 0b
+   `reading.py dossiers` checks every event against what the readers extracted (`corpus/dossiers/events.md`, must-read
+   in every pack); an event the reports read do not show is either a reading miss or something the company did not
+   disclose.
 10. **Prior runs.** Do not show prior conclusions to specialists. Read a prior run's final report yourself only **after** Stage 2.
 
 ## Stage 0b — Reading stage (every in-scope page read once, and recorded)
@@ -90,12 +97,16 @@ in-scope page once, in small fresh contexts, and records it page by page (`metho
    pages, pages to view, chunks, estimated tokens, calibration status) into the brief. If readers already worked on an
    earlier plan of this run, `plan` refuses; re-plan only for a stated reason with `--replan "<reason>"`, which moves
    their work to `corpus/reading/superseded/` (nothing is deleted).
+   Then run `python3 scripts/agent_driver.py estimate RUN_DIR` and put its cost, five-hour windows and weeks into the
+   brief; tell the owner before reading starts (`engine/ESTIMATE.md`).
 2. **Read with the engine:** `python3 scripts/agent_driver.py reading RUN_DIR`, started with Bash in the background
-   (`run_in_background`); wait for its completion notification, do not poll. It runs each launch `reading.py next`
-   issues as its own headless session (`reader` on Sonnet, `critical-reader` on Opus, each at its pinned effort; writes
-   confined to the readers' parts directories; the two independent reads of a chunk cannot see each other's work),
-   checks every extraction (each anchor in its passage, every number of every field printed there, a receipt for every
-   page, every VIEW REQUIRED page viewed), resumes a session whose check fails, waits out usage limits and resumes the
+   (`run_in_background`); wait for its completion notification, do not poll. It reads each chunk in one call with no
+   tools (the chunk and its rendered VIEW REQUIRED pages in the message): Opus (`critical-reader`) on every chunk, then
+   an independent second read, Sonnet (`reader`) on critical sections and Haiku (`scanner`) on the others, the two
+   never seeing each other's work; it checks every extraction (each anchor in its passage, every number of every field
+   printed there, every passage and every significant number accounted for, a receipt for every page, every VIEW
+   REQUIRED page shown), sends fix turns that name exactly what is missing, reads a chunk that still fails again with
+   the agentic reader, resumes a session whose check fails, waits out usage limits and resumes the
    same session, issues a `resolved` launch whenever the two reads of a double-read chunk disagree, and records every
    session on its launch. None of this passes through this session's context. One launch at a time by default;
    `--parallel N` runs up to N, another starting only while the five-hour usage window is below 60 %, so parallel
@@ -237,6 +248,9 @@ If neither the engine nor the Agent tool can run a specialist, stop and tell the
    - **Collect** every gap:
      - each **Partial** or **Not available** row in the ten checklists;
      - every `missing` or flagged row of `corpus/DOCUMENT_MAP.md` that a specialist did not resolve;
+     - every event of `corpus/dossiers/events.md` **not found in the reports read** that no specialist confirmed or
+       explained in a primary source (owner: the specialist whose domain it is; say whether the reading missed it or the
+       company did not disclose it);
      - every *Missing evidence* item;
      - every tier-6-only FACT warning on a decision-relevant claim;
      - every unresolved data conflict.

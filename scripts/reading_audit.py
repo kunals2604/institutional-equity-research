@@ -306,11 +306,28 @@ def pages_viewed(events: List[Tuple[dict, str]], pdf: str, doc_key: str = "") ->
     return got
 
 
-def file_coverage(events: List[Tuple[dict, str]], path: Path, display: str) -> Tuple[int, int, List[int]]:
+def prompt_text(entries: List[dict]) -> str:
+    """Every text the session was given in its user messages (a one-shot reader receives its chunk this way)."""
+    out = []
+    for d in entries:
+        if d.get("type") != "user":
+            continue
+        c = (d.get("message") or {}).get("content")
+        if isinstance(c, str):
+            out.append(c)
+        elif isinstance(c, list):
+            out += [x.get("text", "") for x in c if isinstance(x, dict) and x.get("type") == "text"]
+    return "\n".join(out)
+
+
+PROMPT_PAGE_RE = re.compile(r"\[VIEW REQUIRED page (\d+) of ([^,\]]+), rendered\]")
+
+
+def file_coverage(events: List[Tuple[dict, str]], path: Path, display: str, prompt: str = "") -> Tuple[int, int, List[int]]:
     """(non-blank lines seen, non-blank lines in file, first missing line numbers)."""
     lines = path.read_text(encoding="utf-8").split("\n")
     via_read = lines_seen_in_reads(events, display) | lines_seen_in_reads(events, str(path))
-    shell = other_tool_text(events)
+    shell = other_tool_text(events) | {x.strip() for x in prompt.split("\n") if x.strip()}
     total = seen = 0
     missing = []
     for i, ln in enumerate(lines, 1):
@@ -408,7 +425,7 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
     best: Dict[Tuple[str, str], dict] = {}
     seen_launches = set()
     for a in agents:
-        if a["type"] not in ("reader", "critical-reader"):
+        if a["type"] not in set(rd.ROLE_AGENT.values()):
             continue
         lid = next((tok for tok in a["description"].split() if re.fullmatch(r"L\d{3,}", tok)), "")
         launch = launches.get(lid)
@@ -423,10 +440,11 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
                 a["type"], lid, launch.get("superseded_reason", ""), launch.get("superseded_to", "")))
             continue
         events = tool_events(a["entries"])
+        prompt = prompt_text(a["entries"])
         for cid in launch["chunks"]:
             if launch["role"] == "resolved":
                 target = reading / "disagreements" / ("%s.json" % cid)
-                seen, total, missing = file_coverage(events, target, str(target)) if target.exists() else (0, 0, [])
+                seen, total, missing = file_coverage(events, target, str(target), prompt) if target.exists() else (0, 0, [])
                 view_missing = []
             else:
                 store_path = cache / "chunks" / ("%s.json" % cid)
@@ -435,9 +453,10 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
                     continue
                 store = json.loads(store_path.read_text(encoding="utf-8"))
                 chunk_file = cache / "chunks" / ("%s.md" % cid)
-                seen, total, missing = file_coverage(events, chunk_file, store.get("file", ""))
+                seen, total, missing = file_coverage(events, chunk_file, store.get("file", ""), prompt)
                 need = set(store.get("visual_pages", [])) | set(store.get("verify_pages", [])) | set(store.get("image_pages", []))
-                view_missing = sorted(need - pages_viewed(events, store.get("pdf", ""), store.get("doc", "")))
+                shown = {int(pg) for pg, doc in PROMPT_PAGE_RE.findall(prompt) if doc == store.get("doc")}
+                view_missing = sorted(need - pages_viewed(events, store.get("pdf", ""), store.get("doc", "")) - shown)
             row = {"agent": a["type"], "launch": lid, "role": launch["role"], "chunk": cid, "lines_seen": seen,
                    "lines_total": total, "first_missing_lines": missing, "view_pages_missing": view_missing,
                    "outcome": launch.get("outcome", ""), "session": a.get("session_id", "")}

@@ -162,10 +162,13 @@ def check_agents(rep):
         elif name in rl.WORKERS:
             rep.add("worker cannot spawn agents: %s" % name, tools and "Agent" not in tools, "tools=%s" % tools)
             rep.add("worker writes no claim ledger: %s" % name, "_ledger.csv" not in text)
-            if name in ("reader", "critical-reader"):
+            if name in ("reader", "critical-reader", "scanner"):
                 rep.add("reader has no web access: %s" % name, not ({"WebSearch", "WebFetch"} & set(tools)), "tools=%s" % tools)
                 rep.add("reader follows the reading schema: %s" % name, "methodology/READING_SCHEMAS.md" in text
                         and "reading.py check" in text.replace("`", ""))
+            elif name == "historian":
+                rep.add("historian can search the web: %s" % name, {"WebSearch", "WebFetch"} <= set(tools))
+                rep.add("historian checks its timeline with verify.py: %s" % name, "verify.py events" in text)
             elif name == "verifier":
                 rep.add("verifier can open sources: %s" % name, {"Read", "WebFetch", "Bash"} <= set(tools))
                 rep.add("verifier checks its results with verify.py: %s" % name, "verify.py claims" in text)

@@ -34,6 +34,7 @@ If a task needs Sonnet at maximum effort to do well, it is a reasoning task and 
 |---|---|---|---|
 | Downloads, structured filings, de-duplication, tables, tie-outs, page record, coverage tables, reading audit, scoring arithmetic | scripts | none | exact |
 | Finding documents the indexes missed | `librarian` | Sonnet · high | search and download; a script validates every file |
+| A dated ten-year timeline of the company's major events from news and the web (leads and a completeness check of the reading, never evidence) | `historian` | Sonnet · high | search and list; a script checks every row and that every source was opened |
 | Reading non-critical sections, transcripts, presentations, filings | `reader` | Sonnet · high | meets the five tests |
 | Reading critical sections (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/2, secretarial audit, related-party filings) | `critical-reader` **and** `reader`, independently; a fresh `critical-reader` resolves every disagreement | Opus · xhigh and Sonnet · high | highest stakes; two different models miss different things |
 | The ten specialists, the auditor, the CIO | specialists, `auditor`, main session | Opus · xhigh | judgment |
@@ -61,9 +62,11 @@ the owner if it is not Opus at xhigh.
     "special-situations": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "scuttlebutt": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "auditor": {"model": "opus", "effort": "xhigh", "kind": "auditor"},
-    "critical-reader": {"model": "opus", "effort": "xhigh", "kind": "worker"},
+    "critical-reader": {"model": "opus", "effort": "high", "kind": "worker"},
     "reader": {"model": "sonnet", "effort": "high", "kind": "worker"},
+    "scanner": {"model": "haiku", "effort": "high", "kind": "worker"},
     "librarian": {"model": "sonnet", "effort": "high", "kind": "worker"},
+    "historian": {"model": "sonnet", "effort": "high", "kind": "worker"},
     "verifier": {"model": "opus", "effort": "xhigh", "kind": "worker"}
   },
   "calibration": {
@@ -80,6 +83,17 @@ filled from the bake-off result (`reading.py bakeoff score`, recorded in `docs/M
 added only with **at least 30 adjudicated items**, **zero material misses** and **recall ≥ 0.98** against the adjudicated
 items. A class short of 30 items stays double-read until later bake-offs add evidence. While `status` is
 `pending`, or for any class not listed, chunks are double-read.
+
+## One-shot reading: Opus primary, cheaper second reads (owner-approved plan, 2026-10-22)
+
+Measured on real chunks against exhaustive agentic Opus reads: a one-shot read (one call, no tools, the chunk and its
+page images in the message) with passage and number accounting costs $0.68–0.88 per 12k-token chunk on Opus at high
+effort (92 % exact recall on an auditor's report) against $2.3–3.4 for the agentic session; Sonnet ($0.41–0.49) and
+Haiku ($0.06) recalled 41–59 % and 46 %. So **Opus (`critical-reader`, high) reads every chunk**; an independent second
+read follows: Sonnet (`reader`) on critical sections, Haiku (`scanner`) on the others. Opus adjudicates every conflict,
+and on critical sections every item only the second read found; on other sections the second read's checked extra finds
+are added and marked. The in-run calibration may still let a cheaper model read a class alone where it passes the rule.
+A chunk whose one-shot read cannot pass after two fix turns is read again by the agentic reader.
 
 ## In-run calibration (owner's decision, 2026-10-19)
 
