@@ -16,3 +16,6 @@ research/companies/*/runs/*/_cache/
 
 # Exchange files cached by the outcome loop (scripts/outcomes.py)
 research/outcomes/_cache/
+
+# Agent transcripts kept past Claude Code's retention period (scripts/archive_transcripts.py)
+research/_archive/

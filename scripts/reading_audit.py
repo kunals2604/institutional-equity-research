@@ -32,6 +32,7 @@ measurable, 2 usage.
 """
 
 import argparse
+import csv
 import datetime as dt
 import json
 import os
@@ -55,6 +56,23 @@ def transcripts_dir(arg: Optional[str] = None) -> Path:
         return Path(os.environ["CLAUDE_TRANSCRIPTS_DIR"]).expanduser()
     slug = re.sub(r"[^A-Za-z0-9-]", "-", str(rl.ROOT.resolve()))
     return Path.home() / ".claude" / "projects" / slug
+
+
+def archive_dir() -> Path:
+    """Where scripts/archive_transcripts.py keeps a run's transcripts beyond Claude Code's retention period."""
+    if os.environ.get("EQR_TRANSCRIPT_ARCHIVE"):
+        return Path(os.environ["EQR_TRANSCRIPT_ARCHIVE"]).expanduser()
+    return rl.ROOT / "research" / "_archive" / "transcripts"
+
+
+def archived_paths(run_id: str) -> List[Path]:
+    """The files archived for this run. The manifest decides, not a search of the archive: a session that merely mentions
+    a run id is not that run's session."""
+    manifest = archive_dir() / "MANIFEST.csv"
+    if not manifest.exists():
+        return []
+    with manifest.open(encoding="utf-8", newline="") as f:
+        return [archive_dir() / r["path"] for r in csv.DictReader(f) if run_id in r["run_id"].split(";")]
 
 
 def family(model_id: str) -> str:
@@ -153,8 +171,13 @@ def first_prompt(entries: List[dict]) -> str:
 
 
 def find_agents(tdir: Path, run_id: str) -> List[dict]:
-    out = []
-    for meta in sorted(tdir.glob("*/subagents/*.meta.json")):
+    """A run's subagents, from the live transcripts and then from the archive; a live file is preferred."""
+    out, seen = [], set()
+    metas = [(m, m.relative_to(tdir)) for m in sorted(tdir.glob("*/subagents/*.meta.json"))]
+    metas += [(p, p.relative_to(archive_dir())) for p in archived_paths(run_id) if p.name.endswith(".meta.json")]
+    for meta, rel in metas:
+        if rel in seen:
+            continue
         try:
             m = json.loads(meta.read_text(encoding="utf-8"))
         except ValueError:
@@ -168,13 +191,16 @@ def find_agents(tdir: Path, run_id: str) -> List[dict]:
                 head = f.read(20000)
             if run_id not in head:
                 continue
+        seen.add(rel)
         out.append({"type": m.get("agentType", ""), "description": desc, "path": jl})
     return out
 
 
 def find_main_sessions(tdir: Path, run_id: str) -> List[Path]:
     out = []
-    for jl in sorted(tdir.glob("*.jsonl")):
+    live = sorted(tdir.glob("*.jsonl"))
+    names = {p.name for p in live}
+    for jl in live + [p for p in archived_paths(run_id) if p.parent == archive_dir() and p.suffix == ".jsonl" and p.name not in names]:
         with jl.open(encoding="utf-8", errors="replace") as f:
             for line in f:
                 if run_id in line:
@@ -192,6 +218,7 @@ def headless_sessions(run_dir: Path, tdir: Path) -> List[dict]:
     the agent, described as a subagent launch is ("<agent> <run id> <launch or job id>")."""
     run_id = rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name)
     out, seen = [], set()
+    archived = {p.name: p for p in archived_paths(run_id) if p.parent == archive_dir()}
     records = []
     path = run_dir / "corpus" / "reading" / "launches.json"
     if path.exists():
@@ -201,8 +228,9 @@ def headless_sessions(run_dir: Path, tdir: Path) -> List[dict]:
         records += rl.load_json(jobs).get("jobs", [])
     for l in records:
         for s in l.get("sessions", []):
-            jl = tdir / ("%s.jsonl" % s["session_id"])
-            if jl.exists() and s["session_id"] not in seen:
+            name = "%s.jsonl" % s["session_id"]
+            jl = tdir / name if (tdir / name).exists() else archived.get(name)
+            if jl and s["session_id"] not in seen:
                 seen.add(s["session_id"])
                 out.append({"type": l["agent"], "description": "%s %s %s" % (l["agent"], run_id, l["id"]), "path": jl,
                             "session_id": s["session_id"], "headless": True, "job": l["id"]})
@@ -215,7 +243,7 @@ def independence_patterns(me: str, run_id: str) -> Tuple[re.Pattern, re.Pattern]
     files = (r"specialists/(?:%s)(?:\.md|_ledger|_followup|_workpapers)|calc/(?:%s)_|_cache/scratch/(?:%s)/"
              % (others, others, others))
     calls = re.compile(r"(?:%s)|(?:runs/[\w.-]+|\$\{?\w+\}?|RUN_DIR)/(?:cio|audit|qc|engine|synthesis)/|_cache/engine/|"
-                       r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|\.claude/projects/|"
+                       r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|research/_archive/|\.claude/projects/|"
                        r"runs/(?!%s\b)\d{8}T\d{6}Z" % (files, re.escape(run_id)))
     content = re.compile(r"(?:%s)[^\s:]*:" % files)
     return calls, content
@@ -397,11 +425,11 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
     res = {"run_id": run_id, "generated_at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat(),
            "transcripts": str(tdir), "status": "", "errors": [], "warnings": [], "agents": [], "readers": [],
            "specialists": [], "cio": {}, "waiver": waive or ""}
-    agents = find_agents(tdir, run_id) if tdir.exists() else []
-    heads = headless_sessions(run_dir, tdir) if tdir.exists() else []
+    agents = find_agents(tdir, run_id)
+    heads = headless_sessions(run_dir, tdir)
     head_ids = {h["session_id"] for h in heads}
     agents += heads
-    mains = [jl for jl in (find_main_sessions(tdir, run_id) if tdir.exists() else []) if jl.stem not in head_ids]
+    mains = [jl for jl in find_main_sessions(tdir, run_id) if jl.stem not in head_ids]
     # With reading off (methodology 3.2.0) no reading record exists to prove: a plan left from before the switch is
     # not checked (reader sessions that ran are still model/effort-checked below).
     reading_plan = (rl.load_json(run_dir / "corpus" / "reading" / "plan.json")
@@ -662,7 +690,7 @@ def efficiency(entries: List[dict]) -> dict:
 
 def efficiency_report(run_dir: Path, tdir: Path) -> Path:
     run_id = rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name)
-    sessions = headless_sessions(run_dir, tdir) if tdir.exists() else []
+    sessions = headless_sessions(run_dir, tdir)
     lines = ["# Agent efficiency — run %s" % run_id, "",
              "Generated by `scripts/reading_audit.py efficiency` from the agents' transcripts; a sensor for the briefs "
              "(where usage went), never a gate. Do not edit.", ""]

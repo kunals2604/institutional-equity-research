@@ -140,10 +140,8 @@ def agent_sessions(run_dir: Path, name: str, tdir: Optional[Path] = None) -> Lis
     """Every session of this agent in this run (headless engine sessions and Agent-tool subagents), with entries."""
     tdir = tdir or ra.transcripts_dir()
     run_id = rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name)
-    out = []
-    if tdir.exists():
-        out += [a for a in ra.headless_sessions(run_dir, tdir) if a["type"] == name]
-        out += [a for a in ra.find_agents(tdir, run_id) if a["type"] == name]
+    out = [a for a in ra.headless_sessions(run_dir, tdir) if a["type"] == name]
+    out += [a for a in ra.find_agents(tdir, run_id) if a["type"] == name]
     jobs = rl.load_json(run_dir / "engine" / "jobs.json") if (run_dir / "engine" / "jobs.json").exists() else {}
     stage = {j["id"]: str(j.get("stage", "")) for j in jobs.get("jobs", [])}
     for a in out:
@@ -792,10 +790,10 @@ def cio_findings(run_dir: Path, tdir: Path) -> List[dict]:
     if not led.exists():
         return []
     digest_bad = digest_fact_findings(run_dir, ledger_rows([led]), "cio")
-    if not tdir.exists():
-        return digest_bad
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
     run_id = m.get("run_id", run_dir.name)
+    if not tdir.exists() and not ra.archived_paths(run_id):
+        return digest_bad
     head_ids = {h["session_id"] for h in ra.headless_sessions(run_dir, tdir)}
     t0, t1 = str(m.get("started_at") or "")[:19], str(m.get("completed_at") or "9999")[:19]
     sessions = []

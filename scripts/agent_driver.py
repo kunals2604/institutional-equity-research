@@ -104,7 +104,8 @@ DENY_SECRETS = ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.config/**)", "Rea
                 "Read(~/.claude.json)", "Read(~/Library/Keychains/**)"]
 # Other agents' sessions. (Not the whole projects folder: an agent reads back its own large tool outputs, which Claude
 # Code keeps in ~/.claude/projects/<project>/<session>/tool-results/; the audit checks they are its own.)
-DENY_TRANSCRIPTS = ["Read(~/.claude/projects/*/*.jsonl)", "Read(~/.claude/projects/*/*/subagents/**)"]
+DENY_TRANSCRIPTS = ["Read(~/.claude/projects/*/*.jsonl)", "Read(~/.claude/projects/*/*/subagents/**)",
+                    "Read(/%s/research/_archive/**)" % rl.ROOT.resolve()]
 # Every headless session sees only the project: no user settings (their hooks and plugins), no hook of any source,
 # no auto-memory. Measured 2026-10-23: without these a reader session carried the owner's MEMORY.md, and a user-level
 # hook or plugin (RTK, claude-mem, ECC, superpowers) would inject its context into every reader and specialist,
@@ -130,7 +131,7 @@ def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
                          "--block-service-workers", "--output-dir", str(out)]}
     raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
-                    "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py")
+                    "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py", "archive_transcripts.py")
 SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "forecasting",
                     "valuation", "special-situations", "bear-case")
 SPECIALIST_PROMPT = rl.ROOT / "templates" / "specialist_prompt.md"
