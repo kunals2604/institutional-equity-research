@@ -188,6 +188,655 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Sources:** each subsidiary's filings, AOC-1, scheme documents.
 - **Ground truth:** The listed subsidiaries' own ground-truth series; market values of listed holdings on the same date (exchange data); the record of dividends actually upstreamed to the holding company.
 
+
+## Sector modules (methodology 3.2.0)
+
+Required method steps the CIO switches on per run (`sector_modules` in the run manifest, set in Stage 0; `[]` with a note when none applies). Each step is owned by one specialist, appears in that specialist's brief, needs its own row (naming the step id) in its Method Coverage Checklist, and, where `metrics` are named, a Done row needs ledger claims with those metric keys covering at least `min_periods` periods each (`verify.py`: `SECTOR_MODULE_EVIDENCE`).
+
+<!-- SECTOR_MODULES:BEGIN -->
+```json
+{
+ "version": "1.0",
+ "modules": {
+  "banks": {
+   "playbook": "§1",
+   "title": "Banks",
+   "steps": [
+    {
+     "id": "BANK-1",
+     "owner": "financials",
+     "step": "Liability franchise",
+     "require": "CASA ratio, cost of deposits and cost of funds for 10 years; deposit concentration (top-20 depositors) where disclosed",
+     "metrics": [
+      "casa_ratio",
+      "cost_of_funds"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "BANK-2",
+     "owner": "filings",
+     "step": "Asset-quality roll-forward",
+     "require": "slippages, upgrades, recoveries and write-offs (technical included) by year; SMA-1/2 and restructured book; GNPA ratio and PCR for 10 years",
+     "metrics": [
+      "gnpa_ratio",
+      "pcr"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "BANK-3",
+     "owner": "bear-case",
+     "step": "Through-cycle credit-cost stress",
+     "require": "ROE and CET1 at the peak credit cost of the last 15 years and of the sector's worst cycle",
+     "metrics": [
+      "credit_cost"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "BANK-4",
+     "owner": "forecasting",
+     "step": "Loan, deposit, NIM, opex and credit-cost driver model",
+     "require": "the model's drivers with 10 years of history each",
+     "metrics": [
+      "nim",
+      "credit_cost"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "BANK-5",
+     "owner": "financials",
+     "step": "Capital and risk-weight density",
+     "require": "CRAR and Tier-1 for 10 years; RWA density and the risk-weight changes that applied",
+     "metrics": [
+      "crar",
+      "tier1_ratio"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "BANK-6",
+     "owner": "moat",
+     "step": "Funding-cost advantage against peers",
+     "require": "cost of funds and CASA against the 4+ closest peers over 10 years, quantified",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "nbfc": {
+   "playbook": "§2",
+   "title": "NBFCs and housing finance companies",
+   "steps": [
+    {
+     "id": "NBFC-1",
+     "owner": "financials",
+     "step": "ALM structural liquidity",
+     "require": "the maturity pattern of assets and liabilities from the ALM note at every year-end in scope: the cumulative gap up to 1 year as a share of assets; liquidity buffer and LCR where disclosed",
+     "metrics": [
+      "alm_gap_1y_ratio"
+     ],
+     "min_periods": 5
+    },
+    {
+     "id": "NBFC-2",
+     "owner": "financials",
+     "step": "Funding mix and cost",
+     "require": "borrowings by instrument (bank loans, NCDs, CP, deposits, ECB, securitisation) at each year-end and the cost of funds for 10 years; the CP share",
+     "metrics": [
+      "cost_of_funds",
+      "cp_share_of_borrowings"
+     ],
+     "min_periods": 5
+    },
+    {
+     "id": "NBFC-3",
+     "owner": "filings",
+     "step": "Stage-wise ECL roll-forward",
+     "require": "Stage 1/2/3 gross exposure and ECL movement (opening, new, transfers, write-offs, closing) for 5 years from the ECL note; management overlays created and released, with amounts",
+     "metrics": [
+      "stage2_ratio",
+      "gnpa_ratio"
+     ],
+     "min_periods": 5
+    },
+    {
+     "id": "NBFC-4",
+     "owner": "financials",
+     "step": "Lagged delinquency and write-offs",
+     "require": "Stage-3 against the book 12 months earlier, write-offs and recoveries for 8+ years; by product where disclosed",
+     "metrics": [
+      "lagged_gnpa_ratio",
+      "credit_cost"
+     ],
+     "min_periods": 8
+    },
+    {
+     "id": "NBFC-5",
+     "owner": "bear-case",
+     "step": "Through-cycle credit-cost stress",
+     "require": "ROE and capital at the peak credit cost of the last 15 years and of the sector's worst unsecured-credit cycle, with the arithmetic",
+     "metrics": [
+      "credit_cost"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "NBFC-6",
+     "owner": "forecasting",
+     "step": "AUM, spread, opex and credit-cost driver model",
+     "require": "AUM growth, yield, cost of funds, opex to AUM and credit cost as the model's drivers, each with 8+ years of history",
+     "metrics": [
+      "aum",
+      "nim",
+      "opex_to_aum"
+     ],
+     "min_periods": 8
+    },
+    {
+     "id": "NBFC-7",
+     "owner": "filings",
+     "step": "Off-book, co-lending and retained risk",
+     "require": "securitised, assigned and co-lent AUM, the risk retained (MRR, guarantees, FLDG) and the accounting (derecognition, gain on sale) for 5 years",
+     "metrics": [
+      "off_book_share"
+     ],
+     "min_periods": 3
+    },
+    {
+     "id": "NBFC-8",
+     "owner": "moat",
+     "step": "Unit economics by product",
+     "require": "yield, cost of funds, opex, credit cost and return on assets by product or segment where disclosed; customer acquisition and cross-sell",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "NBFC-9",
+     "owner": "industry",
+     "step": "Regulatory capital and scale-based regulation",
+     "require": "CRAR for 10 years, the regulatory layer and every risk-weight or regulatory change that applied, dated",
+     "metrics": [
+      "crar"
+     ],
+     "min_periods": 10
+    }
+   ]
+  },
+  "insurance": {
+   "playbook": "§3",
+   "title": "Insurance",
+   "steps": [
+    {
+     "id": "INS-1",
+     "owner": "financials",
+     "step": "Embedded value and new-business margin",
+     "require": "EV, VNB, VNB margin and the EV walk (unwind, variances, assumption changes) for every year disclosed",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "INS-2",
+     "owner": "filings",
+     "step": "Reserving and assumption changes",
+     "require": "every change in actuarial or reserving assumptions and its effect, by year",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "INS-3",
+     "owner": "forecasting",
+     "step": "Premium, mix and margin driver model",
+     "require": "APE or GWP by product, persistency, combined ratio or VNB margin as the drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "capital_markets": {
+   "playbook": "§4",
+   "title": "Asset managers, brokers, exchanges",
+   "steps": [
+    {
+     "id": "CM-1",
+     "owner": "forecasting",
+     "step": "AUM or volume, yield and flow driver model",
+     "require": "AUM or volumes, fee yield and net flows by product as the drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CM-2",
+     "owner": "moat",
+     "step": "Flow share and fee yield against peers",
+     "require": "market share of flows or volumes and the fee yield against peers over 5+ years",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "it_services": {
+   "playbook": "§5",
+   "title": "IT services",
+   "steps": [
+    {
+     "id": "IT-1",
+     "owner": "forecasting",
+     "step": "Revenue by vertical and client cohort",
+     "require": "revenue by vertical, client bucket and geography; deal wins (TCV) as drivers, with history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "IT-2",
+     "owner": "moat",
+     "step": "Client concentration and retention",
+     "require": "top-1/5/10 client shares, client mining and retention over 10 years",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "IT-3",
+     "owner": "financials",
+     "step": "Utilisation, attrition and margin bridge",
+     "require": "utilisation, attrition, offshore mix and the margin bridge by year",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "consumer_internet": {
+   "playbook": "§6",
+   "title": "Consumer internet and software platforms",
+   "steps": [
+    {
+     "id": "CI-1",
+     "owner": "moat",
+     "step": "Cohort retention and unit economics",
+     "require": "cohort retention, contribution margin per order or user, CAC and payback where disclosed",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CI-2",
+     "owner": "forecasting",
+     "step": "Users x engagement x monetisation model",
+     "require": "the model's drivers with their history",
+     "metrics": [
+      "subscribers"
+     ],
+     "min_periods": 3
+    },
+    {
+     "id": "CI-3",
+     "owner": "financials",
+     "step": "Path to free cash flow",
+     "require": "operating cash flow, capital needs and the cash runway by year",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "fmcg": {
+   "playbook": "§7",
+   "title": "Consumer staples (FMCG)",
+   "steps": [
+    {
+     "id": "FMCG-1",
+     "owner": "forecasting",
+     "step": "Volume, price and mix model",
+     "require": "volume, price and mix growth by category as drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "FMCG-2",
+     "owner": "scuttlebutt",
+     "step": "Distribution reach and channel evidence",
+     "require": "direct reach, outlets and channel checks against the company's claims",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "FMCG-3",
+     "owner": "moat",
+     "step": "Gross margin through input cycles",
+     "require": "gross margin against the input-cost cycle over 10 years (pricing power)",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "consumer_discretionary": {
+   "playbook": "§8",
+   "title": "Consumer discretionary, retail, QSR and durables",
+   "steps": [
+    {
+     "id": "CD-1",
+     "owner": "forecasting",
+     "step": "Store or unit economics model",
+     "require": "same-store growth, new units and revenue per unit as drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CD-2",
+     "owner": "moat",
+     "step": "Unit-level returns",
+     "require": "payback and return per store or unit, and cohort maturity",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "auto": {
+   "playbook": "§9",
+   "title": "Automobiles and auto components",
+   "steps": [
+    {
+     "id": "AUTO-1",
+     "owner": "forecasting",
+     "step": "Volume by segment and share model",
+     "require": "volumes by segment and market, market share and realisation as drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "AUTO-2",
+     "owner": "industry",
+     "step": "Industry volume cycle",
+     "require": "industry volumes by segment over 2+ cycles from SIAM or FADA",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "AUTO-3",
+     "owner": "financials",
+     "step": "Captive finance separated",
+     "require": "the industrial business's economics with any captive finance arm separated",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "pharma": {
+   "playbook": "§10",
+   "title": "Pharmaceuticals and healthcare",
+   "steps": [
+    {
+     "id": "PH-1",
+     "owner": "filings",
+     "step": "Regulatory compliance record",
+     "require": "USFDA and other inspections, warning letters and import alerts by site, dated",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "PH-2",
+     "owner": "forecasting",
+     "step": "Product and pipeline model",
+     "require": "revenue by market and key product, pipeline launches and price erosion as drivers",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "PH-3",
+     "owner": "moat",
+     "step": "Price erosion and differentiation",
+     "require": "price erosion in the base business and the share of differentiated products over time",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "capital_goods": {
+   "playbook": "§11",
+   "title": "Capital goods, engineering, defence and EPC",
+   "steps": [
+    {
+     "id": "CG-1",
+     "owner": "forecasting",
+     "step": "Order book, inflow and execution model",
+     "require": "order book, inflows and execution (book-to-bill) as drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CG-2",
+     "owner": "financials",
+     "step": "Working capital and contract assets",
+     "require": "receivables, contract assets, retentions and their ageing by year",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "metals": {
+   "playbook": "§12",
+   "title": "Metals, mining and commodities",
+   "steps": [
+    {
+     "id": "MET-1",
+     "owner": "forecasting",
+     "step": "Price x volume x cost-curve model",
+     "require": "realisations, volumes and unit costs as drivers against the cost curve",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "MET-2",
+     "owner": "bear-case",
+     "step": "Trough-cycle stress",
+     "require": "EBITDA, leverage and liquidity at the last trough's prices and spreads",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "cement": {
+   "playbook": "§13",
+   "title": "Cement and building materials",
+   "steps": [
+    {
+     "id": "CEM-1",
+     "owner": "forecasting",
+     "step": "Capacity, utilisation, realisation and cost-per-tonne model",
+     "require": "the drivers with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CEM-2",
+     "owner": "industry",
+     "step": "Regional supply and demand",
+     "require": "regional capacity additions and utilisation by year",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "chemicals": {
+   "playbook": "§14",
+   "title": "Chemicals",
+   "steps": [
+    {
+     "id": "CHEM-1",
+     "owner": "forecasting",
+     "step": "Product volume and spread model",
+     "require": "volumes and spreads by product family as drivers, with their history",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "CHEM-2",
+     "owner": "moat",
+     "step": "Customer approvals and concentration",
+     "require": "customer concentration, approval cycles and contract terms",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "energy_utilities": {
+   "playbook": "§15",
+   "title": "Oil and gas, energy and utilities",
+   "steps": [
+    {
+     "id": "EN-1",
+     "owner": "forecasting",
+     "step": "Regulated returns, load and tariff model",
+     "require": "regulated equity, PLF or throughput and tariffs as drivers",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "EN-2",
+     "owner": "bear-case",
+     "step": "Fuel and regulatory stress",
+     "require": "earnings under adverse fuel prices and regulatory resets",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "telecom": {
+   "playbook": "§16",
+   "title": "Telecom and media",
+   "steps": [
+    {
+     "id": "TEL-1",
+     "owner": "industry",
+     "step": "Spectrum holdings and renewals",
+     "require": "spectrum by band and circle, renewal dates and the cost per MHz of each auction",
+     "metrics": [
+      "spectrum_mhz"
+     ],
+     "min_periods": 3
+    },
+    {
+     "id": "TEL-2",
+     "owner": "financials",
+     "step": "AGR and deferred spectrum liabilities as quasi-debt",
+     "require": "AGR dues and deferred spectrum payments outstanding, their schedule and interest, in the net-debt bridge",
+     "metrics": [
+      "agr_dues"
+     ],
+     "min_periods": 5
+    },
+    {
+     "id": "TEL-3",
+     "owner": "forecasting",
+     "step": "ARPU bridge and subscriber model",
+     "require": "subscribers, ARPU (tariff, mix, data usage) and the network capex they need, with their history",
+     "metrics": [
+      "arpu",
+      "subscribers"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "TEL-4",
+     "owner": "moat",
+     "step": "Unit economics per subscriber",
+     "require": "capex per subscriber, churn and the margin per user against peers",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "real_estate": {
+   "playbook": "§17",
+   "title": "Real estate",
+   "steps": [
+    {
+     "id": "RE-1",
+     "owner": "forecasting",
+     "step": "Pre-sales, collections and launch-pipeline model",
+     "require": "pre-sales, collections, launches and realisations as drivers",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "RE-2",
+     "owner": "financials",
+     "step": "NAV and land bank",
+     "require": "the land bank by project and stage, and a NAV build",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "holding_companies": {
+   "playbook": "§18",
+   "title": "Holding companies and conglomerates",
+   "steps": [
+    {
+     "id": "HOLD-1",
+     "owner": "valuation",
+     "step": "Look-through SOTP",
+     "require": "each holding at market (listed) or by its method (unlisted), holdco net debt, and the discount with its basis",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "HOLD-2",
+     "owner": "special-situations",
+     "step": "Discount-closure mechanisms",
+     "require": "the events that could close the discount, with probability and timing",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "listed_subsidiaries": {
+   "playbook": "cross-sector",
+   "title": "Listed subsidiaries and associates",
+   "steps": [
+    {
+     "id": "LSUB-1",
+     "owner": "special-situations",
+     "step": "Listed subsidiary deep dive",
+     "require": "for each listed subsidiary or associate: the stake, its market value at the cutoff, its own results, governance and related-party flows, dividends upstreamed, capital calls and stake sales over 10 years",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "capital_allocation_roi": {
+   "playbook": "cross-sector",
+   "title": "Capital-allocation returns",
+   "steps": [
+    {
+     "id": "CAP-1",
+     "owner": "management",
+     "step": "Return on every major allocation",
+     "require": "every major allocation of the last 10 years (acquisitions, large capex, stake purchases, capital raises, buybacks): amount, date and outcome, the return computed by script",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "unlisted_segment_value": {
+   "playbook": "cross-sector",
+   "title": "Unlisted segments valued",
+   "steps": [
+    {
+     "id": "SEG-1",
+     "owner": "valuation",
+     "step": "Segment SOTP",
+     "require": "each unlisted segment's cash generation and value by its own method, reconciled to the consolidated value",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  }
+ }
+}
+```
+<!-- SECTOR_MODULES:END -->
+
 ---
 
 ## Cross-sector reminders

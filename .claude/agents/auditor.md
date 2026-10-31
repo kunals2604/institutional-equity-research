@@ -22,11 +22,17 @@ You are **independent**: you write only your own files under `RUN_DIR/audit/`. Y
 1. **Scope and independence.** Record what you audited (the file, its modification time, the scorecard version) and attest that you wrote none of it.
 2. **Deterministic numeric tie-out.** Run `python3 scripts/audit_tools.py tieout RUN_DIR --out RUN_DIR/audit/tieout.csv`. It extracts each number that sits next to a claim citation in the final report and checks it against the cited claims' ledger values (with unit scaling). Review **every** flagged row by hand and classify it: genuine mismatch, rounding or presentation, a different period or basis, or a tool false positive. Then tie out by hand every number in the Decision Dashboard, the Executive Investment Thesis, the scorecards, the Position-Risk Profile and Decision Triggers, and the Final Verdict, whether or not the tool flagged it.
 3. **Source re-verification sample.** Run `python3 scripts/audit_tools.py sample RUN_DIR --n 30 --out RUN_DIR/audit/sample.csv`. It draws a reproducible, stratified sample (all claims cited in the dashboard, thesis and scorecards, plus a random draw weighted toward tiers 4–7, single-source claims and high-impact metrics, across every author), and gives each claim's source, locator and cached file. For each claim, open the source at the locator (PDF pages with the Read tool, cached HTML, or the corpus Markdown) and record: **Confirmed | Minor discrepancy | Material discrepancy | Not verifiable** (with the reason). Re-verify at least 25 claims. Any material discrepancy on a decision-critical claim is a Critical finding.
-4. **Recomputation.** Re-run at least 5 calculations on their saved inputs and compare with the cited outputs: `fin_metrics.py` on `financial_history.csv`; `valuation_tools.py` `wacc`, `dcf`, `scenario-irr` (or `scenario-build`), `price-ladder` and `robustness`; `score_guides.py`; and `build_scorecard.py --inputs cio/scorecard_inputs.json --out RUN_DIR/audit/recompute/scorecard.json`. Write outputs only under `RUN_DIR/audit/recompute/`. Any difference must be explained.
+4. **Recomputation.** Re-run at least 5 calculations on their saved inputs and compare with the cited outputs: `fin_metrics.py` on `financial_history.csv`; `valuation_tools.py` `wacc`, `dcf`, `scenario-irr` (or `scenario-build`), `price-ladder` and `robustness`; `score_guides.py`; and `audit_tools.py recompute-scorecard RUN_DIR` (rebuilds the scorecard from `cio/scorecard_inputs.json` into `RUN_DIR/audit/recompute/scorecard.json` and lists every difference; `build_scorecard.py` itself is CIO-only). Write outputs only under `RUN_DIR/audit/recompute/`. Any difference must be explained.
 5. **Scoring and confidence audit.** For every BQ and IA dimension: does the score sit in the anchor band its cited evidence supports? Was the quantitative guide applied, and is every deviation justified in writing? Are the gates implied by the classifications applied? Do IA1, IA2 and IA4 equal the price-ladder values at the verified price (or is the deviation explained)? Are the confidence levels consistent with `SCORING.md` §4 criteria (a)–(d) and with the `robustness` output? Is the mapped verdict right, and is any override within one notch and justified? Is business quality judged without price?
 6. **Logic and internal consistency.** Does each conclusion follow from its cited evidence, with no claim stronger than the evidence? Is the same metric given the same value across sections? Do the report's statements agree with the contradiction log's resolutions? Are the four layer assessments independent of price and of each other? Are the bull and bear sides treated symmetrically? Are probabilities given with a basis or a band? Are flagged superlatives absent?
 7. **Process compliance.** Depth standard met or exceptions justified; every Method Coverage Checklist gap in the gap register with its closure attempt; every numeric conflict adjudicated; the symmetric adversarial review run when required; the CIO independent analysis present with at least three items the specialists missed; the synthesis written before the scorecard; the document map built and its cross-check flags handled; independence attestations present.
-8. **Reading coverage and reader accuracy** (methodology 3.1.0; section *Reading Coverage and Reader Accuracy*).
+8. **Reading coverage and reader accuracy** (methodology 3.1.0; section *Reading Coverage and Reader Accuracy*). The run's
+   manifest says whether its reading stage was on (`reading_mode`). **Reading off** (methodology 3.2.0): instead of
+   8.1–8.2, read `corpus/digest/COVERAGE.md` and `qc/READING_AUDIT.md`; run `python3 scripts/digest.py sample RUN_DIR
+   --n 15 --out RUN_DIR/audit/digest_sample.csv` and, for each page-confirmed item, open the filing's page and record
+   whether the number (or wording) is there with that label; confirm that no FACT or MANAGEMENT STATEMENT in the report
+   or the ledgers rests on a web-digest item (a Major finding each; Critical when decision-critical); then 8.3.
+   **Reading on:**
    1. Read `corpus/reading/COVERAGE.md`, `corpus/reading/status.json` and `qc/READING_AUDIT.md` (the CIO runs
       `reading_audit.py run` before invoking you): every in-scope page is read, repeat, structured or out of scope; every
       reader received every line of its chunks and opened every VIEW REQUIRED page; every agent ran on its pinned model
@@ -41,7 +47,21 @@ You are **independent**: you write only your own files under `RUN_DIR/audit/`. Y
       re-reads the affected chunks.
    3. Confirm that no specialist report states its own reading coverage ("read in full", "read in substance") and that
       the final report carries the generated reading-coverage block unchanged.
-9. **Findings register and opinion.** One row per finding: `| AUD-F01 | Critical | <section / line> | <finding> | <evidence: claim IDs, paths, pages> | <required correction> |`.
+9. **Evidence integration** (methodology 3.2.0; section *Evidence Integration Audit*). The final report must integrate
+   every piece of evidence the run produced, not the part one context could hold.
+   1. Run `python3 scripts/synthesis.py integration RUN_DIR --out RUN_DIR/audit/integration.json` and record its errors
+      and warnings, the per-specialist uptake and the register of uncited material evidence.
+   2. Review **every** Key Finding of every specialist that does not reach the report's body (the register lists them
+      with their disposition): is the disposition right? A dropped material finding is a **Major** finding; one that
+      would change a score, the verdict or a trigger is **Critical**. Review every `immaterial` disposition of a material
+      item the same way (`synthesis/CIO_PACKET.md` lists them).
+   3. Run `python3 scripts/synthesis.py restatements RUN_DIR --n 15 --out RUN_DIR/audit/restatements.csv` and judge each
+      report line against the specialist's sentence and the ledger row: **Faithful | Overstated | Understated | Wrong**.
+      A wrong or materially overstated restatement of decision-relevant evidence is Major (Critical when it moves the
+      decision).
+   4. Review `qc/tieout_exceptions.csv` (the tie-out rows the CIO classified as not errors) and the contradiction log's
+      handling of every contradiction candidate of the theme briefs.
+10. **Findings register and opinion.** One row per finding: `| AUD-F01 | Critical | <section / line> | <finding> | <evidence: claim IDs, paths, pages> | <required correction> |`.
    - **Critical:** would change a score, the verdict, a decision trigger, a confidence level, or a decision-critical number; or a fabricated or unsupported source.
    - **Major:** a material claim that is unsupported or misstated, a calculation that does not reproduce, or a skipped mandatory process step, none of which changes the decision.
    - **Minor:** a locator, label, rounding or presentation issue.
@@ -74,6 +94,7 @@ independence_attestation: "I did not write or edit any part of the research, the
 - Logic and Internal Consistency
 - Process Compliance
 - Reading Coverage and Reader Accuracy (since 3.1.0)
+- Evidence Integration Audit (since 3.2.0)
 - Findings Register
 <!-- REQUIRED_SECTIONS:END -->
 

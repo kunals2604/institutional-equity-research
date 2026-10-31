@@ -98,8 +98,36 @@ def operative_markdown():
     return files
 
 
+def check_sector_modules(rep):
+    """Methodology 3.2.0: the sector-module catalogue parses, covers every playbook, and every step is owned by a
+    specialist, has a unique id and names canonical metric keys."""
+    try:
+        cat = rl.sector_modules()
+        rep.add("sector modules block parses (methodology/SECTOR_PLAYBOOKS.md)", True)
+    except (ValueError, OSError, KeyError) as exc:
+        rep.add("sector modules block parses (methodology/SECTOR_PLAYBOOKS.md)", False, str(exc))
+        return
+    text = rl.SECTOR_PLAYBOOKS.read_text(encoding="utf-8")
+    sections = re.findall(r"^## (\d+)\. ", text, re.M)
+    covered = {m.get("playbook") for m in cat.values()}
+    missing = ["§%s" % n for n in sections if "§%s" % n not in covered]
+    rep.add("a sector module for every playbook section", not missing, "missing %s" % missing if missing else "")
+    ids, bad_owner, bad_metric = [], [], []
+    keys = rl.metric_keys()
+    for mid, mod in cat.items():
+        for st in mod.get("steps", []):
+            ids.append(st.get("id"))
+            if st.get("owner") not in rl.SPECIALISTS:
+                bad_owner.append("%s:%s" % (st.get("id"), st.get("owner")))
+            bad_metric += ["%s:%s" % (st.get("id"), k) for k in st.get("metrics", []) if not rl.valid_metric(k, keys)]
+    dups = sorted({i for i in ids if ids.count(i) > 1})
+    rep.add("sector-module step ids unique", not dups, str(dups) if dups else "")
+    rep.add("sector-module steps owned by specialists", not bad_owner, str(bad_owner) if bad_owner else "")
+    rep.add("sector-module metric keys canonical (METRIC_DEFINITIONS.md)", not bad_metric, str(bad_metric) if bad_metric else "")
+
+
 def check_agents(rep):
-    expected = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS)
+    expected = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS) | set(rl.SYNTHESIS_ROLES)
     try:
         policy = rl.model_policy()["agents"]
         rep.add("model policy block parses (methodology/MODEL_POLICY.md)", True)
@@ -172,9 +200,22 @@ def check_agents(rep):
             elif name == "verifier":
                 rep.add("verifier can open sources: %s" % name, {"Read", "WebFetch", "Bash"} <= set(tools))
                 rep.add("verifier checks its results with verify.py: %s" % name, "verify.py claims" in text)
-            else:
+            elif name == "digest":
+                rep.add("digest can search the web: %s" % name, {"WebSearch", "WebFetch"} <= set(tools))
+                rep.add("digest checks its items with digest.py: %s" % name, "digest.py check" in text)
+                rep.add("digest records tier-6 leads only: %s" % name, "tier-6" in text.lower() or "tier 6" in text.lower())
+            elif name == "librarian":
                 rep.add("librarian can search and fetch: %s" % name, {"WebSearch", "WebFetch", "Bash"} <= set(tools))
                 rep.add("librarian registers through the document map: %s" % name, "document_map.py add" in text)
+            else:
+                rep.add("worker has its own rule in validate_system.check_agents: %s" % name, False,
+                        "add a branch for this worker (what tools it needs, which check it must run)")
+        elif name in rl.SYNTHESIS_ROLES:
+            rep.add("synthesis role cannot spawn agents: %s" % name, tools and "Agent" not in tools, "tools=%s" % tools)
+            rep.add("synthesis role runs its synthesis.py check: %s" % name,
+                    "synthesis.py check-%s" % {"theme-analyst": "theme", "layer-analyst": "layer",
+                                               "section-writer": "section"}[name] in text)
+            rep.add("synthesis role never scores or decides: %s" % name, "never score" in text.lower())
         elif name == rl.AUDITOR:
             rep.add("auditor cannot spawn agents", tools and "Agent" not in tools, "tools=%s" % tools)
             rep.add("auditor declares claim prefix", "`%s`" % rl.AUDITOR_PREFIX in text)
@@ -184,8 +225,9 @@ def check_agents(rep):
             except ValueError as exc:
                 rep.add("auditor required sections block", False, str(exc))
             rep.add("auditor is forbidden from editing other files", "never edit" in text.lower())
-    rep.add("exactly the %d expected agents (CIO, %d specialists, auditor, %d workers)" % (
-        len(expected), len(rl.SPECIALISTS), len(rl.WORKERS)), set(names) == expected, "found %s" % sorted(names))
+    rep.add("exactly the %d expected agents (CIO, %d specialists, auditor, %d workers, %d synthesis roles)" % (
+        len(expected), len(rl.SPECIALISTS), len(rl.WORKERS), len(rl.SYNTHESIS_ROLES)), set(names) == expected,
+        "found %s" % sorted(names))
     dups = {n: fs for n, fs in names.items() if len(fs) > 1}
     rep.add("agent names unique", not dups, str(dups) if dups else "")
     # Duplicate definitions elsewhere (outside archive / legacy runs).
@@ -453,7 +495,7 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
     rep = Report()
     for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation,
-               check_isolation_and_connectors):
+               check_isolation_and_connectors, check_sector_modules):
         try:
             fn(rep)
         except Exception as exc:  # a crashing check is a failing check

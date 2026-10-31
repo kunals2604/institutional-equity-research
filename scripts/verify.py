@@ -29,6 +29,10 @@ the specialist with every fixable finding until it passes):
   * INDEPENDENCE / INTEGRITY / MODEL_EFFORT   contact with another specialist's work, a change to a file it does not
                        own, a session below its pinned model or effort: the CIO's to resolve (a re-run), never the agent's.
   * WORKPAPERS         no progress.md or research plan.
+  * SECTOR_MODULE_EVIDENCE (methodology 3.2.0) a sector-module step marked Done without ledger claims carrying its
+                       metric keys over the periods it requires.
+  * DIGEST_AS_FACT     (methodology 3.2.0, reading off) a FACT or MANAGEMENT STATEMENT whose source is a web-digest
+                       summary: a tier-6 lead; cite the filing page it names, or the primary source.
 Tier B (the `verifier` agent, Opus, a fresh session per specialist): re-opens a sample of the specialist's
 decision-critical claims at their sources and records Confirmed / Minor discrepancy / Material discrepancy / Not
 verifiable; every material discrepancy and unverifiable claim goes back to the specialist, then is re-checked.
@@ -73,6 +77,12 @@ CHECKS = {
     "CHECKLIST_EVIDENCE": ("major", "agent", True,
                            "Every Done row of the Method Coverage Checklist points to the section and claims that show it."),
     "WORKPAPERS": ("minor", "agent", True, "Keep progress.md and your research plan current."),
+    "SECTOR_MODULE_EVIDENCE": ("blocking", "agent", True,
+                               "A sector-module step marked Done needs ledger claims with the step's metric keys covering "
+                               "the periods it requires; otherwise mark it Partial and say what was tried."),
+    "DIGEST_AS_FACT": ("blocking", "agent", True,
+                       "A web-digest item is a tier-6 lead, never the source of a FACT or MANAGEMENT STATEMENT: open the "
+                       "filing page the digest names (or find the primary source) and cite that document and page."),
     "INDEPENDENCE": ("blocking", "cio", False, "Never open another specialist's work, the CIO's or the auditor's files."),
     "INTEGRITY": ("blocking", "cio", False, "Write only your own files."),
     "MODEL_EFFORT": ("blocking", "cio", False, ""),
@@ -281,6 +291,42 @@ def finding(check: str, agent: str, detail: str, fix: str = "", claims: List[str
             "fix": fix, "claims": list(claims)[:60]}
 
 
+def digest_sources(run_dir: Path) -> Set[str]:
+    """Every source the web digest used (methodology 3.2.0, reading off): its pages' URLs and snapshot files."""
+    out: Set[str] = set()
+    items_dir = run_dir / rl.DIGEST_DIR / "items"
+    for f in sorted(items_dir.glob("*.jsonl")) if items_dir.exists() else []:
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                it = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(it, dict):
+                continue
+            for k in ("source_url", "snapshot"):
+                v = str(it.get(k) or "").strip()
+                if v:
+                    out.add(re.sub(r"^https?://", "", v).rstrip("/").lower())
+    return out
+
+
+def digest_fact_findings(run_dir: Path, rows: List[dict], agent: str) -> List[dict]:
+    """DIGEST_AS_FACT: a FACT or MANAGEMENT STATEMENT whose source is a web-digest page or snapshot (a tier-6 lead)."""
+    srcs = digest_sources(run_dir)
+    bad = []
+    for r in rows:
+        if (r.get("tag") or "").strip().upper() not in FACT_TAGS:
+            continue
+        src = re.sub(r"^https?://", "", str(r.get("source_url_or_id") or "").strip()).rstrip("/").lower()
+        if src and ("/_cache/digest/" in "/" + src or src.startswith("_cache/digest/") or src in srcs):
+            bad.append("%s (%s)" % (r.get("claim_id"), str(r.get("source_url_or_id"))[:90]))
+    if not bad:
+        return []
+    return [finding("DIGEST_AS_FACT", agent, "%d FACT or MANAGEMENT STATEMENT claim(s) cite a web-digest summary" % len(bad),
+                    "For each: open the filing page the digest item names (✓ items) or find the primary source, and cite "
+                    "that document and page; or re-tag the claim as a lead (ESTIMATE with its basis) or remove it.", bad)]
+
+
 def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent: str) -> List[dict]:
     """NUMBER_NOT_SEEN, SOURCE_NOT_OPENED and PAGE_NOT_OPENED over a ledger's FACT and MANAGEMENT STATEMENT claims."""
     out = []
@@ -356,6 +402,36 @@ def checklist_findings(run_dir: Path, name: str, ids: Set[str]) -> List[dict]:
                     "was not done in full, mark it Partial and say what was tried.", bad)]
 
 
+def sector_module_findings(run_dir: Path, name: str, rows: List[dict]) -> List[dict]:
+    """SECTOR_MODULE_EVIDENCE (methodology 3.2.0): each sector-module step this specialist owns whose checklist row says
+    Done must be backed by ledger claims carrying each of the step's metric keys over at least `min_periods` periods."""
+    steps = [s for s in rl.sector_steps_for(run_dir, name) if s.get("metrics")]
+    if not steps:
+        return []
+    rep = run_dir / "specialists" / ("%s.md" % name)
+    body = rl.section(rep.read_text(encoding="utf-8"), rl.CHECKLIST_SECTION) or "" if rep.exists() else ""
+    lines = [l for l in body.splitlines() if l.strip().startswith("|")]
+    periods: Dict[str, Set[str]] = defaultdict(set)
+    for r in rows:
+        if (r.get("tag") or "").strip().upper() in ("FACT", "CALCULATION") and (r.get("value") or "").strip():
+            periods[(r.get("metric") or "").strip()].add((r.get("period") or "").strip())
+    bad = []
+    for st in steps:
+        row = next((l for l in lines if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(st["id"]), l)), "")
+        if not re.search(r"\bdone\b", row.lower()):
+            continue
+        short = ["%s: %d of %d periods" % (m, len(periods.get(m, set()) - {""}), st.get("min_periods", 1))
+                 for m in st["metrics"] if len(periods.get(m, set()) - {""}) < max(1, int(st.get("min_periods", 1)))]
+        if short:
+            bad.append("%s %s (%s)" % (st["id"], st["step"], "; ".join(short)))
+    if not bad:
+        return []
+    return [finding("SECTOR_MODULE_EVIDENCE", name, "%d sector-module step(s) marked Done without the evidence they "
+                                                  "require" % len(bad),
+                    "For each: record the series in your ledger (FACT or CALCULATION rows with the metric key named, one "
+                    "per period) and cite them in the checklist row, or mark the row Partial and say what was tried.", bad)]
+
+
 def specialist(run_dir: Path, name: str, tdir: Optional[Path] = None, write: bool = True) -> dict:
     """Tier A for one specialist; writes qc/verification/<name>.json (keeping its Tier B results and waivers)."""
     sessions = agent_sessions(run_dir, name, tdir)
@@ -367,14 +443,16 @@ def specialist(run_dir: Path, name: str, tdir: Optional[Path] = None, write: boo
                                                        "verified", "Run it through the engine, or waive with the reason."))
     seen = Seen(sessions)
     findings += claim_checks(rows, seen, source_keys(run_dir), name)
+    findings += digest_fact_findings(run_dir, rows, name)
     findings += checklist_findings(run_dir, name, ids)
+    findings += sector_module_findings(run_dir, name, rows)
     old = rl.load_json(vdir(run_dir) / ("%s.json" % name)) if (vdir(run_dir) / ("%s.json" % name)).exists() else {}
     findings += graph_findings(run_dir, name, old.get("corrected", []))
     # its reading pack, over all of its sessions
-    pack = run_dir / "corpus" / "dossiers" / "packs" / ("%s.md" % name)
+    pack = run_dir / rl.pack_rel(run_dir, name)
     if pack.exists() and sessions:
         short = []
-        for rel in re.findall(r"`(corpus/dossiers/[\w.-]+\.md)`", pack.read_text(encoding="utf-8")):
+        for rel in rl.PACK_PATH_RE.findall(pack.read_text(encoding="utf-8")):
             path = run_dir / rel
             if path.exists():
                 got, total, _ = ra.file_coverage(seen.events, path, rel)
@@ -711,8 +789,11 @@ def note_round(run_dir: Path, name: str, what: str) -> None:
 def cio_findings(run_dir: Path, tdir: Path) -> List[dict]:
     """The CIO's own ledger against what the CIO's sessions read (the main session; only this run's part of it)."""
     led = run_dir / "cio" / "cio_ledger.csv"
-    if not led.exists() or not tdir.exists():
+    if not led.exists():
         return []
+    digest_bad = digest_fact_findings(run_dir, ledger_rows([led]), "cio")
+    if not tdir.exists():
+        return digest_bad
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
     run_id = m.get("run_id", run_dir.name)
     head_ids = {h["session_id"] for h in ra.headless_sessions(run_dir, tdir)}
@@ -724,21 +805,30 @@ def cio_findings(run_dir: Path, tdir: Path) -> List[dict]:
         ents = [d for d in ra.load_lines(jl) if not d.get("timestamp") or t0 <= d["timestamp"][:19] <= t1]
         sessions.append({"entries": ents})
     if not sessions:
-        return []
-    return claim_checks(ledger_rows([led]), Seen(sessions), source_keys(run_dir), "cio")
+        return digest_bad
+    return claim_checks(ledger_rows([led]), Seen(sessions), source_keys(run_dir), "cio") + digest_bad
 
 
 def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
     tdir = tdir or ra.transcripts_dir()
     findings, per = [], {}
-    st = rl.load_json(run_dir / "corpus" / "reading" / "status.json") if (run_dir / "corpus" / "reading" / "status.json").exists() else {}
-    if (run_dir / "corpus" / "reading" / "plan.json").exists() and not st.get("complete"):
-        findings.append(finding("READING_INCOMPLETE", "cio", "the reading stage is not complete (reading.py status --strict)",
-                                "Finish the reading stage before Stage 1."))
-    ev = rl.load_json(run_dir / "corpus" / "reading" / "events_check.json") if (run_dir / "corpus" / "reading" / "events_check.json").exists() else {}
+    on = rl.reading_on(run_dir)
+    if on:
+        st = rl.load_json(run_dir / rl.READING_STATUS) if (run_dir / rl.READING_STATUS).exists() else {}
+        if (run_dir / "corpus" / "reading" / "plan.json").exists() and not st.get("complete"):
+            findings.append(finding("READING_INCOMPLETE", "cio", "the reading stage is not complete (reading.py status --strict)",
+                                    "Finish the reading stage before Stage 1."))
+    else:
+        st = rl.load_json(run_dir / rl.DIGEST_STATUS) if (run_dir / rl.DIGEST_STATUS).exists() else {}
+        if (run_dir / rl.DIGEST_DIR / "plan.json").exists() and not st.get("complete"):
+            findings.append(finding("READING_INCOMPLETE", "cio", "the digest (reading off) is not complete (digest.py status --strict)",
+                                    "Finish the digest before Stage 1 (cio.md Stage 0c)."))
+    ev_path = run_dir / rl.events_check_rel(run_dir)
+    ev = rl.load_json(ev_path) if ev_path.exists() else {}
     if ev.get("unmatched"):
         findings.append(finding("EVENTS_NOT_FOUND", "cio", "%d major event(s) from news and the web were not found in the "
-                                "reports read (corpus/dossiers/events.md)" % ev["unmatched"],
+                                "%s (%s/events.md)" % (ev["unmatched"], "reports read" if on else "documents' text layers",
+                                                       rl.corpus_dir_rel(run_dir)),
                                 "Put each in the gap register and send it to its owning specialist: confirm it in a primary "
                                 "source, and say whether the reading missed it or the company did not disclose it.",
                                 ["%s %s" % (r.get("event_id"), (r.get("event") or "")[:80]) for r in ev.get("rows", [])

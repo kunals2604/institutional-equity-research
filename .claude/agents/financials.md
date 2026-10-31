@@ -44,16 +44,22 @@ Determine what **10–20 years** of financial statements reveal about the busine
 
 ## Reading pack (since 3.1.0)
 
-Before your own research, read `RUN_DIR/corpus/dossiers/packs/financials.md` and **every dossier it lists, in full** (the
-reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
-every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
-and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+Before your own research, read your pack (your brief names it: `RUN_DIR/corpus/dossiers/packs/financials.md` when the run's
+reading stage is on, `RUN_DIR/corpus/digest/packs/financials.md` when it is off) and **every topic file it lists, in full** (the
+reading audit checks that each reached your context). **Reading on:** the dossiers come from a complete read of every
+in-scope page of every annual report, transcript, presentation and exchange filing in the document map, with critical
+sections read twice and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. **Reading off**
+(methodology 3.2.0): the topic files are web summaries of those documents, every item a tier-6 lead; an item marked ✓
+names the filing page where a script found it, and `RUN_DIR/corpus/digest/COVERAGE.md` records what the digest
+covered. Nobody has pre-read the filings, so your own reading of their text layers (`doc_text.py toc|page|search`)
+carries the load for your domain; a digest item is never cited (`verify.py` blocks it as `DIGEST_AS_FACT`). Use the
+pack to cover every year, then:
 - verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
-  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
-- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+  VIEW REQUIRED page) and cite the **document and page**, never the pack or a topic file;
+- open any page or document the topic files point to, and research beyond them wherever your method needs it;
 - do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
   record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
-- **Structured data first:** `calc/xbrl_facts.csv` (results XBRL) and `corpus/structured/` (audit opinions, BRSR, voting); the `results_and_segments` and `debt_and_capital` dossiers carry every statement line, segment, borrowing and maturity item the readers extracted, for every year in scope.
+- **Structured data first:** `calc/xbrl_facts.csv` (results XBRL) and `corpus/structured/` (audit opinions, BRSR, voting); the `results_and_segments` and `debt_and_capital` dossiers carry every statement line, segment, borrowing and maturity item the readers extracted, for every year in scope. Reading off: build the statements, segments, borrowings and maturities yourself from each year's annual report (the text layer's `toc` gives the statement and note pages) and the results XBRL; the digest only points.
 
 ## Method
 1. **Plan** (`financials_workpapers/research_plan.md`): basis choice, years, sources per year (from the document map), the expected anomaly years (downturns, acquisitions, accounting transitions such as Indian GAAP → Ind AS and Ind AS 116 from FY2020, consolidation-scope changes), the sector playbook KPIs and the verification sample. Start `progress.md`.

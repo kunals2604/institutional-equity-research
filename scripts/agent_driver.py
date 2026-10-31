@@ -88,6 +88,7 @@ CHECKPOINT_TURNS = 30          # turns allowed to finish the current step and wr
 CONTEXT_LIMIT = 250000         # above this a long agent continues in a fresh session (average context about half)
 LIMIT_SLACK_S = 90             # wait this long past a usage limit's reset time
 LIMIT_FALLBACK_S = 15 * 60     # when the reset time cannot be read, try again after this long
+WAIT_STEP_S = 60               # long waits poll the wall clock in steps this long (see Engine.wait_until)
 WEEKLY_CEILING = 0.95          # no segment starts above this share of the weekly window (the owner's reserve)
 PARALLEL_CEILING = 0.60        # with --parallel, another session starts only below this share of the five-hour window
 USAGE_STALE_S = 15 * 60        # utilization older than this is refreshed with a one-line probe before a new session
@@ -130,8 +131,8 @@ def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
     raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
                     "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py")
-SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "valuation",
-                    "special-situations", "bear-case")
+SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "forecasting",
+                    "valuation", "special-situations", "bear-case")
 SPECIALIST_PROMPT = rl.ROOT / "templates" / "specialist_prompt.md"
 
 READER_RESUME_MSG = ("You were interrupted (a usage limit, an error or a timeout). Continue your launch exactly where you "
@@ -337,6 +338,8 @@ def independence_denies(run_dir: Path, me: str, review: bool = False) -> List[st
             out.append(abs_rule("Read", run_dir, "/" + pat))
     for d in ("cio", "audit", "qc", "engine", "_cache/engine"):
         out.append(abs_rule("Read", run_dir, "/%s/**" % d))
+    if not review:                          # the synthesis briefs integrate every specialist's work (methodology 3.2.0)
+        out.append(abs_rule("Read", run_dir, "/synthesis/**"))
     for d in other_runs(run_dir):
         out.append(abs_rule("Read", d, "/**"))
     out += [abs_rule("Read", rl.ROOT, "/archive/**"), abs_rule("Read", rl.ROOT, "/docs/**"),
@@ -590,6 +593,9 @@ def specialist_prompt(run_dir: Path, name: str) -> str:
     if not ident.exists():
         raise SystemExit("write the identity block to %s first (cio.md Stage 1)" % ident)
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
+    if rl.version_tuple(m.get("methodology_version")) >= rl.V32 and rl.run_sector_modules(run_dir) is None:
+        raise SystemExit("select the run's sector modules first (cio.md Stage 0: manifest.py RUN set "
+                         "'sector_modules=[\"nbfc\"]', or [] with a note when none applies)")
     sme = str(m.get("listing_segment") or "") == "sme"
     text = SPECIALIST_PROMPT.read_text(encoding="utf-8")
     text = text.split("<!-- PROMPT:BEGIN -->", 1)[1].split("<!-- PROMPT:END -->", 1)[0].strip("\n")
@@ -597,7 +603,34 @@ def specialist_prompt(run_dir: Path, name: str) -> str:
             .replace("{{RUN_DIR}}", reading.rel_run(run_dir)).replace("{{IDENTITY}}", ident.read_text(encoding="utf-8").strip())
             .replace("{{SME}}", "SME ENHANCED SCRUTINY is ON: add the section `SME Enhanced Scrutiny` defined in your "
                                 "agent definition." if sme else "")
+            .replace("{{PACK}}", rl.pack_rel(run_dir, name)).replace("{{COVERAGE}}", rl.coverage_rel(run_dir))
+            .replace("{{READING_NOTE}}", READING_NOTE_ON if rl.reading_on(run_dir) else READING_NOTE_OFF)
+            .replace("{{SECTOR_MODULES}}", sector_modules_text(run_dir, name))
             .replace("{{LESSONS}}", lessons(name)))
+
+
+READING_NOTE_ON = "built from a complete, quote-verified read of every in-scope page; the record of what was read"
+READING_NOTE_OFF = ("READING STAGE OFF: the topic files are summaries of the company's annual reports, transcripts and "
+                    "presentations taken from the web, every one a tier-6 LEAD and never a FACT. An item marked "
+                    "page-confirmed names the document page where a script found it: open that page and cite the document "
+                    "and page. Every other item is a lead to confirm in a primary source before you rely on it; the "
+                    "record of what the digest covered")
+
+
+def sector_modules_text(run_dir: Path, name: str) -> str:
+    """The run's sector-module steps this specialist owns (methodology 3.2.0), as prompt text; empty if none."""
+    steps = rl.sector_steps_for(run_dir, name)
+    if not steps:
+        return ""
+    lines = ["SECTOR MODULES for this run (methodology/SECTOR_PLAYBOOKS.md): you own these required steps. Give each its "
+             "own row in your Method Coverage Checklist naming its id, and for a Done row cite ledger claims with the "
+             "metric keys named:"]
+    for s in steps:
+        lines.append("- %s %s: %s%s" % (s["id"], s["step"], s.get("require", ""),
+                                        " (metric keys: %s; at least %s period(s))" % (", ".join(s.get("metrics") or []),
+                                                                                       s.get("min_periods", 1))
+                                        if s.get("metrics") else ""))
+    return "\n".join(lines)
 
 
 def lessons(name: str) -> str:
@@ -726,6 +759,208 @@ def historian_prompt(run_dir: Path, years: int = 10) -> str:
             "python3 scripts/verify.py events %s --years %d." % (
                 m.get("run_id", run_dir.name), m.get("company", ""), m.get("ticker", ""), m.get("exchange", ""),
                 reading.rel_run(run_dir), int(cutoff[:4]) - years, cutoff, reading.rel_run(run_dir), years))
+
+
+SYNTHESIS_SCRIPTS = ("synthesis.py check-", "synthesis.py status", "audit_tools.py tieout", "doc_text.py", "corpus.py",
+                     "claim_graph.py up", "claim_graph.py down", "fin_metrics.py", "valuation_tools.py", "forecast_tools.py")
+CIO_DECISION_FILES = ("final_report.md", "scorecard.json", "scorecard_inputs.json", "cio_analysis.md",
+                      "contradiction_log.md", "quality_control.md", "audit_resolutions.md", "propagation.csv")
+
+
+def synthesis_assignment(run_dir: Path, role: str, subject: str, prompt: str) -> Assignment:
+    """A synthesis agent (methodology 3.2.0): a theme analyst (subject T1, or T1.p2 for one part of a split theme), a
+    layer analyst (L1-L4) or a section writer (W1-W7). Writes are confined to its own files; a theme analyst cannot see
+    the CIO's conclusions, the audit, other themes' briefs or the later drafts; a layer analyst cannot see another
+    layer's input or draft or anything of the CIO's; a section writer works after the CIO's adjudications."""
+    import synthesis
+    model, effort = reading.pinned(run_dir, role)
+    base = subject.split(".")[0]
+    syn_ = run_dir / "synthesis"
+    if role == "theme-analyst":
+        own = [syn_ / "themes" / ("%s.md" % subject)] if "." in subject else [syn_ / "themes" / ("%s.md" % base)]
+        own_dirs = [syn_ / "workpapers" / base]
+        own_files = own + [syn_ / "ledgers" / ("%s_ledger.csv" % base)]
+        others = [t_ for t_ in synthesis.active_themes(run_dir) if t_ != base]
+        denied = ([abs_rule("Read", run_dir / "cio" / f) for f in CIO_DECISION_FILES]
+                  + [abs_rule("Read", run_dir, "/cio/sections/**"), abs_rule("Read", run_dir, "/audit/**"),
+                     abs_rule("Read", syn_, "/layers/**"), abs_rule("Read", syn_, "/sections/**"),
+                     abs_rule("Read", syn_, "/CIO_PACKET.md")]
+                  + [abs_rule("Read", syn_ / "themes", "/%s*.md" % o) for o in others])
+        check = (lambda: synthesis.check_theme(run_dir, base, int(subject.split(".p")[1]))) if ".p" in subject else \
+            (lambda: synthesis.check_theme(run_dir, base))
+        cmd = "check-theme RUN_DIR %s%s" % (base, " --part %s" % subject.split(".p")[1] if ".p" in subject else "")
+    elif role == "layer-analyst":
+        own_files = [syn_ / "layers" / ("%s_draft.md" % subject)]
+        own_dirs = [syn_ / "workpapers" / subject]
+        denied = ([abs_rule("Read", run_dir, "/cio/**"), abs_rule("Read", run_dir, "/audit/**"),
+                   abs_rule("Read", syn_, "/sections/**"), abs_rule("Read", syn_, "/CIO_PACKET.md")]
+                  + [abs_rule("Read", syn_ / "layers", "/%s_*" % o) for o in synthesis.LAYERS if o != subject])
+        check = lambda: synthesis.check_layer(run_dir, subject)  # noqa: E731
+        cmd = "check-layer RUN_DIR %s" % subject
+    else:
+        own_files = [syn_ / "sections" / ("%s.md" % subject)]
+        own_dirs = [syn_ / "workpapers" / subject]
+        denied = [abs_rule("Read", run_dir, "/audit/**"), abs_rule("Read", run_dir, "/cio/sections/**")]
+        check = lambda: synthesis.check_section(run_dir, subject)  # noqa: E731
+        cmd = "check-section RUN_DIR %s" % subject
+    allowed = (["Read"] + [abs_rule(t_, f) for f in own_files for t_ in ("Write", "Edit")]
+               + [abs_rule(t_, d, "/**") for d in own_dirs for t_ in ("Write", "Edit")]
+               + ["Bash(python3 scripts/%s:*)" % s for s in SYNTHESIS_SCRIPTS])
+    if role == "theme-analyst":
+        allowed += ["WebFetch", "Bash(python3 scripts/fetch_source.py:*)"]
+    denied += ([abs_rule("Read", d, "/**") for d in other_runs(run_dir)]
+               + [abs_rule("Read", rl.ROOT, "/archive/**"), abs_rule("Read", run_dir, "/engine/**"),
+                  abs_rule("Read", run_dir, "/_cache/engine/**"), abs_rule("Read", rl.ROOT, "/COMPANY_SCOREBOARD.csv")]
+               + DENY_TRANSCRIPTS + DENY_SECRETS + shell_denies())
+    progress = str(syn_ / "workpapers" / subject.replace(".", "_") / "progress.md")
+    return Assignment(kind="synthesis", agent=role, model=model, effort=effort, prompt=prompt, label="",
+                      tools=agent_tools(role), allowed=allowed, denied=denied, dirs=run_paths(run_dir), check=check,
+                      long=True, progress=progress, resume_msg=RESUME_MSG % progress,
+                      fix_msg=("Your synthesis check still fails:\n%s\nFix every error, re-run python3 scripts/synthesis.py "
+                               + cmd.replace("RUN_DIR", reading.rel_run(run_dir)) + " until it prints PASS, then give your "
+                               "one-line result."),
+                      owned=tuple(str(f.relative_to(run_dir)) for f in own_files) + tuple(
+                          "%s/**" % d.relative_to(run_dir) for d in own_dirs),
+                      stage="3", purpose="synthesis: %s %s" % (role, subject), subject=subject)
+
+
+def synthesis_prompt(run_dir: Path, role: str, subject: str) -> str:
+    import synthesis
+    m = rl.load_json(run_dir / rl.RUN_MANIFEST)
+    rr = reading.rel_run(run_dir)
+    head = "Run %s: %s (%s, %s). RUN_DIR: %s\n" % (m.get("run_id", run_dir.name), m.get("company", ""), m.get("ticker", ""),
+                                                   m.get("exchange", ""), rr)
+    if role == "theme-analyst":
+        base = subject.split(".")[0]
+        th = synthesis.active_themes(run_dir)[base]
+        sl = rl.load_json(run_dir / "synthesis" / "slices.json")[base]
+        if ".p" in subject:
+            k = int(subject.split(".p")[1])
+            return head + ("You are the THEME ANALYST for theme %s (%s), part %d of %d. Your slice part: %s (%d ids). Per "
+                           "your definition, write synthesis/themes/%s.md with the sections Integrated Findings, "
+                           "Contradiction Candidates, Numbers of Record, Gaps and Follow-up Requests and Disposition Register "
+                           "(every id of your part, exactly once), and check it with python3 scripts/synthesis.py check-theme "
+                           "%s %s --part %d until it prints PASS." % (base, th["title"], k, len(sl["parts"]),
+                                                                      sl["parts"][k - 1]["file"], len(sl["parts"][k - 1]["ids"]),
+                                                                      subject, rr, base, k))
+        if len(sl["parts"]) > 1:
+            return head + ("You are the THEME ANALYST for theme %s (%s), reducing its %d parts. Read the part briefs "
+                           "synthesis/themes/%s.p1.md ... .p%d.md in full (their Disposition Registers stand). Write "
+                           "synthesis/themes/%s.md with every section of methodology/SYNTHESIS.md integrating the parts "
+                           "(your Integrated Findings name the part findings and R-ids they combine; your Disposition Register "
+                           "may be empty when the parts cover every id), and check it with python3 scripts/synthesis.py "
+                           "check-theme %s %s until it prints PASS." % (base, th["title"], len(sl["parts"]), base,
+                                                                       len(sl["parts"]), base, rr, base))
+        return head + ("You are the THEME ANALYST for theme %s (%s). Your slice: %s (%d ids: every one needs a "
+                       "disposition). Per your definition and methodology/SYNTHESIS.md, write synthesis/themes/%s.md and check "
+                       "it with python3 scripts/synthesis.py check-theme %s %s until it prints PASS." % (
+                           base, th["title"], sl["parts"][0]["file"], len(sl["parts"][0]["ids"]), base, rr, base))
+    if role == "layer-analyst":
+        name = dict(zip(synthesis.LAYERS, rl.canonical_layers()))[subject]
+        return head + ("You are the LAYER ANALYST for %s (%s). Your input: synthesis/layers/%s_input.md. Per your "
+                       "definition, write synthesis/layers/%s_draft.md and check it with python3 scripts/synthesis.py "
+                       "check-layer %s %s until it prints PASS." % (subject, name, subject, subject, rr, subject))
+    g = synthesis.writer_groups()[subject]
+    return head + ("You are the SECTION WRITER for group %s. Write these sections of the final report, exact headings: %s. "
+                   "Feeding theme briefs: %s. Per your definition, write synthesis/sections/%s.md (ending with ## Not Carried) "
+                   "and check it with python3 scripts/synthesis.py check-section %s %s until it prints PASS." % (
+                       subject, "; ".join(g["sections"]),
+                       ", ".join("synthesis/themes/%s.md" % t_ for t_ in g.get("themes", [])) or
+                       ("the four layer drafts synthesis/layers/L1-L4_draft.md" if subject == "W7" else
+                        "cio/contradiction_log.md and the qc/ outputs"), subject, rr, subject))
+
+
+def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> int:
+    """The synthesis pipeline's agent steps (cio.md Stage 3). Every subject whose check already passes is skipped, so a
+    step re-run after follow-ups and `synthesis.py registry` reruns only what changed (the fix message names the ids)."""
+    import synthesis
+    run_dir = eng.run_dir
+    if step == "registry":
+        synthesis.build_registry(run_dir, log=eng.log)
+        return 0
+    if step == "themes":
+        if synthesis.stale(run_dir):
+            synthesis.build_registry(run_dir, log=eng.log)
+        sl = rl.load_json(run_dir / "synthesis" / "slices.json")
+        subjects = []
+        for t_ in sl:
+            if only and t_ not in only:
+                continue
+            n = len(sl[t_]["parts"])
+            subjects += ["%s.p%d" % (t_, k) for k in range(1, n + 1)] if n > 1 else []
+            subjects.append(t_)
+        role = "theme-analyst"
+    elif step == "layers":
+        synthesis.layer_inputs(run_dir, log=eng.log)
+        subjects, role = [L for L in synthesis.LAYERS if not only or L in only], "layer-analyst"
+    elif step == "writers":
+        if not (run_dir / "cio" / "scorecard.json").exists():
+            eng.log("writers: the CIO's scorecard does not exist yet (cio.md Stage 3: the writers come after the decision)")
+            return 2
+        subjects, role = [w for w in synthesis.writer_groups() if not only or w in only], "section-writer"
+    else:
+        eng.log("unknown step %r" % step)
+        return 2
+    items = []
+    for sub_ in subjects:
+        a = synthesis_assignment(run_dir, role, sub_, synthesis_prompt(run_dir, role, sub_))
+        job = open_job(eng, role, "synthesis", sub_)
+        if not job and not a.check():
+            eng.log("%s %s: its check already passes; not run again" % (role, sub_))
+            continue
+        items.append((a, job))
+    if not items:
+        return 0
+    # parts before their reduce: run sequentially in order unless parallel was asked for
+    return run_jobs(eng, items, parallel)
+
+
+DIGEST_TYPES = ("annual_report", "transcript", "investor_presentation")
+
+
+def digest_assignment(run_dir: Path, doc_type: str, prompt: str) -> Assignment:
+    """The web digest (reading off, methodology 3.2.0): one job per document type. It writes only its item files and its
+    search log; Bash is only for fetch_source.py (snapshots), digest.py check and exchange_index.py show. It may not
+    open the filings, their text layers or the local library (its sources are web summaries; a script compares them with
+    the filings afterwards)."""
+    import digest
+    model, effort = reading.pinned(run_dir, "digest")
+    items = run_dir / rl.DIGEST_DIR / "items"
+    allowed = ["Read", "WebSearch", "WebFetch", abs_rule("Write", items, "/**"), abs_rule("Edit", items, "/**"),
+               abs_rule("Write", run_dir / rl.DIGEST_DIR / "SEARCH_LOG.md"),
+               abs_rule("Edit", run_dir / rl.DIGEST_DIR / "SEARCH_LOG.md"),
+               abs_rule("Write", run_dir / rl.DIGEST_DIR / "workpapers", "/**")] + [
+        "Bash(python3 scripts/%s:*)" % s for s in ("fetch_source.py", "digest.py check", "exchange_index.py show")]
+    denied = ([r for r in independence_denies(run_dir, "digest") if "/qc/" not in r] + shell_denies() +
+              [abs_rule("Read", run_dir / "_cache" / "text", "/**"), abs_rule("Read", run_dir / "_cache" / "cio", "/**"),
+               abs_rule("Read", run_dir / "_cache" / "librarian", "/**"), abs_rule("Read", run_dir / "corpus" / "reading", "/**"),
+               abs_rule("Read", run_dir / "corpus" / "dossiers", "/**"), "Read(~/Documents/FilingForgeLibrary/**)",
+               "Bash(python3 scripts/doc_text.py:*)", "Bash(python3 scripts/corpus.py:*)"])
+
+    def check() -> List[str]:
+        return digest.check_errors(run_dir, doc_type=doc_type)
+    return Assignment(kind="digest", agent="digest", model=model, effort=effort, prompt=prompt, label="",
+                      tools=agent_tools("digest"), allowed=allowed, denied=denied, dirs=run_paths(run_dir), check=check,
+                      long=True, progress=str(run_dir / rl.DIGEST_DIR / "workpapers" / ("progress_%s.md" % doc_type)),
+                      resume_msg=RESUME_MSG % "corpus/digest/SEARCH_LOG.md",
+                      fix_msg=("The digest check still fails:\n%s\nFix every error, re-run python3 scripts/digest.py "
+                               "check RUN_DIR --type " + doc_type + " until it prints PASS, then give your result lines."),
+                      stage="0c", purpose="web digest: %s" % doc_type, subject=doc_type)
+
+
+def digest_prompt(run_dir: Path, doc_type: str) -> str:
+    m = rl.load_json(run_dir / rl.RUN_MANIFEST)
+    import digest
+    pl = digest.load_plan(run_dir)
+    keys = [d["key"] for d in pl["documents"] if d["doc_type"] == doc_type]
+    rr = reading.rel_run(run_dir)
+    return ("You are the DIGEST worker for run %s: %s (%s, %s). RUN_DIR: %s\nThe run's reading stage is OFF. Per your "
+            "definition, build the web digest of this job's documents, the %s of corpus/digest/plan.json (%d: %s): search "
+            "the web for summaries of each, snapshot every page you use, record every instance of the listed item types "
+            "in corpus/digest/items/<key>.jsonl, log every document in corpus/digest/SEARCH_LOG.md, and run python3 "
+            "scripts/digest.py check %s --type %s until it prints PASS." % (
+                m.get("run_id", run_dir.name), m.get("company", ""), m.get("ticker", ""), m.get("exchange", ""), rr,
+                doc_type.replace("_", " ") + "s", len(keys), ", ".join(keys), rr, doc_type))
 
 
 def librarian_assignment(run_dir: Path, prompt: str) -> Assignment:
@@ -1078,8 +1313,20 @@ class Engine:
                 raise LimitStop(self.stop)
             self.log("weekly usage window at %.0f%% (ceiling %.0f%%): waiting until %s" % (
                 100 * w["utilization"], 100 * self.o.weekly_ceiling, when))
-            time.sleep(max(0.0, wait))
+            self.wait_until(time.time() + wait)
+            if self.stop:
+                raise LimitStop(self.stop)
             self.usage_at = 0.0
+
+    def wait_until(self, deadline: float) -> None:
+        """Wait for a wall-clock time in short steps. A single time.sleep() of hours uses a clock that stops while the
+        machine sleeps (macOS), so a reset that passed overnight was still being waited for the next day (run
+        BAJFINANCE 20261023T164051Z lost 8.5 and 16 hours this way); and a stop signal could not end it."""
+        while not self.stop:
+            left = deadline - time.time()
+            if left <= 0:
+                return
+            time.sleep(min(WAIT_STEP_S, left))
 
     def room_for_another(self) -> bool:
         """With sessions already running, another starts only while the five-hour window is below the ceiling."""
@@ -1275,7 +1522,9 @@ class Engine:
                              "engine again after the reset and it resumes this session." % (a.label, local))
                     return self.pause(a, sessions, sess)
                 self.log("%s: usage limit; waiting until %s (local), then resuming the same session" % (a.label, local))
-                time.sleep(max(0.0, wait))
+                self.wait_until(time.time() + wait)
+                if self.stop:
+                    return self.pause(a, sessions, sess)
                 kind, message = again()
                 continue
             if res.get("subtype") == "error_max_turns" and got["rc"] in (0, 1) and not got["timed_out"]:
@@ -1518,6 +1767,8 @@ def invocation(run_dir: Path, agent: str, stage: str, purpose: str) -> None:
         node = m.setdefault("auditor", {"status": "pending", "report": rl.AUDIT_REPORT, "invocations": []})
     elif agent in rl.SPECIALISTS:
         node = m.setdefault("specialists", {}).setdefault(agent, {"status": "pending", "invocations": []})
+    elif agent in rl.SYNTHESIS_ROLES:
+        node = m.setdefault("synthesis", {}).setdefault(agent, {"invocations": []})
     else:
         node = m.setdefault("workers", {}).setdefault(agent, {"invocations": []})
     node.setdefault("invocations", []).append({"stage": stage, "purpose": purpose, "runner": "agent_driver",
@@ -1561,7 +1812,7 @@ class Session:
         self.old = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT)}
         if sys.platform == "darwin" and shutil.which("caffeinate") and not os.environ.get("EQR_NO_CAFFEINATE"):
             try:
-                self.caf = subprocess.Popen(["caffeinate", "-i", "-w", str(os.getpid())], stdout=subprocess.DEVNULL,
+                self.caf = subprocess.Popen(["caffeinate", "-i", "-s", "-w", str(os.getpid())], stdout=subprocess.DEVNULL,
                                             stderr=subprocess.DEVNULL)
             except OSError:
                 self.caf = None
@@ -1665,9 +1916,11 @@ def _cmd_reading(eng: Engine, bakeoff: bool, max_launches: int, parallel: int) -
     return 0
 
 
-def open_job(eng: Engine, agent: str, kind: str) -> Optional[dict]:
+def open_job(eng: Engine, agent: str, kind: str, subject: str = "") -> Optional[dict]:
+    """The job of this agent and kind (and subject: a document type, a theme, a layer ...) to resume, if one is open."""
     for j in reversed(eng.jobs()["jobs"]):
-        if j["agent"] == agent and j["kind"] == kind and j.get("status") in ("running", "paused"):
+        if (j["agent"] == agent and j["kind"] == kind and j.get("subject", "") == subject
+                and j.get("status") in ("running", "paused")):
             return j
     return None
 
@@ -1776,10 +2029,12 @@ def cmd_verify(eng: Engine, only: List[str]) -> int:
 
 def cmd_specialists(eng: Engine, only: List[str], parallel: int, verify_claims: bool = True) -> int:
     run_dir = eng.run_dir
-    names = [n for n in SPECIALIST_ORDER if not only or n in only]
-    unknown = [n for n in only if n not in rl.SPECIALISTS]
+    version = rl.version_tuple(rl.load_json(run_dir / rl.RUN_MANIFEST).get("methodology_version"))
+    mine = rl.specialists_for(version)            # a run has the specialists of its own methodology version
+    names = [n for n in SPECIALIST_ORDER if n in mine and (not only or n in only)]
+    unknown = [n for n in only if n not in mine]
     if unknown:
-        raise SystemExit("not specialists: %s" % ", ".join(unknown))
+        raise SystemExit("not specialists of this run (methodology %s): %s" % (".".join(map(str, version)), ", ".join(unknown)))
     items = []
     for name in names:
         job = open_job(eng, name, "specialist")
@@ -1935,8 +2190,13 @@ def show(run_dir: Path, last: int = 0) -> None:
 # number accounting, fix turns and resolutions; output tokens are about two thirds of an Opus read's cost)
 READ_COST_PER_12K = {"critical": 1.23, "reader": 0.60, "scan": 0.20, "resolved": 0.31}
 JUDGMENT_DEFAULT = {"specialists": 150.0, "verifier": 15.0, "auditor": 12.0, "cio": 40.0, "historian": 5.0}
-WINDOW_DEFAULT = 28.0           # $ of API-equivalent work in one five-hour window (measured twice)
-WEEK_WINDOWS = 7.0              # five-hour windows in one weekly window (weekly +9 % while five-hour +63 %)
+# Methodology 3.2.0 additions (defaults until a run measures them): the forecasting specialist, the synthesis pipeline
+# (theme analysts, Stage-3 follow-ups, layer analysts, section writers), a smaller CIO, and the web digest (reading off).
+JUDGMENT_DEFAULT_V32 = {"specialists": 165.0, "verifier": 17.0, "auditor": 16.0, "cio": 30.0, "historian": 5.0,
+                        "synthesis": 100.0}
+DIGEST_DEFAULT = 10.0
+WINDOW_DEFAULT = 28.0           # $ of API-equivalent work in one five-hour window (measured twice; BAJFINANCE measured ~$14)
+WEEK_WINDOWS = 7.0              # five-hour windows in one weekly window when the weekly window has not been measured
 
 
 def measured_read_costs(run_dirs: List[Path]) -> Dict[str, Tuple[float, int]]:
@@ -1962,9 +2222,12 @@ def estimate(run_dir: Path, log=print) -> dict:
     """Cost, five-hour windows and calendar weeks of a run from its reading plan: each chunk's reads by role (this
     run's measured cost per chunk once five launches of a role have passed, else earlier runs', else the measured
     defaults) plus the judgment layer (earlier runs' engine ledgers, else defaults)."""
-    p = reading.load_json(run_dir / reading.READING / "plan.json")
-    if not p:
-        raise SystemExit("no plan: run reading.py plan first")
+    on = rl.reading_on(run_dir)
+    p = reading.load_json(run_dir / reading.READING / "plan.json") if on else None
+    if on and not p:
+        raise SystemExit("no plan: run reading.py plan first (or switch the run to reading off: manifest.py RUN mode reading off)")
+    p = p or {"chunks": []}
+    v32 = rl.version_tuple(rl.load_json(run_dir / rl.RUN_MANIFEST).get("methodology_version")) >= rl.V32
     pol = reading.run_policy(run_dir)
     runs = [run_dir] + [d for d in sorted((rl.ROOT / "research" / "companies").glob("*/runs/*")) if d != run_dir]
     measured = measured_read_costs([run_dir]) or {}
@@ -1981,7 +2244,9 @@ def estimate(run_dir: Path, log=print) -> dict:
             by_role[r] += x
             reading_cost += x
             left += 0 if done else x
-    judg, jsrc = dict(JUDGMENT_DEFAULT), "defaults"
+    judg, jsrc = dict(JUDGMENT_DEFAULT_V32 if v32 else JUDGMENT_DEFAULT), "defaults"
+    if not on:
+        judg["digest"] = DIGEST_DEFAULT
     past = [j for d in runs[1:] for j in reading.load_json(d / "engine" / "jobs.json", {"jobs": []})["jobs"]]
     if [j for j in past if j["kind"] == "specialist" and j.get("status") == "pass"]:
         spec = [job_cost(j["sessions"]) for j in past if j["kind"] in ("specialist", "followup")]
@@ -1994,14 +2259,16 @@ def estimate(run_dir: Path, log=print) -> dict:
                 for s in l.get("sessions", []) for a in s.get("attempts", [])]
     attempts += [a for d in runs for j in reading.load_json(d / "engine" / "jobs.json", {"jobs": []})["jobs"]
                  for s in j.get("sessions", []) for a in s.get("attempts", [])]
-    window = window_cost(attempts).get("five_hour") or WINDOW_DEFAULT
+    measured_windows = window_cost(attempts)
+    window = measured_windows.get("five_hour") or WINDOW_DEFAULT
+    week = measured_windows.get("seven_day") or window * WEEK_WINDOWS
     total = reading_cost + sum(judg.values())
     remaining = left + sum(judg.values())
     out = {"reading": round(reading_cost, 2), "reading_by_role": {k: round(v, 2) for k, v in by_role.items()},
            "reading_remaining": round(left, 2), "judgment": {k: round(v, 2) for k, v in judg.items()},
            "judgment_source": jsrc, "total": round(total, 2), "remaining": round(remaining, 2),
            "window_usd": round(window, 2), "windows": round(total / window, 1), "windows_remaining": round(remaining / window, 1),
-           "weeks_remaining": round(remaining / window / WEEK_WINDOWS, 1),
+           "week_usd": round(week, 2), "weeks_remaining": round(remaining / week, 1), "reading_mode": "on" if on else "off",
            "rates": {r: {"usd_per_12k": round(v[0], 3), "measured_launches": v[1]} for r, v in rate.items()}}
     lines = ["# Run estimate — %s" % reading.run_id_of(run_dir), "",
              "Generated by `scripts/agent_driver.py estimate`; API-equivalent dollars, the common unit of usage.", "",
@@ -2009,8 +2276,10 @@ def estimate(run_dir: Path, log=print) -> dict:
     lines += ["| Reading: %s | %.0f |" % (r, v) for r, v in sorted(by_role.items())]
     lines += ["| Judgment: %s | %.0f |" % (k, v) for k, v in judg.items()]
     lines += ["| **Total** | **%.0f** |" % total, "",
-              "Still to spend: ≈ $%.0f ≈ %.1f five-hour windows (≈ $%.0f each) ≈ %.1f weeks at %.0f windows a week." % (
-                  remaining, out["windows_remaining"], window, out["weeks_remaining"], WEEK_WINDOWS), "",
+              "Reading mode: %s%s." % ("on" if on else "off", "" if on else " (the web digest replaces the reading stage)"),
+              "Still to spend: ≈ $%.0f ≈ %.1f five-hour windows (≈ $%.0f each) ≈ %.1f weeks (one weekly window ≈ $%.0f%s)." % (
+                  remaining, out["windows_remaining"], window, out["weeks_remaining"], week,
+                  ", measured" if measured_windows.get("seven_day") else ", assumed %.0f five-hour windows" % WEEK_WINDOWS), "",
               "Reading rates ($ per 12k-token chunk): %s. Judgment from %s." % (
                   "; ".join("%s %.2f (%s)" % (r, v[0], "measured, %d launches" % v[1] if v[1] else "default") for r, v in rate.items()),
                   jsrc)]
@@ -2071,6 +2340,14 @@ def main(argv=None) -> int:
     hs = sub.add_parser("events")
     common(hs, 120)
     hs.add_argument("--years", type=int, default=10)
+    sy = sub.add_parser("synthesis", help="Stage 3 (methodology 3.2.0): the synthesis pipeline's agent steps")
+    common(sy, 150)
+    sy.add_argument("--step", required=True, choices=["registry", "themes", "layers", "writers"])
+    sy.add_argument("--only", default="", help="comma-separated subjects (themes T1.., layers L1.., groups W1..)")
+    sy.add_argument("--parallel", type=int, default=1)
+    dg = sub.add_parser("digest", help="Stage 0c (reading off): the web digest, one job per document type")
+    common(dg, 120)
+    dg.add_argument("--only", default="", help="comma-separated document types (default: %s)" % ",".join(DIGEST_TYPES))
     lb = sub.add_parser("librarian")
     common(lb, 120)
     lb.add_argument("--message-file", required=True)
@@ -2168,6 +2445,19 @@ def main(argv=None) -> int:
         if a.cmd == "events":
             job = open_job(eng, "historian", "historian")
             return run_jobs(eng, [(historian_assignment(run_dir, historian_prompt(run_dir, a.years), a.years), job)], 1)
+        if a.cmd == "synthesis":
+            return cmd_synthesis(eng, a.step, [x.strip() for x in a.only.split(",") if x.strip()], a.parallel)
+        if a.cmd == "digest":
+            if rl.reading_on(run_dir):
+                eng.log("digest: this run's reading stage is on (reading_mode on): the digest is for runs with reading off")
+                return 2
+            types = [x.strip() for x in a.only.split(",") if x.strip()] or list(DIGEST_TYPES)
+            bad = [x for x in types if x not in DIGEST_TYPES]
+            if bad:
+                eng.log("unknown document type(s): %s" % ", ".join(bad))
+                return 2
+            return run_jobs(eng, [(digest_assignment(run_dir, dt_, digest_prompt(run_dir, dt_)),
+                                   open_job(eng, "digest", "digest", dt_)) for dt_ in types], 1)
         message = Path(a.message_file).read_text(encoding="utf-8")
         if a.cmd == "followup":
             return cmd_followup(eng, a.agent, message, a.purpose, a.stage, a.output)
@@ -2202,6 +2492,17 @@ def dry_run(eng: Engine, a) -> int:
         asg = specialist_assignment(run_dir, name, specialist_prompt(run_dir, name))
     elif a.cmd == "audit":
         asg = auditor_assignment(run_dir, "<prompt>")
+    elif a.cmd == "synthesis":
+        role = {"themes": "theme-analyst", "layers": "layer-analyst", "writers": "section-writer"}.get(a.step)
+        if not role:
+            print("dry run: step %s runs a script, no agent" % a.step)
+            return 0
+        default = {"theme-analyst": "T1", "layer-analyst": "L1", "section-writer": "W1"}[role]
+        sub_ = ([x for x in a.only.split(",") if x] or [default])[0]
+        asg = synthesis_assignment(run_dir, role, sub_, "<prompt>")
+    elif a.cmd == "digest":
+        dt_ = ([x for x in a.only.split(",") if x] or list(DIGEST_TYPES))[0]
+        asg = digest_assignment(run_dir, dt_, "<prompt>")
     elif a.cmd == "librarian":
         asg = librarian_assignment(run_dir, "<prompt>")
     else:

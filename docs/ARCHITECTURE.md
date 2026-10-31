@@ -7,17 +7,25 @@ flowchart TD
     U["/research-company \"Name\" TICKER EXCHANGE"] --> CIO["CIO = main session<br/>(.claude/agents/cio.md)"]
     CIO --> P["Stage 0 Preflight<br/>identity check · new_run.py (UTC run id) · price CIO-C001 = exchange close (market_data.py)"]
     P --> ACQ["Stage 0 acquisition<br/>exchange_index.py: NSE + BSE + IR site + Internet Archive<br/>document_map.py: download, validate, cross-check vs. FilingForge corpus → DOCUMENT_MAP.md<br/>librarian (Sonnet): documents the indexes missed<br/>structured_filings.py + xbrl_facts.py: exact exchange filings"]
-    ACQ --> RD["Stage 0b reading — one agent at a time<br/>reading.py plan: every page of 5 fiscal years, core sections of the 5 before; passages, sections, critical classes, repeats read once (never labels or values), VIEW REQUIRED pages (no text, images, numbers); documents reused from audited earlier runs<br/>agent_driver.py reading: headless sessions outside the CIO's context · reader (Sonnet) every chunk · critical-reader (Opus) critical chunks again · disagreements resolved on the page<br/>reading.py check · dossiers · status → COVERAGE.md"]
+    ACQ --> MODE{"reading_mode (3.2.0; default off)"}
+    MODE -->|off| DG["Stage 0c web digest (3.2.0)<br/>digest.py plan · agent_driver.py digest: digest (Sonnet) records what web summaries say about each AR, transcript and presentation, quoting snapshots (tier-6 leads)<br/>digest.py confirm: each number looked for on a page of the downloaded filing · build: packs, entities, events · COVERAGE.md"]
+    DG --> S1
+    MODE -->|on| RD["Stage 0b reading — one agent at a time<br/>reading.py plan: every page of 5 fiscal years, core sections of the 5 before; passages, sections, critical classes, repeats read once (never labels or values), VIEW REQUIRED pages (no text, images, numbers); documents reused from audited earlier runs<br/>agent_driver.py reading: headless sessions outside the CIO's context · reader (Sonnet) every chunk · critical-reader (Opus) critical chunks again · disagreements resolved on the page<br/>reading.py check · dossiers · status → COVERAGE.md"]
     RD --> S1
-    subgraph S1["Stage 1 — ten specialists, one at a time by default (--parallel optional), no cross-reading"]
+    subgraph S1["Stage 1 — eleven specialists (ten before 3.2.0), one at a time by default (--parallel optional), no cross-reading; sector-module steps in each brief"]
       F1[financials] --> F2[filings] --> F3[industry] --> F4[scuttlebutt] --> F5[moat]
-      F5 --> F6[management] --> F7[concalls] --> F8[valuation] --> F9[special-situations] --> F10[bear-case]
+      F5 --> F6[management] --> F7[concalls] --> F11["forecasting (3.2.0)"] --> F8[valuation] --> F9[special-situations] --> F10[bear-case]
     end
     S1 --> B["Stage 2 barrier + gap-closure loop<br/>validate_run.py --stage specialists · gap_register.md"]
     B -->|failures / closable gaps| R["targeted re-invocation or follow-up"] --> B
     B --> G1["git batch 1 (specialists) + push"]
-    G1 --> A["Stage 3 synthesis first, scores last<br/>audit ≥12 claims · recompute ≥3 · contradiction log · follow-ups<br/>CIO independent analysis · synthesis · 4 layer assessments · thesis-disproof<br/>build_scorecard.py · robustness → confidence · symmetric adversarial review"]
-    A --> RA["Stage 4 reading audit (reading_audit.py)<br/>from the agents' transcripts: pinned model and effort · every line received · VIEW REQUIRED pages opened · packs read"]
+    G1 --> REG["Stage 3 (3.2.0) evidence registry<br/>synthesis.py registry: every finding, crosswalk row, claim, conflict, reading or digest item, event → theme + materiality (gating / material / standard / reference)"]
+    REG --> TH["theme analysts T1–T6 (Opus, one session per theme slice)<br/>a disposition for every item · contradiction candidates · numbers of record · follow-up requests"]
+    TH --> CA["CIO adjudication<br/>audit ≥12 claims · recompute ≥3 · contradiction log (every CC) · follow-ups (valuation on the forecast) → registry and themes again"]
+    CA --> LA["layer analysts L1–L4 (Opus, independent of each other)<br/>every crosswalk row → layer block + proposed fit"]
+    LA --> DEC["CIO decision from the bounded packet<br/>independent analysis · variant perception · classification · thesis-disproof<br/>scorecard_inputs (key_quantities) · build_scorecard.py · robustness · adversarial review · triggers · predictions"]
+    DEC --> SW["section writers W1–W7 (Opus) + CIO sections<br/>synthesis.py assemble → final_report.md + Evidence Integration Register<br/>synthesis.py integration"]
+    SW --> RA["Stage 4 reading audit (reading_audit.py)<br/>from the agents' transcripts: pinned model and effort · every line received · VIEW REQUIRED pages opened · packs read"]
     RA --> AU["Stage 4 independent audit (auditor agent, fresh context)<br/>tie-out · source re-verification sample · recomputation · scoring audit<br/>CIO resolutions · re-audit of Critical findings"]
     AU --> Q["QC<br/>merge_ledgers · validate_run --stage final · quality_control.md"]
     Q --> FR["finalize_run.py<br/>complete → locked scoreboard upsert + latest_run.txt<br/>otherwise → manifest only"]
@@ -34,6 +42,12 @@ flowchart TD
 
 **Why the models are pinned, and why Sonnet reads** (3.1.0): judgment stays on Opus at the owner's pinned effort (xhigh since 2026-10-19; `--effort max` per run). Sonnet does only work that passes the five tests of `MODEL_POLICY.md` (fully specified, checkable by script, omissions detectable, no judgment, calibrated); the critical sections are read by both models, because two different models miss different things. Pinning removes a silent discrepancy: in run 20261012T132311Z every agent, the CIO included, ran at effort *high* while the owner believed *max*.
 
+**Why a synthesis pipeline** (3.2.0): in run BHARTIARTL 20261012T132311Z the final report cited specialist claims (73 % of its citations), but it was a selective single pass: 25.5 % of the specialists' claims were used (concalls 9 %), gating findings the CIO's notes show were read never reached the report (a 0.86x liquidity cover, a regulator's penalty, an emphasis of matter restated as "unmodified"), a contradiction between two specialists was never adjudicated, and the permanent-loss band was stated two ways. One context cannot hold eleven reports, their ledgers and hundreds of reading items, and nothing measured whether the evidence was integrated. The pipeline splits the evidence into theme slices small enough to read in full, requires a recorded disposition for every item, assesses each layer independently, leaves the decision to the CIO on a bounded packet, and makes the report a build artifact whose integration is checked by script (`synthesis.integration`) and audited (Evidence Integration Audit).
+
+**Why the reading stage is switchable, and the web digest** (3.2.0): reading every page costs about $1,290 API-equivalent for a large company, beyond the current plan's measured weekly budget (about $175). The reading framework is kept intact and switched on per run; with it off, the `digest` agent gives each specialist a finding aid from web summaries, each number checked by script against the downloaded filing, and never citable as FACT. The specialists' own reading of the filings is unchanged.
+
+**Why a forecasting specialist and sector modules** (3.2.0): no specialist owned a driver-based forward model, consensus and revisions, the surprise history or the quantitative peer table, and the sector playbooks were text the validator never checked. `forecasting` owns the first; the SECTOR_MODULES block turns the playbooks into method steps with metric evidence that the validator and `verify.py` check.
+
 **Why acquisition is a stage, not a specialist:** finding and downloading filings is deterministic work. Done once, by scripts, it is faster, cheaper and more reliable than ten agents each searching the same exchange pages, and it produces the two-channel cross-check the owner asked for.
 
 ## 2. Single sources of truth
@@ -47,6 +61,8 @@ flowchart TD
 | Domain sections per specialist, final-report sections | `REQUIRED_SECTIONS` block in each `.claude/agents/<name>.md` | That agent; `validate_report.py` |
 | Reading item types, fields, section classes and critical classes | `methodology/READING_SCHEMAS.md` (`READING_SCHEMA` block) | Readers; `reading.py`, `validate_system.py` |
 | Model and effort per agent, calibration status | `methodology/MODEL_POLICY.md` (`MODEL_POLICY` block) | Agent frontmatter; `validate_system.py`, `reading.py`, `reading_audit.py` |
+| Sector modules (steps, owners, metric keys, minimum periods) | `methodology/SECTOR_PLAYBOOKS.md` (`SECTOR_MODULES` block) | Specialist briefs (`agent_driver.py`); `validate_report.py`, `verify.py` |
+| Synthesis themes, materiality rules, dispositions, consistency rules, brief and draft sections, writer groups | `methodology/SYNTHESIS.md` (marked blocks) | Synthesis agents; `synthesis.py`, `validate_run.py` |
 
 The code holds **no copies** of these lists. Tests assert the expected canonical values, so an accidental edit to a marked block fails the test suite.
 
@@ -163,6 +179,8 @@ Headless sessions ignore `.claude/settings.json` permission rules until the work
 - The reading audit depends on Claude Code's local transcript files; if they are absent or their format changes, the audit reports *not measurable* and the run needs a recorded waiver, never a silent pass.
 - Sonnet's parity with Opus on reading is established per section class by the bake-off (`docs/MODEL_CALIBRATION.md`); recall is measured against the adjudicated union of both reads, so an item both models miss is invisible to it. The auditor's per-run re-read of Sonnet pages is the backstop.
 - Reading every page costs about 0.45–0.6M tokens per annual report (measured on BHARTIARTL FY2024–FY2026), roughly 4–6M per company over 10 years with transcripts and filings, most of it on Sonnet; while calibration is pending every chunk is also read by Opus.
+- With reading off (3.2.0) the digest holds only what web summaries chose to mention: its recall is measured against a run whose pages were read (`digest.py calibrate`), and the remedy for a thin digest is reading on, not more trust in the leads.
+- A disposition is a judgment: the integration check proves every item has one and that gating items reach the report, not that each `immaterial` call is right. The CIO reads every `immaterial` call in the packet, and the auditor reviews every uncited Key Finding.
 - Exchange XBRL covers about FY2019 onward; earlier years rest on the annual-report PDFs (now retrievable from the exchanges back to the 2000s).
 - Paywalled sources are recorded as missing, not reconstructed.
 - Scoring calibration across companies starts empty. Calibration reviews begin once five or more companies are scored (`SCORING.md` §7).

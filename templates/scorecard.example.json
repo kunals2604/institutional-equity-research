@@ -155,9 +155,10 @@
       {
         "id": "BQ8",
         "score": 55,
-        "rationale": "Top-3 customer concentration ~40% of revenue.",
+        "rationale": "Top-3 customer concentration ~40% of revenue; the industry's concentration risk is structural.",
         "claim_ids": [
-          "FIL-C008"
+          "FIL-C008",
+          "IND-C012"
         ],
         "confidence": "Medium",
         "effective_score": 54.25
@@ -240,9 +241,10 @@
       {
         "id": "IA7",
         "score": 85,
-        "rationale": "Liquid large-cap; no dilution expected.",
+        "rationale": "Liquid large-cap (exchange ADTV); no dilution expected.",
         "claim_ids": [
-          "CIO-C004"
+          "CIO-C004",
+          "VAL-C060"
         ],
         "confidence": "High",
         "effective_score": 85.0
@@ -252,7 +254,8 @@
         "score": 70,
         "rationale": "~70% of valuation inputs primary-sourced.",
         "claim_ids": [
-          "CIO-C020"
+          "CIO-C020",
+          "VAL-C040"
         ],
         "confidence": "High",
         "effective_score": 70.0
@@ -378,7 +381,7 @@
     "sizing_basis": "no ceiling: IPS risk limits not set"
   },
   "next_review_due": "2026-07-01",
-  "methodology_version": "3.1.0",
+  "methodology_version": "3.2.0",
   "price_metrics": {
     "margin_of_safety": -0.0526,
     "expected_irr": 0.08,

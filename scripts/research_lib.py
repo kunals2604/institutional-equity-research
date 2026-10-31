@@ -22,7 +22,7 @@ import json
 import math
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 CONSTITUTION = ROOT / ".claude" / "skills" / "investment-constitution" / "SKILL.md"
@@ -60,12 +60,13 @@ SPECIALISTS: Dict[str, str] = {
     "industry": "IND",
     "moat": "MOAT",
     "concalls": "CON",
+    "forecasting": "FCST",
     "valuation": "VAL",
     "bear-case": "BEAR",
     "special-situations": "SPS",
     "scuttlebutt": "SCU",
 }
-SPECIALIST_SINCE: Dict[str, tuple] = {"scuttlebutt": (2, 4, 0)}
+SPECIALIST_SINCE: Dict[str, tuple] = {"scuttlebutt": (2, 4, 0), "forecasting": (3, 2, 0)}
 CIO_PREFIX = "CIO"
 # Independent research auditor (Stage 4, methodology 2.4.0): audits the CIO's draft, never researches the company.
 AUDITOR = "auditor"
@@ -73,9 +74,14 @@ AUDITOR_PREFIX = "AUD"
 # Workers (methodology 3.1.0): they acquire and read documents for everyone (Stage 0) or re-check claims at their
 # sources (the verifier, after each specialist); they hold no views, write no claim ledger and never score. Their model
 # and effort are pinned by methodology/MODEL_POLICY.md.
-WORKERS = ("reader", "critical-reader", "scanner", "librarian", "verifier", "historian")
-ALL_PREFIXES = set(SPECIALISTS.values()) | {CIO_PREFIX, AUDITOR_PREFIX}
-AGENT_NAMES = set(SPECIALISTS) | {"cio", AUDITOR} | set(WORKERS)
+WORKERS = ("reader", "critical-reader", "scanner", "librarian", "verifier", "historian", "digest")
+# The synthesis pipeline (methodology 3.2.0, methodology/SYNTHESIS.md): theme analysts integrate and disposition the
+# evidence registry, layer analysts assess one investment layer each, section writers draft the report's evidence
+# sections. Their calculations carry SYN claim IDs (synthesis/ledgers/).
+SYNTHESIS_ROLES = ("theme-analyst", "layer-analyst", "section-writer")
+SYN_PREFIX = "SYN"
+ALL_PREFIXES = set(SPECIALISTS.values()) | {CIO_PREFIX, AUDITOR_PREFIX, SYN_PREFIX}
+AGENT_NAMES = set(SPECIALISTS) | {"cio", AUDITOR} | set(WORKERS) | set(SYNTHESIS_ROLES)
 
 CLAIM_ID_RE = re.compile(r"\b(?:%s)-C\d{3,}\b" % "|".join(sorted(ALL_PREFIXES, key=len, reverse=True)))
 TAG_RE = re.compile(
@@ -304,8 +310,10 @@ CHECKLIST_SECTION = "Method Coverage Checklist"
 CHECKLIST_STATUSES = ("done", "partial", "not available", "not applicable")
 
 
-def method_steps(agent: str) -> List[str]:
-    """Top-level numbered steps of the '## Method' section of an agent definition (nested lists ignored)."""
+def method_steps(agent: str, version: Optional[tuple] = None) -> List[str]:
+    """Top-level numbered steps of the '## Method' section of an agent definition (nested lists ignored). A step whose
+    bold title ends in `(since X.Y.Z)` is required only of runs of methodology X.Y.Z or later (`version=None`: every
+    step), so adding a step never breaks the checklist of an older run."""
     path = AGENTS_DIR / ("%s.md" % agent)
     if not path.exists():
         return []
@@ -316,15 +324,23 @@ def method_steps(agent: str) -> List[str]:
     out = []
     for _, t in re.findall(r"^(\d+)\.\s+(.*)$", m.group(1), re.M):
         b = re.match(r"\*\*(.+?)\*\*", t)
-        out.append((b.group(1) if b else t[:60]).strip().rstrip(".:"))
+        title = (b.group(1) if b else t[:60]).strip().rstrip(".:")
+        since = SINCE_RE.match(title)
+        if since:
+            if version is not None and version < version_tuple(since.group(2)):
+                continue
+            title = since.group(1).strip().rstrip(".:")
+        out.append(title)
     return out
 
 
-def check_method_checklist(agent: str, text: str, res: "Result") -> None:
+def check_method_checklist(agent: str, text: str, res: "Result", version: Optional[tuple] = None,
+                           extra_steps: Sequence[Tuple[str, str]] = ()) -> None:
     """Every numbered method step of the agent definition must appear as a row of the Method Coverage Checklist,
     with a status (Done | Partial | Not available | Not applicable); Partial / Not available rows must say what was
-    tried and why it fell short. This makes silent omissions impossible."""
-    steps = method_steps(agent)
+    tried and why it fell short. This makes silent omissions impossible. `extra_steps` are (id, title) pairs the run
+    adds for this agent (the sector modules, methodology 3.2.0): each needs its own row naming its id."""
+    steps = method_steps(agent, version) + [t for _, t in extra_steps]
     body = section(text, CHECKLIST_SECTION)
     if body is None or not steps:
         return
@@ -342,6 +358,9 @@ def check_method_checklist(agent: str, text: str, res: "Result") -> None:
             res.error("%s row without a status (Done | Partial | Not available | Not applicable): %s" % (CHECKLIST_SECTION, r[:80]))
         elif status in ("partial", "not available") and (len(cells) < 2 or cells[-1] in ("", "-", "—", "n/a")):
             res.warn("%s: '%s' row must say what was tried and why it fell short (last column)" % (CHECKLIST_SECTION, cells[0][:50]))
+    for sid, title in extra_steps:
+        if not any(re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(sid), r) for r in data):
+            res.error("%s: no row for sector-module step %s (%s): add a row naming %s" % (CHECKLIST_SECTION, sid, title, sid))
 
 
 def methodology_version() -> str:
@@ -375,6 +394,78 @@ COVERAGE_BLOCK = "READING_COVERAGE"
 # A specialist states what it relied on; the record of what was read is the reading ledger, generated by script.
 OVERCLAIM_RE = re.compile(r"\b(read (?:in full|end to end|cover to cover|every page|all pages)|"
                           r"(?:fully|completely|exhaustively) read|read in substance|every page (?:was |has been )?read)\b", re.I)
+
+
+# Contract additions of methodology 3.2.0: the reading stage becomes switchable per run (`reading_mode` in the manifest:
+# "on" = Stage-0b reading, "off" = the web digest, Stage 0c), the `forecasting` specialist, sector modules, and the
+# synthesis pipeline that integrates every specialist finding and every reading or digest item into the final report.
+V32 = (3, 2, 0)
+READING_MODES = ("on", "off")
+DIGEST_DIR = "corpus/digest"
+DIGEST_COVERAGE = "corpus/digest/COVERAGE.md"
+DIGEST_STATUS = "corpus/digest/status.json"
+DIGEST_INDEX = "corpus/digest/INDEX.md"
+# A specialist's pack and the topic files it lists: the dossiers (reading on) or the digest (reading off).
+PACK_PATH_RE = re.compile(r"`(corpus/(?:dossiers|digest)/[\w./-]+\.md)`")
+
+
+def reading_mode(run_dir: Path) -> str:
+    """The run's reading mode. A run without the field (every run before methodology 3.2.0) had the reading stage."""
+    try:
+        mode = str(load_json(Path(run_dir) / RUN_MANIFEST).get("reading_mode") or "on").lower()
+    except (OSError, ValueError):
+        mode = "on"
+    return mode if mode in READING_MODES else "on"
+
+
+def reading_on(run_dir: Path) -> bool:
+    return reading_mode(run_dir) == "on"
+
+
+def corpus_dir_rel(run_dir: Path) -> str:
+    """Where the run's topic files, packs, entities and events live: corpus/dossiers (on) or corpus/digest (off)."""
+    return "corpus/dossiers" if reading_on(run_dir) else DIGEST_DIR
+
+
+def pack_rel(run_dir: Path, name: str) -> str:
+    return "%s/packs/%s.md" % (corpus_dir_rel(run_dir), name)
+
+
+def coverage_rel(run_dir: Path) -> str:
+    return READING_COVERAGE if reading_on(run_dir) else DIGEST_COVERAGE
+
+
+def events_check_rel(run_dir: Path) -> str:
+    return "corpus/reading/events_check.json" if reading_on(run_dir) else "%s/events_check.json" % DIGEST_DIR
+
+
+SECTOR_PLAYBOOKS = ROOT / "methodology" / "SECTOR_PLAYBOOKS.md"
+
+
+def sector_modules() -> Dict[str, dict]:
+    """The sector-module catalogue (methodology/SECTOR_PLAYBOOKS.md, SECTOR_MODULES block): module id -> {playbook,
+    title, steps: [{id, owner, step, require, metrics, min_periods}]}."""
+    return read_json_block(SECTOR_PLAYBOOKS, "SECTOR_MODULES")["modules"]
+
+
+def run_sector_modules(run_dir: Path) -> Optional[List[str]]:
+    """The modules the CIO switched on for this run (None: not yet selected)."""
+    try:
+        mods = load_json(Path(run_dir) / RUN_MANIFEST).get("sector_modules")
+    except (OSError, ValueError):
+        return None
+    return list(mods) if isinstance(mods, list) else None
+
+
+def sector_steps_for(run_dir: Path, name: str) -> List[dict]:
+    """The steps of the run's sector modules that this specialist owns (each with its module id)."""
+    cat = sector_modules()
+    out = []
+    for mid in run_sector_modules(run_dir) or []:
+        for st in (cat.get(mid) or {}).get("steps", []):
+            if st.get("owner") == name:
+                out.append(dict(st, module=mid))
+    return out
 
 
 def version_tuple(v: Optional[str]) -> tuple:
@@ -695,7 +786,20 @@ def run_ledger_paths(run_dir: Path) -> List[Path]:
     if cio.exists():
         paths.append(cio)
     paths += sorted((run_dir / "audit").glob("*_ledger.csv"))
+    paths += sorted((run_dir / "synthesis" / "ledgers").glob("*_ledger.csv"))
     return paths
+
+
+def agent_of_prefix(claim_id: str) -> Optional[str]:
+    """The specialist (or cio / auditor) whose ledger a claim ID belongs to, from its prefix."""
+    pre = str(claim_id).split("-C", 1)[0]
+    if pre == CIO_PREFIX:
+        return "cio"
+    if pre == AUDITOR_PREFIX:
+        return AUDITOR
+    if pre == SYN_PREFIX:
+        return "theme-analyst"
+    return next((n for n, p_ in SPECIALISTS.items() if p_ == pre), None)
 
 
 def prefix_for_ledger(path: Path) -> Optional[str]:
@@ -703,6 +807,8 @@ def prefix_for_ledger(path: Path) -> Optional[str]:
         return CIO_PREFIX
     if path.parent.name == "audit":
         return AUDITOR_PREFIX
+    if path.parent.name == "ledgers" and path.parent.parent.name == "synthesis":
+        return SYN_PREFIX
     stem = path.name[: -len("_ledger.csv")]
     stem = re.sub(r"_followup_\d+$", "", stem)
     return SPECIALISTS.get(stem)
@@ -756,7 +862,8 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
         check_crosswalk(text, res)
         check_coverage(name, text, fm, res, v)
         if name in SPECIALISTS and v >= V23:
-            check_method_checklist(name, text, res)
+            extra = [(s["id"], s["step"]) for s in sector_steps_for(path.parent.parent, name)] if v >= V32 else []
+            check_method_checklist(name, text, res, v, extra)
     allowed = {SPECIALISTS[name], CIO_PREFIX} if (name in SPECIALISTS and not followup) else None
     if ledger_ids is not None:
         # Specialists may cite the CIO's preflight claims (e.g. price CIO-C001).
@@ -780,8 +887,9 @@ def check_no_coverage_claims(text: str, res: Result) -> None:
     for n, line in enumerate(text.splitlines(), 1):
         m = OVERCLAIM_RE.search(line)
         if m:
-            res.error("line %d: '%s' — do not state your own reading coverage; cite corpus/reading/COVERAGE.md "
-                      "(the reading ledger) and state the periods and series you used" % (n, m.group(0)))
+            res.error("line %d: '%s' — do not state your own reading coverage; the run's coverage record "
+                      "(corpus/reading/COVERAGE.md, or corpus/digest/COVERAGE.md when reading is off) is generated by "
+                      "script: state the periods and series you used" % (n, m.group(0)))
 
 
 def coverage_block_of(text: str) -> Optional[str]:
@@ -790,16 +898,19 @@ def coverage_block_of(text: str) -> Optional[str]:
 
 
 def check_reading_coverage_block(text: str, run_dir: Path, res: Result) -> None:
-    """The final report must carry corpus/reading/COVERAGE.md unchanged between the READING_COVERAGE markers."""
-    cov = run_dir / READING_COVERAGE
+    """The final report must carry the run's coverage record unchanged between the READING_COVERAGE markers:
+    corpus/reading/COVERAGE.md (reading on) or corpus/digest/COVERAGE.md (reading off, methodology 3.2.0)."""
+    rel = coverage_rel(run_dir)
+    tool = "reading.py status" if reading_on(run_dir) else "digest.py build"
+    cov = run_dir / rel
     block = coverage_block_of(text)
     if block is None:
         res.error("Missing the reading-coverage block (<!-- %s:BEGIN --> ... <!-- %s:END -->) in the final report"
                   % (COVERAGE_BLOCK, COVERAGE_BLOCK))
     elif not cov.exists():
-        res.error("%s missing: run reading.py status" % READING_COVERAGE)
+        res.error("%s missing: run %s" % (rel, tool))
     elif re.sub(r"\s+", " ", block) != re.sub(r"\s+", " ", cov.read_text(encoding="utf-8").strip()):
-        res.error("The reading-coverage block differs from %s: paste it unchanged (re-run reading.py status first)" % READING_COVERAGE)
+        res.error("The reading-coverage block differs from %s: paste it unchanged (re-run %s first)" % (rel, tool))
 
 
 # (specialist, section(s), counter, depth key, unit label, error-or-warning, contract version it applies from)
@@ -813,6 +924,8 @@ _COVERAGE_RULES = (
     ("moat", ("Quantified Advantage Metrics",), any_years, "moat.history_years", "years", False, V24),
     ("special-situations", ("Corporate-Action History",), any_years, "special-situations.history_years", "years", False, V24),
     ("scuttlebutt", ("Independent Operating Data",), any_years, "scuttlebutt.history_years", "years", False, V24),
+    ("forecasting", ("Historical Driver Base",), fiscal_years, "forecasting.fiscal_years", "fiscal years", True, V32),
+    ("forecasting", ("Earnings-Surprise History",), quarters, "forecasting.surprise_quarters", "quarters", False, V32),
 )
 
 

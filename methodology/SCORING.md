@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
-<!-- METHODOLOGY_VERSION: 3.1.0 -->
-Methodology version **3.0.0**: the decision is made the way an institutional fund manager makes it (§0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, explicit decision drivers and a conviction measure. 2.4.0 added the scuttlebutt specialist, the independent audit and the document map; 2.3.0 the hurdle-adjusted IA4, the confidence rule and the robustness test; 2.2.0 the quantitative anchor guides. Scorecards without `methodology_version` ≥ 3.0.0 are validated by the 2.x rules (fixed base weights, the 2.x verdict mapping). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+<!-- METHODOLOGY_VERSION: 3.2.0 -->
+Methodology version **3.2.0** adds the synthesis pipeline and its integration checks, the reading switch with the web digest, the forecasting specialist (an owner of BQ3, IA2 and IA5) and the sector modules; the scoring rules are those of 3.0.0. Methodology version **3.0.0**: the decision is made the way an institutional fund manager makes it (§0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, explicit decision drivers and a conviction measure. 2.4.0 added the scuttlebutt specialist, the independent audit and the document map; 2.3.0 the hurdle-adjusted IA4, the confidence rule and the robustness test; 2.2.0 the quantitative anchor guides. Scorecards without `methodology_version` ≥ 3.0.0 are validated by the 2.x rules (fixed base weights, the 2.x verdict mapping). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -233,17 +233,17 @@ Every BQ and IA dimension carries its own `confidence` (High / Medium / Low, by 
 |---|---|
 | BQ1 | financials, moat |
 | BQ2 | moat, industry, scuttlebutt |
-| BQ3 | industry, financials, scuttlebutt |
+| BQ3 | industry, financials, scuttlebutt, forecasting |
 | BQ4 | financials, filings |
 | BQ5 | financials, filings |
 | BQ6 | management, concalls |
 | BQ7 | filings, management |
 | BQ8 | industry, bear-case, management |
 | IA1 | valuation |
-| IA2 | valuation |
+| IA2 | valuation, forecasting |
 | IA3 | bear-case, valuation |
 | IA4 | valuation |
-| IA5 | valuation, concalls |
+| IA5 | valuation, concalls, forecasting |
 | IA6 | special-situations, valuation |
 | IA7 | valuation |
 | IA8 | valuation |

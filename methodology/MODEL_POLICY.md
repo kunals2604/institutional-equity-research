@@ -36,8 +36,10 @@ If a task needs Sonnet at maximum effort to do well, it is a reasoning task and 
 | Finding documents the indexes missed | `librarian` | Sonnet · high | search and download; a script validates every file |
 | A dated ten-year timeline of the company's major events from news and the web (leads and a completeness check of the reading, never evidence) | `historian` | Sonnet · high | search and list; a script checks every row and that every source was opened |
 | Reading non-critical sections, transcripts, presentations, filings | `reader` | Sonnet · high | meets the five tests |
+| With the reading stage off (methodology 3.2.0): web summaries of the reports, transcripts and presentations, recorded as tier-6 leads in the reading schema; a script page-confirms them against the filings | `digest` | Sonnet · high | fully specified (plan and schema), checkable (each quote on its snapshot page, each amount in its quote, each page opened in its session), omissions detectable (a search-log row per document; `digest.py calibrate` against a run that read the same pages), no judgment |
 | Reading critical sections (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/2, secretarial audit, related-party filings) | `critical-reader` **and** `reader`, independently; a fresh `critical-reader` resolves every disagreement | Opus · xhigh and Sonnet · high | highest stakes; two different models miss different things |
-| The ten specialists, the auditor, the CIO | specialists, `auditor`, main session | Opus · xhigh | judgment |
+| The specialists (eleven from methodology 3.2.0), the auditor, the CIO | specialists, `auditor`, main session | Opus · xhigh | judgment |
+| The synthesis pipeline (methodology 3.2.0): integrating and dispositioning the evidence by theme, assessing each layer, drafting the evidence sections of the report | `theme-analyst`, `layer-analyst`, `section-writer` | Opus · xhigh | judgment: what the evidence means, which source is better, what is material |
 | Re-checking a sample of each specialist's claims at their sources (the verification loop, `scripts/verify.py`) | `verifier` | Opus · xhigh | whether a source says what a claim says needs reading in context; the script checks run first and cost nothing |
 
 **Effort override.** `/research-company ... --effort <low|medium|high|xhigh|max>` sets the effort of every Opus
@@ -57,6 +59,7 @@ the owner if it is not Opus at xhigh.
     "industry": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "moat": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "concalls": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
+    "forecasting": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "valuation": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "bear-case": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
     "special-situations": {"model": "opus", "effort": "xhigh", "kind": "specialist"},
@@ -67,6 +70,10 @@ the owner if it is not Opus at xhigh.
     "scanner": {"model": "haiku", "effort": "high", "kind": "worker"},
     "librarian": {"model": "sonnet", "effort": "high", "kind": "worker"},
     "historian": {"model": "sonnet", "effort": "high", "kind": "worker"},
+    "digest": {"model": "sonnet", "effort": "high", "kind": "worker"},
+    "theme-analyst": {"model": "opus", "effort": "xhigh", "kind": "synthesis"},
+    "layer-analyst": {"model": "opus", "effort": "xhigh", "kind": "synthesis"},
+    "section-writer": {"model": "opus", "effort": "xhigh", "kind": "synthesis"},
     "verifier": {"model": "opus", "effort": "xhigh", "kind": "worker"}
   },
   "calibration": {

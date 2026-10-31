@@ -23,6 +23,7 @@ Both write only the --out file (default under RUN_DIR/audit/). Exit: 0 ok, 1 tie
 
 import argparse
 import csv
+import json
 import random
 import re
 import sys
@@ -110,6 +111,24 @@ def segments(text: str):
 
 
 def tieout(run_dir: Path, report: Path, out: Path) -> int:
+    rows = tieout_rows(run_dir, report)
+    n_mis = sum(1 for r in rows if r["status"] == "mismatch")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["line", "section", "status", "cited", "numbers", "uncited_matches", "excerpt"])
+        w.writeheader()
+        w.writerows(sorted(rows, key=lambda r: ({"mismatch": 0, "other_claim": 1}.get(r["status"], 2), r["line"])))
+    n_other = sum(1 for r in rows if r["status"] == "other_claim")
+    print("tie-out: %d cited numeric segments: %d match, %d cite incompletely (number is another claim's value), "
+          "%d to examine by hand -> %s" % (len(rows), len(rows) - n_mis - n_other, n_other, n_mis, out))
+    for r in [x for x in rows if x["status"] == "mismatch"][:25]:
+        print("  line %s [%s] cited %s | numbers %s" % (r["line"], r["section"][:30], r["cited"][:70], r["numbers"][:60]))
+    return 1 if n_mis else 0
+
+
+def tieout_rows(run_dir: Path, report: Path) -> List[dict]:
+    """Every sentence or table row of a report that cites claims with values: does a number in it equal a cited
+    claim's value (match), another claim's value (other_claim: an incomplete citation) or none (mismatch)?"""
     ledger = ledger_index(run_dir)
     all_values = []
     for cid, r in ledger.items():
@@ -117,7 +136,7 @@ def tieout(run_dir: Path, report: Path, out: Path) -> int:
         if v is not None:
             all_values.append((cid, v, r.get("unit", "")))
     text = report.read_text(encoding="utf-8")
-    rows, n_mis = [], 0
+    rows = []
     for line_no, section, seg in segments(text):
         ids = []
         for m in TAG_CITE_RE.finditer(seg):
@@ -144,22 +163,11 @@ def tieout(run_dir: Path, report: Path, out: Path) -> int:
             for t in tokens:
                 other += [c for c, v, u in all_values if c not in ids and matches(t, v, u) and abs(v) >= 1][:3]
         status = "match" if ok else ("other_claim" if other else "mismatch")
-        n_mis += 1 if status == "mismatch" else 0
         rows.append({"line": line_no, "section": section, "status": status,
                      "cited": "; ".join("%s=%s %s" % (c, v, u) for c, v, u in numeric), "numbers": " ".join(tokens[:12]),
                      "uncited_matches": " ".join(sorted(set(other))[:6]),
                      "excerpt": re.sub(r"\s+", " ", seg.strip())[:240]})
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["line", "section", "status", "cited", "numbers", "uncited_matches", "excerpt"])
-        w.writeheader()
-        w.writerows(sorted(rows, key=lambda r: ({"mismatch": 0, "other_claim": 1}.get(r["status"], 2), r["line"])))
-    n_other = sum(1 for r in rows if r["status"] == "other_claim")
-    print("tie-out: %d cited numeric segments: %d match, %d cite incompletely (number is another claim's value), "
-          "%d to examine by hand -> %s" % (len(rows), len(rows) - n_mis - n_other, n_other, n_mis, out))
-    for r in [x for x in rows if x["status"] == "mismatch"][:25]:
-        print("  line %s [%s] cited %s | numbers %s" % (r["line"], r["section"][:30], r["cited"][:70], r["numbers"][:60]))
-    return 1 if n_mis else 0
+    return rows
 
 
 def cached_file(run_dir: Path, source: str, retrievals: Dict[str, str], catalog: Dict[str, str]) -> str:
@@ -234,6 +242,46 @@ def sample(run_dir: Path, n: int, seed: str, out: Path) -> int:
     return 0
 
 
+def recompute_scorecard(run_dir: Path, out: Path) -> int:
+    """The auditor's recomputation of the scorecard: rebuild it from cio/scorecard_inputs.json with
+    build_scorecard.compute, write it under audit/recompute/ only, and list every difference from cio/scorecard.json.
+    (build_scorecard.py itself is CIO-only: it writes cio/scorecard.json.)"""
+    import build_scorecard
+    try:
+        inside = out.resolve().relative_to(run_dir.resolve()).parts[:1] == ("audit",)
+    except ValueError:
+        inside = False
+    if not inside:
+        print("ERROR: the recomputation is written under RUN_DIR/audit/ only (got %s)" % out)
+        return 2
+    src = run_dir / "cio" / "scorecard_inputs.json"
+    if not src.exists():
+        print("inputs not found: %s" % src)
+        return 2
+    try:
+        sc = build_scorecard.compute(json.loads(src.read_text(encoding="utf-8")), run_dir)
+    except (KeyError, ValueError) as exc:
+        print("ERROR: %s" % exc)
+        return 1
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(sc, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+    cur_path = run_dir / "cio" / "scorecard.json"
+    cur = rl.load_json(cur_path) if cur_path.exists() else {}
+    diffs = []
+    for key in (("business_quality", "final"), ("business_quality", "confidence"), ("investment_attractiveness", "final"),
+                ("investment_attractiveness", "confidence"), ("mapped_verdict",), ("verdict",), ("primary_layer",),
+                ("decision", "conviction"), ("decision", "weight_profile"), ("decision", "margin_of_safety")):
+        a, b = sc, cur
+        for k in key:
+            a = a.get(k) if isinstance(a, dict) else None
+            b = b.get(k) if isinstance(b, dict) else None
+        if a != b:
+            diffs.append("%s: recomputed %r vs cio/scorecard.json %r" % (".".join(key), a, b))
+    print("recomputed scorecard -> %s" % out)
+    print("\n".join(diffs) if diffs else "no difference on the decision fields")
+    return 1 if diffs else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -246,6 +294,9 @@ def main(argv=None) -> int:
     s.add_argument("--n", type=int, default=30, help="sampled claims in addition to the decision-critical ones")
     s.add_argument("--seed", help="default: the run ID (reproducible)")
     s.add_argument("--out", help="default: RUN_DIR/audit/sample.csv")
+    r = sub.add_parser("recompute-scorecard", help="rebuild the scorecard from the CIO's inputs under audit/recompute/")
+    r.add_argument("run_dir")
+    r.add_argument("--out", help="default: RUN_DIR/audit/recompute/scorecard.json")
     a = ap.parse_args(argv)
     run_dir = Path(a.run_dir)
     if not (run_dir / rl.RUN_MANIFEST).exists():
@@ -255,6 +306,8 @@ def main(argv=None) -> int:
         if not report.exists():
             ap.error("report not found: %s" % report)
         return tieout(run_dir, report, Path(a.out) if a.out else run_dir / "audit" / "tieout.csv")
+    if a.cmd == "recompute-scorecard":
+        return recompute_scorecard(run_dir, Path(a.out) if a.out else run_dir / "audit" / "recompute" / "scorecard.json")
     seed = a.seed or rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", "seed")
     return sample(run_dir, a.n, seed, Path(a.out) if a.out else run_dir / "audit" / "sample.csv")
 

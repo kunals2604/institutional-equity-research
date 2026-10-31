@@ -27,6 +27,7 @@ import argparse
 import datetime as dt
 import re
 import sys
+from typing import Optional
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -89,35 +90,57 @@ def check_verification(run_dir: Path, results: list, stage: str) -> None:
     results.append(r)
 
 
-def check_reading(run_dir: Path, results: list, stage: str) -> None:
-    """Methodology 3.1.0: the reading stage is complete and its record untouched; at the final stage, the reading
-    audit passed (or could not be measured and was waived with a reason)."""
+def _check_record(run_dir: Path, status_rel: str, coverage_rel: str, missing_msg: str, pending_msg: str,
+                  status_tool: str) -> "rl.Result":
+    """A coverage record is complete and untouched: its status says complete and COVERAGE.md hashes as recorded."""
     import hashlib
-    st_path = run_dir / rl.READING_STATUS
+    st_path = run_dir / status_rel
     r = rl.Result(str(st_path))
     if not st_path.exists():
-        r.error("reading stage missing: run reading.py plan, the reading loop, dossiers and status (cio.md Stage 0b)")
+        r.error(missing_msg)
+        return r
+    st = rl.load_json(st_path)
+    cov = run_dir / coverage_rel
+    if not st.get("complete"):
+        r.error(pending_msg % st)
+    if not cov.exists():
+        r.error("%s missing: run %s" % (coverage_rel, status_tool))
+    elif hashlib.sha256(cov.read_text(encoding="utf-8").encode()).hexdigest() != st.get("coverage_sha256"):
+        r.error("%s does not match its status record (edited by hand, or status not re-run)" % coverage_rel)
+    return r
+
+
+def check_reading(run_dir: Path, results: list, stage: str, version: Optional[tuple] = None) -> None:
+    """Methodology 3.1.0: the reading stage is complete and its record untouched; at the final stage, the reading
+    audit passed (or could not be measured and was waived with a reason). Methodology 3.2.0: with `reading_mode`
+    off, the web digest (Stage 0c) takes its place and is checked the same way."""
+    on = rl.reading_on(run_dir)
+    if on:
+        results.append(_check_record(
+            run_dir, rl.READING_STATUS, rl.READING_COVERAGE,
+            "reading stage missing: run reading.py plan, the reading loop, dossiers and status (cio.md Stage 0b)",
+            "reading incomplete: pending pages remain: finish the reading loop (agent_driver.py reading)",
+            "reading.py status"))
+        index_rel, index_tool = rl.DOSSIER_INDEX, "reading.py dossiers"
     else:
-        st = rl.load_json(st_path)
-        cov = run_dir / rl.READING_COVERAGE
-        if not st.get("complete"):
-            r.error("reading incomplete: %s page(s) pending in %d chunk(s): finish the reading loop (reading.py next)"
-                    % (st.get("pending"), len(st.get("pending_chunks") or [])))
-        if not cov.exists():
-            r.error("%s missing: run reading.py status" % rl.READING_COVERAGE)
-        elif hashlib.sha256(cov.read_text(encoding="utf-8").encode()).hexdigest() != st.get("coverage_sha256"):
-            r.error("%s does not match its status record (edited by hand, or status not re-run)" % rl.READING_COVERAGE)
-    results.append(r)
-    for rel in (rl.DOSSIER_INDEX, rl.STRUCTURED_SUMMARY):
+        results.append(_check_record(
+            run_dir, rl.DIGEST_STATUS, rl.DIGEST_COVERAGE,
+            "digest missing (reading_mode off): run digest.py plan, agent_driver.py digest, digest.py confirm and "
+            "build (cio.md Stage 0c)",
+            "digest incomplete: %(pending)s document(s) without a search-log entry or with failing items: finish "
+            "agent_driver.py digest, then digest.py confirm and build",
+            "digest.py build"))
+        index_rel, index_tool = rl.DIGEST_INDEX, "digest.py build"
+    for rel, tool in ((index_rel, index_tool), (rl.STRUCTURED_SUMMARY, "structured_filings.py fetch")):
         fr = rl.Result(str(run_dir / rel))
         if not (run_dir / rel).exists():
-            fr.error("missing (%s)" % ("reading.py dossiers" if "dossiers" in rel else "structured_filings.py fetch"))
+            fr.error("missing (%s)" % tool)
         results.append(fr)
-    packs = run_dir / "corpus" / "dossiers" / "packs"
+    packs = run_dir / rl.corpus_dir_rel(run_dir) / "packs"
     pr = rl.Result(str(packs))
-    for name in rl.SPECIALISTS:
+    for name in rl.specialists_for(version):
         if not (packs / ("%s.md" % name)).exists():
-            pr.error("no reading pack for %s (reading.py dossiers)" % name)
+            pr.error("no %s pack for %s (%s)" % ("reading" if on else "digest", name, index_tool))
     results.append(pr)
     if stage == "final":
         ar_path = run_dir / rl.READING_AUDIT
@@ -183,9 +206,20 @@ def main(argv=None) -> int:
               % manifest.get("methodology_version"))
     if read_only:
         print("note: run is finalized (status %s); validating read-only, nothing in the run is written" % manifest.get("status"))
+    if version >= rl.V32:                     # the run's sector modules were selected, from the catalogue
+        sres = rl.Result("sector modules")
+        mods = rl.run_sector_modules(run_dir)
+        if mods is None:
+            sres.error("sector_modules not selected: set them in Stage 0 (manifest.py RUN set 'sector_modules=[\"nbfc\"]', "
+                       "or [] with a note when none applies; methodology/SECTOR_PLAYBOOKS.md)")
+        else:
+            unknown = [mm for mm in mods if mm not in rl.sector_modules()]
+            if unknown:
+                sres.error("unknown sector module(s): %s" % ", ".join(unknown))
+        results.append(sres)
     ids = check_specialists(run_dir, manifest, results, version=version, segment=segment)
     if version >= rl.V31:
-        check_reading(run_dir, results, a.stage)
+        check_reading(run_dir, results, a.stage, version)
         check_verification(run_dir, results, a.stage)
 
     if a.stage == "specialists":
@@ -235,6 +269,15 @@ def main(argv=None) -> int:
             results.append(missing)
         results.append(rl.validate_final_report(run_dir / "cio" / "final_report.md", sc, ids, version=version,
                                                 segment=segment))
+        if version >= rl.V32:                     # the synthesis pipeline: every piece of evidence integrated
+            import synthesis
+            ires = rl.Result("evidence integration (synthesis.py integration)")
+            got = synthesis.integration(run_dir, write=not read_only)
+            for e in got["errors"]:
+                ires.error(e)
+            for w_ in got["warnings"]:
+                ires.warn(w_)
+            results.append(ires)
         if version >= rl.V24:
             ares, findings = rl.validate_audit_report(run_dir / rl.AUDIT_REPORT, ids,
                                                       {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")},

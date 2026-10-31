@@ -8,6 +8,7 @@
   python3 scripts/manifest.py RUN_DIR invocation auditor --stage 4 --purpose "independent audit of the draft"
   python3 scripts/manifest.py RUN_DIR invocation reader --stage 0b --purpose "L007"
   python3 scripts/manifest.py RUN_DIR note "Transcript archive for FY2019-20 unavailable"
+  python3 scripts/manifest.py RUN_DIR mode reading off --reason "reading 800+ chunks unaffordable on the current plan"
 
 Values are parsed as JSON when possible (numbers, null, true), otherwise kept as strings.
 """
@@ -24,7 +25,7 @@ import research_lib as rl  # noqa: E402
 STATUSES = ("preflight", "specialists_running", "specialists_complete", "specialists_incomplete",
             "synthesis", "qc_auto_passed", "qc_auto_failed", "complete", "insufficient_evidence",
             "qc_failed", "failed", "interrupted")
-PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version"}
+PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode"}
 
 
 def now() -> str:
@@ -48,11 +49,15 @@ def main(argv=None) -> int:
     st = sub.add_parser("status")
     st.add_argument("value", choices=STATUSES)
     inv = sub.add_parser("invocation")
-    inv.add_argument("specialist", choices=list(rl.SPECIALISTS) + [rl.AUDITOR] + list(rl.WORKERS))
+    inv.add_argument("specialist", choices=sorted(rl.AGENT_NAMES - {"cio"}))
     inv.add_argument("--stage", required=True)
     inv.add_argument("--purpose", required=True)
     n = sub.add_parser("note")
     n.add_argument("text")
+    md = sub.add_parser("mode", help="switch the run's reading mode (refused once any specialist has been invoked)")
+    md.add_argument("what", choices=["reading"])
+    md.add_argument("value", choices=rl.READING_MODES)
+    md.add_argument("--reason", required=True)
     a = p.parse_args(argv)
 
     path = Path(a.run_dir) / rl.RUN_MANIFEST
@@ -82,11 +87,21 @@ def main(argv=None) -> int:
             node = m.setdefault("auditor", {"status": "pending", "report": rl.AUDIT_REPORT, "invocations": []})
         elif a.specialist in rl.WORKERS:
             node = m.setdefault("workers", {}).setdefault(a.specialist, {"invocations": []})
+        elif a.specialist in rl.SYNTHESIS_ROLES:
+            node = m.setdefault("synthesis", {}).setdefault(a.specialist, {"invocations": []})
         else:
             node = m["specialists"].setdefault(a.specialist, {"status": "pending", "invocations": []})
         node.setdefault("invocations", []).append({"stage": a.stage, "purpose": a.purpose, "at": now()})
     elif a.cmd == "note":
         m.setdefault("notes", []).append({"at": now(), "text": a.text})
+    elif a.cmd == "mode":
+        started = [n for n, s in (m.get("specialists") or {}).items() if (s or {}).get("invocations")]
+        if started:
+            p.error("specialists already ran (%s): their briefs named the %s-mode pack, so the reading mode can no longer "
+                    "change; start a new run" % (", ".join(sorted(started)), m.get("reading_mode", "on")))
+        old_mode = m.get("reading_mode", "on")
+        m["reading_mode"] = a.value
+        m.setdefault("notes", []).append({"at": now(), "text": "reading mode %s -> %s: %s" % (old_mode, a.value, a.reason)})
     rl.write_json(path, m)
     print("updated %s" % path)
     return 0

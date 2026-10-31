@@ -214,7 +214,7 @@ def independence_patterns(me: str, run_id: str) -> Tuple[re.Pattern, re.Pattern]
     others = "|".join(re.escape(o) for o in sorted(rl.SPECIALISTS, key=len, reverse=True) if o != me)
     files = (r"specialists/(?:%s)(?:\.md|_ledger|_followup|_workpapers)|calc/(?:%s)_|_cache/scratch/(?:%s)/"
              % (others, others, others))
-    calls = re.compile(r"(?:%s)|(?:runs/[\w.-]+|\$\{?\w+\}?|RUN_DIR)/(?:cio|audit|qc|engine)/|_cache/engine/|"
+    calls = re.compile(r"(?:%s)|(?:runs/[\w.-]+|\$\{?\w+\}?|RUN_DIR)/(?:cio|audit|qc|engine|synthesis)/|_cache/engine/|"
                        r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|\.claude/projects/|"
                        r"runs/(?!%s\b)\d{8}T\d{6}Z" % (files, re.escape(run_id)))
     content = re.compile(r"(?:%s)[^\s:]*:" % files)
@@ -402,7 +402,10 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
     head_ids = {h["session_id"] for h in heads}
     agents += heads
     mains = [jl for jl in (find_main_sessions(tdir, run_id) if tdir.exists() else []) if jl.stem not in head_ids]
-    reading_plan = rl.load_json(run_dir / "corpus" / "reading" / "plan.json") if (run_dir / "corpus" / "reading" / "plan.json").exists() else {}
+    # With reading off (methodology 3.2.0) no reading record exists to prove: a plan left from before the switch is
+    # not checked (reader sessions that ran are still model/effort-checked below).
+    reading_plan = (rl.load_json(run_dir / "corpus" / "reading" / "plan.json")
+                    if rl.reading_on(run_dir) and (run_dir / "corpus" / "reading" / "plan.json").exists() else {})
     reused_chunks = [c for c in reading_plan.get("chunks", []) if c.get("reused")]
     if not agents and not mains and not reused_chunks:
         res["status"] = "NOT_MEASURABLE"
@@ -543,7 +546,7 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
             res["errors"].append("reused chunk %s: run %s's reading audit does not show a complete read for %s" % (
                 c["id"], r["run"], ", ".join(missing_audit)))
     # Specialists: their reading pack, over all of their sessions ---------------------------------------------
-    packs = run_dir / "corpus" / "dossiers" / "packs"
+    packs = run_dir / rl.corpus_dir_rel(run_dir) / "packs"
     by_specialist: Dict[str, List[Tuple[dict, str]]] = defaultdict(list)
     for a in agents:
         if a["type"] in rl.SPECIALISTS:
@@ -552,7 +555,7 @@ def run_audit(run_dir: Path, tdir: Path, waive: str = "") -> dict:
         pack = packs / ("%s.md" % name)
         if not pack.exists():
             continue
-        for rel in re.findall(r"`(corpus/dossiers/[\w.-]+\.md)`", pack.read_text(encoding="utf-8")):
+        for rel in rl.PACK_PATH_RE.findall(pack.read_text(encoding="utf-8")):
             path = run_dir / rel
             if not path.exists():
                 continue

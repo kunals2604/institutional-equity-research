@@ -42,19 +42,25 @@ Enforcement against the company, promoters and directors: `connectors.py kanoon 
 
 ## Reading pack (since 3.1.0)
 
-Before your own research, read `RUN_DIR/corpus/dossiers/packs/management.md` and **every dossier it lists, in full** (the
-reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
-every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
-and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+Before your own research, read your pack (your brief names it: `RUN_DIR/corpus/dossiers/packs/management.md` when the run's
+reading stage is on, `RUN_DIR/corpus/digest/packs/management.md` when it is off) and **every topic file it lists, in full** (the
+reading audit checks that each reached your context). **Reading on:** the dossiers come from a complete read of every
+in-scope page of every annual report, transcript, presentation and exchange filing in the document map, with critical
+sections read twice and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. **Reading off**
+(methodology 3.2.0): the topic files are web summaries of those documents, every item a tier-6 lead; an item marked ✓
+names the filing page where a script found it, and `RUN_DIR/corpus/digest/COVERAGE.md` records what the digest
+covered. Nobody has pre-read the filings, so your own reading of their text layers (`doc_text.py toc|page|search`)
+carries the load for your domain; a digest item is never cited (`verify.py` blocks it as `DIGEST_AS_FACT`). Use the
+pack to cover every year, then:
 - verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
-  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
-- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+  VIEW REQUIRED page) and cite the **document and page**, never the pack or a topic file;
+- open any page or document the topic files point to, and research beyond them wherever your method needs it;
 - do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
   record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
 - **Structured data:** `corpus/structured/voting_results.csv` (votes for and against by shareholder category on every resolution), `governance_board.csv` (board composition from the Integrated Filings) and the `governance` and `related_parties` dossiers.
 
 ## Method
-1. **Plan and promoter group.** A diagram or table of the promoter, holding companies, listed and unlisted group entities, cross-holdings and the entities that trade with the company. Start from `corpus/dossiers/entities.md` (every entity across all years read, names merged, its roles and flows by year cited to the page, and flags): confirm each flag you rely on at its page and extend the map from your own research; do not rebuild it by hand. Start `progress.md`.
+1. **Plan and promoter group.** A diagram or table of the promoter, holding companies, listed and unlisted group entities, cross-holdings and the entities that trade with the company. Start from `entities.md` in your pack's folder (`corpus/dossiers/` or `corpus/digest/`) (every entity across all years read, names merged, its roles and flows by year cited to the page, and flags): confirm each flag you rely on at its page and extend the map from your own research; do not rebuild it by hand. Start `progress.md`.
 2. **Promoter holding-company health.** The holding companies' debt, ratings, pledges and encumbrances (including non-disposal undertakings), their dependence on dividends or share sales from the listed company, and any history of forced selling. Pledges at the holding-company level can force sales.
 3. **Leadership map.** Promoters, board, CEO, CFO and key business heads: appointment dates, prior roles, tenure and changes, as a timeline.
 4. **Departures.** For each meaningful departure: who, when, the stated reason (with its source), timing relative to other events (results, audits, regulatory actions), and a classification: Normal / Positive / Neutral / Concerning / Highly concerning, with reasons and alternatives.

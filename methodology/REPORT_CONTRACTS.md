@@ -21,15 +21,20 @@ research/companies/<TICKER>/
     │                                       #   STRUCTURED.md + structured/ (exact exchange filings, structured_filings.py, 3.1.0);
     │                                       #   reading/ (plan.json, ledger.csv, COVERAGE.md, status.json, launches.json, extractions/,
     │                                       #   disagreements/; reading.py, 3.1.0) and dossiers/ (topic dossiers, INDEX.md, packs/<name>.md)
+    │                                       #   when reading_mode is on; digest/ (plan.json, items/, SEARCH_LOG.md, topic files, packs/<name>.md,
+    │                                       #   entities.md, events.md, events_check.json, INDEX.md, COVERAGE.md; digest.py, 3.2.0) when it is off
     ├── specialists/
-    │   ├── <name>.md                       # 10 initial reports: financials, filings, management, industry, moat, concalls,
-    │   ├── <name>_ledger.csv               #   valuation, bear-case, special-situations, scuttlebutt (+ 10 claim ledgers; 9 before 2.4.0)
+    │   ├── <name>.md                       # 11 initial reports: financials, filings, management, industry, moat, concalls, forecasting,
+    │   ├── <name>_ledger.csv               #   valuation, bear-case, special-situations, scuttlebutt (+ claim ledgers; 10 before 3.2.0, 9 before 2.4.0)
     │   ├── <name>_workpapers/              # research plan, extraction tables (e.g. financial_history.csv), verification logs
     │   └── <name>_followup_<n>.md          # optional targeted follow-ups (+ ledgers)
+    ├── synthesis/                          # 3.2.0: registry.jsonl, REGISTRY.md, slices/, themes/<T>.md, layers/<L>_input.md and _draft.md,
+    │                                       #   sections/W<n>.md, ledgers/, workpapers/, FOLLOWUPS.md, CIO_PACKET.md, INTEGRATION.md (synthesis.py)
     ├── cio/
     │   ├── cio_ledger.csv
     │   ├── contradiction_log.md
-    │   ├── final_report.md                 # states its as-of date in front matter and the Decision Dashboard
+    │   ├── sections/<name>.md              # 3.2.0: the CIO's report sections (one H2 each), assembled by synthesis.py assemble
+    │   ├── final_report.md                 # states its as-of date in front matter and the Decision Dashboard (3.2.0: a build artifact)
     │   ├── scorecard.json
     │   ├── audit_resolutions.md            # the CIO's resolution of every audit finding (2.4.0)
     │   └── quality_control.md
@@ -38,7 +43,7 @@ research/companies/<TICKER>/
     ├── calc/                               # inputs/outputs of fin_metrics.py, valuation_tools.py and other reproducible calculations
     ├── evidence_ledger.csv                 # merged by scripts/merge_ledgers.py
     ├── qc/                                 # auto_checks.json, evidence_stats.json, numeric_conflicts.csv (validate_run.py --stage final);
-    │                                       #   reading_audit.json + READING_AUDIT.md (reading_audit.py run, 3.1.0)
+    │                                       #   reading_audit.json + READING_AUDIT.md (reading_audit.py run, 3.1.0); integration.json (3.2.0)
     └── _cache/                             # local downloads only; git-ignored, never committed
 ```
 
@@ -71,7 +76,7 @@ coverage_exception: ""         # optional: why the Historical Depth Standard cou
 
 ---
 
-## 3. Common sections (all ten specialists, in this order)
+## 3. Common sections (all specialists, in this order)
 
 Order: the **head** sections, then the domain sections from the agent definition, then the **tail** sections. Numbering headings (`## 3. …`) is optional; the heading text must match.
 
@@ -123,9 +128,15 @@ A specialist deliverable is **complete** only if:
 5. Every FACT, MANAGEMENT STATEMENT, CALCULATION and ESTIMATE tag cites a claim ID that exists in the ledger.
 6. The ledger passes `scripts/validate_ledger.py` with no errors.
 7. No layer name is altered (`validate_report.py` checks this).
-8. From methodology 3.1.0: the report does not state its own reading coverage of documents (the reading ledger is the
-   record), and the run's reading stage is complete (`corpus/reading/status.json`, `COVERAGE.md` unchanged since it was
-   generated, the dossiers and every specialist's reading pack built, `corpus/STRUCTURED.md` present).
+8. From methodology 3.1.0: the report does not state its own reading coverage of documents (the reading ledger or the
+   digest is the record), and the run's evidence stage is complete. **Reading on** (every run before 3.2.0, and a 3.2.0
+   run with `reading_mode: on`): `corpus/reading/status.json` complete, `COVERAGE.md` unchanged since it was generated,
+   the dossiers and every specialist's reading pack built. **Reading off** (methodology 3.2.0): `corpus/digest/status.json`
+   complete, `corpus/digest/COVERAGE.md` unchanged since it was generated, every specialist's digest pack built. Either
+   way `corpus/STRUCTURED.md` is present.
+9. From methodology 3.2.0: the run names its sector modules (`sector_modules` in the manifest; `[]` with a reason in the
+   brief when none applies), every module step appears in its owner's Method Coverage Checklist, and every Done step cites
+   a ledger claim with the step's metric key over its minimum periods (`verify.py`, `SECTOR_MODULE_EVIDENCE`).
 
 Run: `python3 scripts/validate_run.py <run_dir> --stage specialists`.
 
@@ -135,10 +146,32 @@ The `auditor` agent (`.claude/agents/auditor.md`) audits the CIO's draft final r
 
 ## 4b. Reading coverage in the final report (methodology 3.1.0)
 
-The final report's *Contradiction and Evidence Audit* carries `corpus/reading/COVERAGE.md` **unchanged** between
+The final report's *Contradiction and Evidence Audit* carries the run's coverage record (`corpus/reading/COVERAGE.md`
+with reading on; `corpus/digest/COVERAGE.md` with reading off, from methodology 3.2.0) **unchanged** between
 `<!-- READING_COVERAGE:BEGIN -->` and `<!-- READING_COVERAGE:END -->` (`validate_run.py --stage final` compares the two),
 followed by one sentence on the reading audit (`qc/READING_AUDIT.md`). The final stage also requires the reading audit to
 have passed, or to be recorded as not measurable with a waiver and its reason.
+
+## 4c. Synthesis and evidence integration (methodology 3.2.0)
+
+The final report is built by the synthesis pipeline (`methodology/SYNTHESIS.md`; `cio.md` Stage 3), not written in one
+context. `synthesis.py registry` turns every specialist finding, crosswalk row, conclusion, question, gap, ledger claim,
+numeric conflict, verification finding, reading or digest item and historian event into a registry item with a theme
+and a materiality (gating, material, standard, reference). Theme analysts give **every** item of their slice a
+disposition (`integrated`, `contested`, `superseded`, `immaterial`, `needs_follow_up`, `unverified_lead`); layer analysts
+do the same for the crosswalk rows of their layer; section writers carry every integrated finding or list it as not
+carried, with the reason. The CIO adjudicates every contradiction candidate in `cio/contradiction_log.md`, writes the
+decision sections in `cio/sections/`, and `synthesis.py assemble` builds `cio/final_report.md` with a generated
+**Evidence Integration Register** (§ in `cio.md`).
+
+`validate_run.py --stage final` runs `synthesis.integration` and fails when the registry is stale; a brief, layer draft
+or section fails its check; an item has no disposition or a follow-up is open; a gating or material finding is neither
+cited in the body nor listed in the register with its disposition; a gating item is called `immaterial`; a contradiction
+candidate is missing from the log; a scorecard dimension's claims do not reach an owner specialist's claim; a key quantity
+or a number of record is stated two ways; the tie-out shows a mismatch not listed in `qc/tieout_exceptions.csv`; or a
+consistency rule of `SYNTHESIS.md` is broken. Low per-specialist uptake and a layer fit more than 10 points from the
+analyst's proposal without a stated deviation are warnings the CIO explains. The auditor's **Evidence Integration
+Audit** reviews the result independently.
 
 ---
 

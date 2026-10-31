@@ -215,9 +215,16 @@ def rel(run_dir: Path, p) -> str:
 
 
 def repo_path(run_dir: Path, p) -> str:
-    """A path as the agents use it: relative to the repository root when inside it, else absolute."""
+    """A path as the agents use it: relative to the repository root when inside it, else absolute. A relative path is
+    taken relative to the run directory, or to the repository root when that is where it exists (doc_text records the
+    source PDF of an exchange download repository-relative; joining it to the run directory doubled the run path)."""
     p = Path(p)
-    full = p if p.is_absolute() else run_dir / p
+    if p.is_absolute():
+        full = p
+    elif not (run_dir / p).exists() and (rl.ROOT / p).exists():
+        full = rl.ROOT / p
+    else:
+        full = run_dir / p
     try:
         return str(full.resolve().relative_to(rl.ROOT.resolve()))
     except ValueError:
@@ -2927,7 +2934,7 @@ def fetch_filings(run_dir: Path, types: List[str], years: int, log=print) -> int
         path = res.get("path")
         if path is not None and not str(path).lower().endswith(".pdf"):
             pdf_members = [m for m in (res.get("members") or []) if m.get("kind") == "pdf"]
-            path = (run_dir / pdf_members[0]["path"]) if pdf_members else None
+            path = (rl.ROOT / repo_path(run_dir, pdf_members[0]["path"])) if pdf_members else None
         row = {"key": key, "doc_type": r["doc_type"], "date": r["date"], "source": r["source"], "title": r.get("title", ""),
                "url": r["url"], "cached_path": rel(run_dir, path) if path else "", "text_path": "",
                "error": "" if path else (res.get("error") or "download failed")[:200]}
@@ -3184,6 +3191,9 @@ def sample(run_dir: Path, n: int, out: Path, seed: str = "auditor") -> List[dict
     sample is pages receipted `no_items` (omission is the risk a quote check cannot catch)."""
     import random
     p = load_json(run_dir / READING / "plan.json")
+    if not p:
+        raise SystemExit("no reading plan in %s: the reading stage did not run (reading_mode off: use digest.py sample)"
+                         % run_dir)
     pol = run_policy(run_dir)
     tiers = {0: [], 1: [], 2: []}
     for c in p["chunks"]:

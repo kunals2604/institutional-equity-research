@@ -12,6 +12,9 @@ Subcommands (inputs are JSON files saved under RUN_DIR/calc/; see templates/valu
                                             IA1/IA2/IA4 per price (SCORING.md anchors), IA and mapped verdict per price
   decompose      --inputs F                 expected-return decomposition (EPS growth, multiple change, yield, dilution)
   sizing-ceiling --inputs F [--policy config/investment_policy.json]   position ceiling from IPS risk limits
+  residual-income --inputs F                excess-return (residual-income) equity value for lenders and other
+                                            book-value businesses: ROE and payout paths on opening book, equity
+                                            issuance, terminal ROE fade; value per share and justified P/B
   robustness     --inputs F --scorecard S [--price P]   is the mapped verdict stable across the plausible ranges of the
                                             decisive assumptions? (input to the confidence rule, SCORING.md §4)
 
@@ -51,6 +54,74 @@ def path_of(spec, n: int) -> List[float]:
 
 
 # ---------------------------------------------------------------------------
+def residual_income(inp: dict) -> dict:
+    """Equity value = opening book + PV of residual income (ROE_t - Ke) x opening book_t over the explicit years + PV of a
+    terminal residual income: ROE fades to `terminal_roe` (default Ke) and grows at `terminal_growth` after year n
+    (+ the present value of equity raised, whose book also earns ROE; per share is over the shares after issuance).
+    Book rolls forward: B_t = B_{t-1} + ROE_t x B_{t-1} - dividends (payout_t x profit) + equity issued in year t.
+    Inputs: years, base_equity (or base_bvps with shares_diluted), roe (or profit: absolute profits, the forecast's
+    PAT, so that equity raised without more profit lowers ROE) and payout paths (number, [start, end] or a list),
+    cost_of_equity, terminal_growth, shares_diluted; optional terminal_roe, equity_issuance (amount per year, path) with
+    issue_price (shares added = amount / price), minority_interest, non_operating_assets."""
+    n = int(inp["years"])
+    ke, g = float(inp["cost_of_equity"]), float(inp["terminal_growth"])
+    if g >= ke:
+        raise ValueError("terminal_growth must be below cost_of_equity")
+    shares = float(inp["shares_diluted"])
+    b0 = float(inp["base_equity"]) if "base_equity" in inp else float(inp["base_bvps"]) * shares
+    # Either an ROE path on opening book or an absolute profit path (the forecast's PAT). With a profit path, equity
+    # raised that does not add profit lowers ROE: issuance dilutes as it should. With an ROE path, new equity earns the
+    # same ROE as the old (use it only when the raise funds growth the ROE path does not already assume).
+    profits = path_of(inp["profit"], n) if "profit" in inp else None
+    roe = path_of(inp["roe"], n) if profits is None else [0.0] * n
+    pay = path_of(inp.get("payout", 0.0), n)
+    issue = path_of(inp.get("equity_issuance", 0.0), n)
+    price = inp.get("issue_price")
+    rows, pv_ri, b, new_shares = [], 0.0, b0, 0.0
+    for i in range(n):
+        if profits is not None:
+            roe[i] = profits[i] / b if b else 0.0
+        profit = roe[i] * b
+        ri = (roe[i] - ke) * b
+        df = 1 / (1 + ke) ** (i + 1)
+        pv_ri += ri * df
+        div = pay[i] * profit
+        b_next = b + profit - div + issue[i]
+        if issue[i] and price:
+            new_shares += issue[i] / float(price)
+        rows.append({"year": i + 1, "opening_book": b, "roe": roe[i], "profit": profit, "dividends": div,
+                     "equity_issued": issue[i], "residual_income": ri, "discount_factor": df, "pv": ri * df,
+                     "closing_book": b_next})
+        b = b_next
+    roe_t = float(inp.get("terminal_roe", ke))
+    tv = (roe_t - ke) * b / (ke - g)
+    pv_tv = tv / (1 + ke) ** n
+    # Equity raised in year t is cash paid in: the value of all equity then includes it (at its present value) and the
+    # residual income it earns (its book is in the book path); per share divides by the shares after issuance, so an
+    # issue below intrinsic value per share dilutes and one above it accretes.
+    if any(issue) and not price:
+        raise ValueError("equity_issuance needs issue_price (shares issued = amount / issue_price)")
+    pv_issue = sum(issue[i] / (1 + ke) ** (i + 1) for i in range(n))
+    equity = (b0 + pv_ri + pv_tv + pv_issue + float(inp.get("non_operating_assets", 0))
+              - float(inp.get("minority_interest", 0)))
+    total_shares = shares + new_shares
+    per_share = equity / total_shares
+    avg_roe = sum(roe) / n
+    warnings = []
+    if roe_t > ke + 0.05:
+        warnings.append("terminal ROE %.1f %% is more than 5 points above the cost of equity: needs moat evidence" % (100 * roe_t))
+    if pv_tv > 0.6 * (equity - b0) and equity > b0:
+        warnings.append("the terminal value is more than 60 %% of the excess value over book")
+    return {"rows": rows, "opening_book": b0, "pv_residual_income": pv_ri, "pv_terminal": pv_tv,
+            "pv_equity_issued": pv_issue, "equity_value": equity, "value_per_share": per_share,
+            "shares_after_issuance": total_shares,
+            "price_to_book_at_value": (equity - pv_issue) / b0 if b0 else None,
+            "justified_pb_average_roe": (avg_roe - g) / (ke - g), "justified_pb_terminal_roe": (roe_t - g) / (ke - g),
+            "warnings": warnings,
+            "formula": "V = B0 + sum((ROE_t - Ke) x B_{t-1} / (1+Ke)^t) + ((ROE_T - Ke) x B_n / (Ke - g)) / (1+Ke)^n; "
+                       "justified P/B = (ROE - g) / (Ke - g)"}
+
+
 def wacc(inp: dict) -> dict:
     ke = inp["risk_free_rate"] + inp["beta"] * inp["equity_risk_premium"] + inp.get("additional_premium", 0.0)
     kd = inp.get("cost_of_debt_pretax", 0.0) * (1 - inp.get("tax_rate", 0.0))
@@ -430,7 +501,7 @@ def fmt(x) -> str:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["wacc", "dcf", "reverse-dcf", "scenario-build", "scenario-irr", "price-ladder", "decompose",
-                                        "sizing-ceiling", "robustness"])
+                                        "sizing-ceiling", "robustness", "residual-income"])
     ap.add_argument("--inputs", required=True)
     ap.add_argument("--price", type=float)
     ap.add_argument("--solve", choices=["growth", "margin"], default="growth")
@@ -473,6 +544,8 @@ def main(argv=None) -> int:
             res = price_ladder(inp, prices, rl.load_json(Path(a.scorecard)) if a.scorecard else None)
         elif a.command == "decompose":
             res = decompose(inp)
+        elif a.command == "residual-income":
+            res = residual_income(inp)
         else:
             res = sizing_ceiling(inp, rl.load_json(Path(a.policy)))
     except (KeyError, ValueError) as exc:

@@ -24,10 +24,17 @@ Paste the summary of `qc/auto_checks.json` (errors, warnings, pass/fail per targ
 | Independent audit run; every Critical/Major finding resolved; Critical findings Closed by a re-audit | | |
 | Ground-truth (scuttlebutt) evidence reflected in the synthesis and variant perception | | |
 | SME runs: SME Enhanced Scrutiny sections present | | |
-| Reading stage complete (`reading.py status --strict`); every critical chunk read twice and every disagreement resolved | | |
-| Reading audit PASS (`qc/READING_AUDIT.md`): agents on their pinned models and efforts, readers received every line and opened every VIEW REQUIRED page, specialists read their packs | | |
-| Auditor's reading sample: no material omission (or the affected chunks re-read) | | |
-| Final report carries `corpus/reading/COVERAGE.md` unchanged; no report states its own reading coverage | | |
+| Reading on: reading stage complete (`reading.py status --strict`); every critical chunk read twice and every disagreement resolved | | |
+| Reading off (3.2.0): digest complete (`digest.py status --strict`); every number run through `digest.py confirm`; no digest lead cited as FACT (`DIGEST_AS_FACT`) | | |
+| Reading audit PASS (`qc/READING_AUDIT.md`): agents on their pinned models and efforts, specialists read their packs, and with reading on readers received every line and opened every VIEW REQUIRED page | | |
+| Auditor's reading or digest sample: no material omission (or the affected chunks re-read, the leads re-checked) | | |
+| Final report carries the run's coverage record (`corpus/reading/COVERAGE.md` or `corpus/digest/COVERAGE.md`) unchanged; no report states its own reading coverage | | |
+| 3.2.0: sector modules selected in Stage 0; every module step Done with its metric evidence, or in the gap register | | |
+| 3.2.0: forecasting base path valued in a Stage-3 valuation follow-up; `calc/forecasting_reconcile.json` gaps explained | | |
+| 3.2.0: every registry item has a disposition; theme briefs, layer drafts and sections pass their checks; every `immaterial` call read | | |
+| 3.2.0: every contradiction candidate in the contradiction log; every layer fit >10 points from its analyst's proposal states the deviation | | |
+| 3.2.0: `key_quantities` stated alike throughout; `synthesis.py integration` no errors, warnings explained; report assembled from section files | | |
+| 3.2.0: auditor's Evidence Integration Audit findings resolved | | |
 | Structured exchange filings (`corpus/STRUCTURED.md`) used before reading for the facts they cover | | |
 
 ## Cross-company calibration

@@ -75,6 +75,8 @@ COVERAGE_TEXT = {  # section -> text that satisfies the Historical Depth Standar
     "Quantified Advantage Metrics": "ROIC spread %s." % FY_COLS,
     "Corporate-Action History": "Corporate actions %s." % FY_COLS,
     "Independent Operating Data": "Regulator series %s." % FY_COLS,
+    "Historical Driver Base": "| driver | %s |" % FY_COLS,
+    "Earnings-Surprise History": "Quarters: %s." % QUARTERS,
 }
 
 
@@ -179,23 +181,38 @@ def audit_resolutions(findings=(("AUD-F01", "Minor"),), resolution="Fixed"):
     return "# Audit Resolutions\n\n| Finding | Severity | Resolution | What changed | Re-audit |\n|---|---|---|---|---|\n%s\n" % rows
 
 
+# The end-to-end fixture is a methodology-3.1.0 run (ten specialists, the single-context Stage 3): a run of an earlier
+# version must still validate and finalize under the contract it was written to. tests/test_v32_end_to_end.py builds
+# the current version's run (reading off, the forecasting specialist, sector modules, the synthesis pipeline).
+LEGACY_VERSION = "3.1.0"
+
+
 class FixtureRun:
     """Builds a fully valid synthetic run in a temporary repository root."""
 
-    def __init__(self):
+    def __init__(self, version=LEGACY_VERSION, reading="on"):
         self.tmp = Path(tempfile.mkdtemp(prefix="eqr-test-"))
         self.run_id = "20260101T090000Z"
         r = run("new_run.py", "--ticker", "FIXTURECO", "--company", "FixtureCo Ltd", "--exchange", "NSE",
-                "--segment", "main", "--cutoff", "2026-01-01", "--run-id", self.run_id, "--root", self.tmp)
+                "--segment", "main", "--cutoff", "2026-01-01", "--run-id", self.run_id, "--root", self.tmp,
+                "--reading", reading)
         assert r.returncode == 0, r.stderr
         self.dir = self.tmp / r.stdout.strip()
+        m = rl.load_json(self.dir / rl.RUN_MANIFEST)
+        if version:
+            m["methodology_version"] = version
+        self.version = rl.version_tuple(m["methodology_version"])
+        self.specialists = rl.specialists_for(self.version)
+        m["specialists"] = {k: v for k, v in m["specialists"].items() if k in self.specialists}
+        rl.write_json(self.dir / rl.RUN_MANIFEST, m)
         write_ledger(self.dir / "cio" / "cio_ledger.csv", [fact_row("CIO-C001", "cio", "Price snapshot")])
-        for name, prefix in rl.SPECIALISTS.items():
+        for name, prefix in self.specialists.items():
             write_ledger(self.dir / "specialists" / ("%s_ledger.csv" % name),
                          [fact_row("%s-C001" % prefix, name),
                           calc_row("%s-C002" % prefix, name, ("%s-C001" % prefix, "%s-C001" % prefix))])
             (self.dir / "specialists" / ("%s.md" % name)).write_text(specialist_report(name, self.run_id), encoding="utf-8")
-        write_reading(self.dir)
+        if reading == "on":
+            write_reading(self.dir)
 
     def finalize(self, qc="PASS", insufficient=False):
         sc = json.loads((ROOT / "templates" / "scorecard.example.json").read_text(encoding="utf-8"))
@@ -263,7 +280,7 @@ class TestCanonicalConfiguration(unittest.TestCase):
             self.assertEqual(sum(w for _, _, w in rl.dimension_weights(kind)), 100, kind)
 
     def test_all_agents_with_valid_frontmatter(self):
-        names = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS)
+        names = set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS) | set(rl.SYNTHESIS_ROLES)
         files = {p.stem for p in rl.AGENTS_DIR.glob("*.md")}
         self.assertEqual(files, names)
         policy = rl.model_policy()["agents"]
@@ -466,8 +483,8 @@ class TestEndToEndRun(unittest.TestCase):
 
     def test_new_run_structure(self):
         m = rl.load_json(self.fx.dir / rl.RUN_MANIFEST)
-        self.assertEqual(set(m["specialists"]), set(rl.SPECIALISTS))
-        self.assertEqual(m["methodology_version"], rl.methodology_version())
+        self.assertEqual(set(m["specialists"]), set(rl.specialists_for(self.fx.version)))
+        self.assertEqual(m["methodology_version"], LEGACY_VERSION)
         for key in ("company", "ticker", "exchange", "run_id", "started_at", "completed_at", "research_cutoff",
                     "price", "model", "status"):
             self.assertIn(key, m)
@@ -660,7 +677,8 @@ class TestGitPublish(unittest.TestCase):
         r = run("git_publish.py", self.fx.dir, "--batch", "specialists")
         self.assertEqual(r.returncode, 0, r.stderr)
         msg = self.g("log", "-1", "--format=%s").stdout
-        self.assertIn("%d/%d complete" % (len(rl.SPECIALISTS) - 1, len(rl.SPECIALISTS)), msg)
+        n = len(self.fx.specialists)
+        self.assertIn("%d/%d complete" % (n - 1, n), msg)
         self.assertIn("NOT complete: moat", msg)
         files = self.g("show", "--name-only", "--format=", "HEAD").stdout.split()
         self.assertTrue(files and all(f.startswith("research/companies/FIXTURECO/runs/") for f in files), files)

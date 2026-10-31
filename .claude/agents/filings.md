@@ -42,16 +42,22 @@ Rating rationales (liquidity, covenants, rating history): the company's own rati
 
 ## Reading pack (since 3.1.0)
 
-Before your own research, read `RUN_DIR/corpus/dossiers/packs/filings.md` and **every dossier it lists, in full** (the
-reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
-every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
-and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+Before your own research, read your pack (your brief names it: `RUN_DIR/corpus/dossiers/packs/filings.md` when the run's
+reading stage is on, `RUN_DIR/corpus/digest/packs/filings.md` when it is off) and **every topic file it lists, in full** (the
+reading audit checks that each reached your context). **Reading on:** the dossiers come from a complete read of every
+in-scope page of every annual report, transcript, presentation and exchange filing in the document map, with critical
+sections read twice and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. **Reading off**
+(methodology 3.2.0): the topic files are web summaries of those documents, every item a tier-6 lead; an item marked ✓
+names the filing page where a script found it, and `RUN_DIR/corpus/digest/COVERAGE.md` records what the digest
+covered. Nobody has pre-read the filings, so your own reading of their text layers (`doc_text.py toc|page|search`)
+carries the load for your domain; a digest item is never cited (`verify.py` blocks it as `DIGEST_AS_FACT`). Use the
+pack to cover every year, then:
 - verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
-  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
-- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+  VIEW REQUIRED page) and cite the **document and page**, never the pack or a topic file;
+- open any page or document the topic files point to, and research beyond them wherever your method needs it;
 - do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
   record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
-- **Critical sections were read twice** (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/AOC-2, secretarial audit, related-party filings), independently, and every disagreement was resolved against the page (`corpus/reading/disagreements/`). Changes of wording from year to year are your forensic signal: compare the same item across years in the dossiers (`also in` shows where text repeats unchanged) and read both pages of every change you rely on.
+- **Critical sections were read twice** (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/AOC-2, secretarial audit, related-party filings), independently, and every disagreement was resolved against the page (`corpus/reading/disagreements/`). Changes of wording from year to year are your forensic signal: compare the same item across years in the dossiers (`also in` shows where text repeats unchanged) and read both pages of every change you rely on. Reading off: read the critical sections yourself for every year in scope (auditor's reports, KAMs, CARO, IFC, contingent liabilities, related parties, AOC-1/AOC-2, the secretarial audit), every page, through each report's text layer.
 
 ## Method
 1. **Inventory the filings.** List every document reviewed (annual reports by year, results, exchange announcements by type, scheme and offer documents, rating rationales, regulator and court orders), with date, identifier and source. Start from the document map; fill gaps with `exchange_index.py` and `fetch_source.py --alt`. Start `progress.md`.
@@ -61,7 +67,7 @@ and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`.
 5. **Balance-sheet quality.** Capitalized borrowing costs and development costs; intangible and goodwill impairment testing (assumptions vs. reality); deferred-tax assets and their recoverability; loans and advances, especially to group entities; CWIP ageing and stuck projects.
 6. **Related parties (10 years).** A table of counterparty, relationship, transaction type, amount by year, balance, terms and approvals (audit committee, Board, **shareholder votes under the LODR related-party rules**, with the voting results and institutional dissent). Classify each line as routine/arm's-length (with the evidence), commercially unusual, or potential value transfer, with **alternative explanations**. Pay particular attention to royalties and brand fees, loans and guarantees to promoter entities, and purchases from or sales to promoter-owned suppliers.
 7. **Contingencies and commitments.** Contingent liabilities by type and year, and as a percentage of net worth; forum and stage for large disputes, with a qualitative probability band and its basis; guarantees for group entities; capital and purchase commitments; liabilities that crystallized in the past and what they cost.
-8. **Consolidation and charges.** Entity map (ownership %, nature, contribution to revenue, profit, debt and investment), starting from `corpus/dossiers/entities.md` — every entity across all years read, names merged, its roles and flows by year cited to the page, and flags: confirm each flag you rely on at its page and extend the map from your own research rather than rebuilding it by hand; loss-making subsidiaries funded by the parent and what the parent guarantees; subsidiaries' audit qualifications. Reconcile the **registered charges** (MCA index of charges, where retrievable) with reported secured borrowings and explain any gap.
+8. **Consolidation and charges.** Entity map (ownership %, nature, contribution to revenue, profit, debt and investment), starting from `entities.md` in your pack's folder (`corpus/dossiers/` or `corpus/digest/`) — every entity across all years read, names merged, its roles and flows by year cited to the page, and flags: confirm each flag you rely on at its page and extend the map from your own research rather than rebuilding it by hand; loss-making subsidiaries funded by the parent and what the parent guarantees; subsidiaries' audit qualifications. Reconcile the **registered charges** (MCA index of charges, where retrievable) with reported secured borrowings and explain any gap.
 9. **Auditor review.** Firm, tenure, rotation, audit vs. non-audit fees, resignations (read the stated reasons in the exchange filing), KAMs over time (recurring KAMs mark recurring judgment areas), qualifications, emphasis of matter, CARO/IFC observations by clause and year (statutory dues, defaults, loans to related parties, fraud reporting), and any NFRA or ICAI action involving the auditor.
 10. **Secretarial audit and compliance.** The secretarial audit report (MR-3) observations by year, compliance-certificate exceptions, delayed filings, and exchange fines under the standard operating procedure for non-compliance.
 11. **Restatements and prior-period items.** Every restatement, reclassification and prior-period error over 10 years, with the effect on reported figures and whether the company explained it.

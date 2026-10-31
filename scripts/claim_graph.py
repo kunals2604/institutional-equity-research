@@ -38,13 +38,20 @@ DEPENDENT_TAGS = ("CALCULATION", "ESTIMATE")      # claims whose inputs are name
 
 
 def ledger_files(run_dir: Path) -> List[Path]:
-    out = sorted((run_dir / "specialists").glob("*_ledger.csv")) + sorted((run_dir / "cio").glob("*_ledger.csv"))
+    """Every ledger whose claims can be cited: the specialists', the CIO's, the auditor's (the CIO cites AUD IDs in the
+    audit resolutions) and the synthesis analysts' (methodology 3.2.0)."""
+    out = (sorted((run_dir / "specialists").glob("*_ledger.csv")) + sorted((run_dir / "cio").glob("*_ledger.csv"))
+           + sorted((run_dir / "audit").glob("*_ledger.csv")) + sorted((run_dir / "synthesis" / "ledgers").glob("*_ledger.csv")))
     return [p for p in out if p.is_file()]
 
 
 def report_files(run_dir: Path) -> List[Path]:
-    """The specialists' reports and follow-ups and the CIO's documents (the audit's own files are not conclusions)."""
+    """The specialists' reports and follow-ups, the synthesis briefs and drafts, and the CIO's documents and section
+    files (the audit's own files are not conclusions)."""
+    syn = run_dir / "synthesis"
     return sorted(p for p in list((run_dir / "specialists").glob("*.md")) + list((run_dir / "cio").glob("*.md"))
+                  + list((run_dir / "cio" / "sections").glob("*.md")) + list((syn / "themes").glob("*.md"))
+                  + list((syn / "layers").glob("*_draft.md")) + list((syn / "sections").glob("*.md"))
                   if p.is_file())
 
 

@@ -124,6 +124,17 @@ Every agent uses these definitions. A ratio that means different things in diffe
 - advances_growth — advances_t ÷ advances_{t−1} − 1
 - borrowings_growth — borrowings_t ÷ borrowings_{t−1} − 1
 - deposits_growth — deposits_t ÷ deposits_{t−1} − 1
+- stage2_ratio — Lenders: Stage-2 gross exposure ÷ gross loans (state on-book or AUM)
+- lagged_gnpa_ratio — Lenders: gnpa_t ÷ advances_{t−1} (delinquency against the book that produced it)
+- alm_gap_1y_ratio — Lenders: cumulative structural-liquidity gap up to 1 year (inflows − outflows) ÷ total_assets
+- cp_share_of_borrowings — Lenders: commercial paper outstanding ÷ borrowings, at the year-end
+- opex_to_aum — Lenders: operating expenses ÷ average aum
+- off_book_share — Lenders: securitised, assigned and co-lent aum not on the balance sheet ÷ aum
+- disbursements — Lenders: loans disbursed in the period (amount)
+- arpu — Telecom and subscriptions: revenue per average user per month (state the segment)
+- subscribers — Telecom and subscriptions: subscribers or users at the period-end (state the definition)
+- spectrum_mhz — Telecom: spectrum held, MHz (state the bands and whether paired)
+- agr_dues — Telecom: AGR and deferred spectrum payment liabilities outstanding (quasi-debt)
 - internal_capital_generation — roe × (1 − payout_ratio)
 - pe — price ÷ eps (state trailing / forward and the EPS basis)
 - pb — price ÷ bvps

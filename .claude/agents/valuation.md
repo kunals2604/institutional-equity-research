@@ -45,13 +45,19 @@ Benchmark total returns: `connectors.py tri --index "NIFTY 500" --from DD-Mon-YY
 
 ## Reading pack (since 3.1.0)
 
-Before your own research, read `RUN_DIR/corpus/dossiers/packs/valuation.md` and **every dossier it lists, in full** (the
-reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
-every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
-and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+Before your own research, read your pack (your brief names it: `RUN_DIR/corpus/dossiers/packs/valuation.md` when the run's
+reading stage is on, `RUN_DIR/corpus/digest/packs/valuation.md` when it is off) and **every topic file it lists, in full** (the
+reading audit checks that each reached your context). **Reading on:** the dossiers come from a complete read of every
+in-scope page of every annual report, transcript, presentation and exchange filing in the document map, with critical
+sections read twice and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. **Reading off**
+(methodology 3.2.0): the topic files are web summaries of those documents, every item a tier-6 lead; an item marked ✓
+names the filing page where a script found it, and `RUN_DIR/corpus/digest/COVERAGE.md` records what the digest
+covered. Nobody has pre-read the filings, so your own reading of their text layers (`doc_text.py toc|page|search`)
+carries the load for your domain; a digest item is never cited (`verify.py` blocks it as `DIGEST_AS_FACT`). Use the
+pack to cover every year, then:
 - verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
-  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
-- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+  VIEW REQUIRED page) and cite the **document and page**, never the pack or a topic file;
+- open any page or document the topic files point to, and research beyond them wherever your method needs it;
 - do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
   record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
 - The `debt_and_capital` and `contingencies` dossiers give every borrowing, maturity, lease, guarantee and contingent item for the EV-to-equity bridge, by year.

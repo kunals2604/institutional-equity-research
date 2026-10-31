@@ -36,7 +36,15 @@ Run: `{run_id}` · Created: {created_at} · Research cutoff: **{cutoff}**
 - Structured data: exchange XBRL facts `calc/xbrl_facts.csv` (_years_); exchange close and liquidity `calc/cio_price.json`; structured exchange filings `corpus/STRUCTURED.md` (BRSR _years_, voting results _meetings_, audit-opinion statements _years_)
 - Librarian: documents found and added _n_; still unobtainable _list with the attempt log in `corpus/librarian_log.md`_
 
-## Reading stage (Stage 0b: `corpus/reading/COVERAGE.md`)
+## Reading mode and sector modules (methodology 3.2.0)
+- Reading mode: _off (web digest, Stage 0c) / on (reading stage, Stage 0b)_; reason: _..._
+- Sector modules (`methodology/SECTOR_PLAYBOOKS.md`, SECTOR_MODULES block): _list, or none with the reason_; steps per specialist: _n_
+
+## Web digest (Stage 0c, reading off: `corpus/digest/COVERAGE.md`)
+- Planned: annual reports _n_, transcripts _n quarters_, presentations _n quarters_
+- Result: documents with summaries found _n_ (none found _n_); items _n_: page-confirmed _n_, value located _n_, conflict _n_, not found _n_, no document _n_; one pack per specialist in `corpus/digest/packs/`
+
+## Reading stage (Stage 0b, reading on: `corpus/reading/COVERAGE.md`)
 - Scope: annual reports _FYxxxx–FYyyyy_ (history scope: _none / years_), transcripts _n quarters_, presentations _n quarters_, exchange filings _n_
 - Plan: _n_ pages, _n_ chunks (_n_ critical, read twice), about _n_k tokens; calibration status (`methodology/MODEL_POLICY.md`): _pending (every chunk read by both models) / passed (single-read classes: list)_
 - Result: pages read _n_, repeat _n_, structured _n_, out of scope _n_, pending **0**; dossiers in `corpus/dossiers/` and one reading pack per specialist

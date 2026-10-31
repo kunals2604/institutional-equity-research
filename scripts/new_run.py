@@ -22,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_lib as rl  # noqa: E402
 
 EXCHANGES = ("NSE", "BSE", "NSE-SME", "BSE-SME", "NYSE", "NASDAQ", "LSE")
+# Methodology 3.2.0: new runs default to the web digest; the full reading stage is switched on per run.
+READING_DEFAULT = "off"
 
 
 def git_head(root: Path) -> str:
@@ -52,6 +54,9 @@ def main(argv=None) -> int:
     p.add_argument("--policy", default=str(rl.INVESTMENT_POLICY), help="investment policy JSON (IPS)")
     p.add_argument("--run-id", default=None, help="override (tests only); default UTC YYYYMMDDTHHMMSSZ")
     p.add_argument("--root", default=str(rl.ROOT), help="repository root (tests)")
+    p.add_argument("--reading", choices=rl.READING_MODES, default=READING_DEFAULT,
+                   help="reading stage on (Stage 0b: every in-scope page read) or off (Stage 0c: the web digest); "
+                        "default %s" % READING_DEFAULT)
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
 
@@ -89,16 +94,20 @@ def main(argv=None) -> int:
         latest = company_dir / rl.LATEST_POINTER
         print("  latest_run.txt    : %s" % (latest.read_text().strip() if latest.exists() else "none"))
         print("  manifest          : %s/%s" % (rel, rl.RUN_MANIFEST))
-        for name in rl.SPECIALISTS:
+        for name in rl.specialists_for(rl.current_version()):
             print("  specialist report : %s/specialists/%s.md  (+ %s_ledger.csv)" % (rel, name, name))
         print("  document map      : %s/corpus/DOCUMENT_MAP.md (Stage 0: exchange + IR + archive + local corpus)" % rel)
         for f in ("cio/final_report.md", "cio/scorecard.json", rl.AUDIT_REPORT, "cio/audit_resolutions.md",
                   rl.QC_RECORD, "evidence_ledger.csv"):
             print("  CIO / audit       : %s/%s" % (rel, f))
-        print("  stages            : 0 preflight + document acquisition + structured filings -> 0b reading stage"
-              " (every in-scope page read once, one reader at a time) -> 1 %d specialists, one at a time ->"
-              " 2 barrier + gap loop (+git batch 1) -> 3 CIO synthesis, then scores -> 4 reading audit, independent audit,"
-              " QC, finalize, git batch 2 + push" % len(rl.SPECIALISTS))
+        print("  reading mode      : %s" % a.reading)
+        print("  stages            : 0 preflight + document acquisition + structured filings -> %s -> 1 %d specialists,"
+              " one at a time -> 2 barrier + gap loop (+git batch 1) -> 3 synthesis pipeline (registry, theme analysts,"
+              " layer analysts, CIO decision, section writers), then scores -> 4 reading audit, independent audit, QC,"
+              " finalize, git batch 2 + push" % (
+                  "0b reading stage (every in-scope page read once, one reader at a time)" if a.reading == "on"
+                  else "0c web digest (summaries of the reports, transcripts and presentations; tier-6 leads, page-confirmed by script)",
+                  len(rl.SPECIALISTS)))
         return 0
 
     if run_dir.exists():
@@ -155,15 +164,20 @@ def main(argv=None) -> int:
                   "agents": {k: "%s · %s" % (v["model"], v["effort"]) for k, v in rl.model_policy()["agents"].items()},
                   "verified_by": "scripts/reading_audit.py run (from the agents' transcripts)"},
         "execution_mode": "sequential",
+        # Methodology 3.2.0: the reading stage is switchable (manifest.py RUN mode reading on|off before Stage 1), and the
+        # CIO selects the run's sector modules in Stage 0 (null = not yet selected; [] = none apply, with a note).
+        "reading_mode": a.reading,
+        "sector_modules": None,
         "specialists": {
             name: {"status": "pending",
                    "report": "specialists/%s.md" % name,
                    "ledger": "specialists/%s_ledger.csv" % name,
                    "invocations": []}
-            for name in rl.SPECIALISTS
+            for name in rl.specialists_for(rl.current_version())
         },
         "auditor": {"status": "pending", "report": rl.AUDIT_REPORT, "ledger": rl.AUDIT_LEDGER, "invocations": []},
         "workers": {name: {"invocations": []} for name in rl.WORKERS},
+        "synthesis": {name: {"invocations": []} for name in rl.SYNTHESIS_ROLES},
         "notes": [],
     }
     rl.write_json(run_dir / rl.RUN_MANIFEST, manifest)

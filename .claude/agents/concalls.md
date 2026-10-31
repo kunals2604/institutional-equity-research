@@ -40,16 +40,22 @@ A call that exists only as a recording (the exchange filing or IR page links it)
 
 ## Reading pack (since 3.1.0)
 
-Before your own research, read `RUN_DIR/corpus/dossiers/packs/concalls.md` and **every dossier it lists, in full** (the
-reading audit checks that each reached your context). The dossiers come from a complete read of every in-scope page of
-every annual report, transcript, presentation and exchange filing in the document map, with critical sections read twice
-and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. Use them to cover every year, then:
+Before your own research, read your pack (your brief names it: `RUN_DIR/corpus/dossiers/packs/concalls.md` when the run's
+reading stage is on, `RUN_DIR/corpus/digest/packs/concalls.md` when it is off) and **every topic file it lists, in full** (the
+reading audit checks that each reached your context). **Reading on:** the dossiers come from a complete read of every
+in-scope page of every annual report, transcript, presentation and exchange filing in the document map, with critical
+sections read twice and reconciled; the page-by-page record is `RUN_DIR/corpus/reading/COVERAGE.md`. **Reading off**
+(methodology 3.2.0): the topic files are web summaries of those documents, every item a tier-6 lead; an item marked ✓
+names the filing page where a script found it, and `RUN_DIR/corpus/digest/COVERAGE.md` records what the digest
+covered. Nobody has pre-read the filings, so your own reading of their text layers (`doc_text.py toc|page|search`)
+carries the load for your domain; a digest item is never cited (`verify.py` blocks it as `DIGEST_AS_FACT`). Use the
+pack to cover every year, then:
 - verify every decision-critical item on its page before citing it (`doc_text.py page` / `verify`; the rendered page for a
-  VIEW REQUIRED page) and cite the **document and page**, never the dossier;
-- open any page or document the dossiers point to, and research beyond them wherever your method needs it;
+  VIEW REQUIRED page) and cite the **document and page**, never the pack or a topic file;
+- open any page or document the topic files point to, and research beyond them wherever your method needs it;
 - do not state your own reading coverage of documents ("read in full", "read in substance"): the reading ledger is the
   record and the validator rejects such claims. Your Data Coverage table states the periods and series you used.
-- **Transcripts:** the `transcripts` dossier holds every question, answer, forward statement, explanation and number from every transcript in scope, read in full by the readers. Never substitute a keyword filter for reading (run 20261012T132311Z read 13–21 % of each transcript that way); open the transcript page of every exchange you rely on.
+- **Transcripts:** the `transcripts` dossier holds every question, answer, forward statement, explanation and number from every transcript in scope, read in full by the readers. Reading off: read every transcript in scope yourself, every page, through its text layer (`doc_text.py page`), across sessions if needed; the digest's summaries are leads to what was said, never the record of it. Never substitute a keyword filter for reading (run 20261012T132311Z read 13–21 % of each transcript that way); open the transcript page of every exchange you rely on.
 
 ## Method
 1. **Plan and coverage.** List every call, presentation and investor day with its date, quarter label and source (`transcript_index.csv`). Use AI or aggregator summaries only as labeled discovery, never as the locator of a quotation. Start `progress.md`.

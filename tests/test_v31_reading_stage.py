@@ -80,9 +80,12 @@ class ReadingFixture:
         self.run_id = run_id
         r = subprocess.run([PY, str(ROOT / "scripts" / "new_run.py"), "--ticker", "FIXREAD", "--company", "Fixture Co Ltd",
                             "--exchange", "NSE", "--segment", "main", "--cutoff", "2026-03-01", "--run-id", self.run_id,
-                            "--root", str(self.tmp)], capture_output=True, text=True)
+                            "--root", str(self.tmp), "--reading", "on"], capture_output=True, text=True)
         assert r.returncode == 0, r.stderr
         self.dir = self.tmp / r.stdout.strip()
+        m = rl.load_json(self.dir / rl.RUN_MANIFEST)      # a current-version run with reading on: no sector module applies
+        m["sector_modules"] = []
+        rl.write_json(self.dir / rl.RUN_MANIFEST, m)
         if pages25 is None:
             pages25 = ["Integrated Report 2024-25\n\n" + LONG_NARRATIVE, auditor_page(2025), notes_page("1,23,456", "1,10,234"), ""]
             flags25 = {4: ["image_only"]}
@@ -465,7 +468,7 @@ class TestStructuredFilings(unittest.TestCase):
 class TestPolicyAndContracts(unittest.TestCase):
     def test_policy_pins_every_agent_and_workers_are_registered(self):
         pol = rl.model_policy()["agents"]
-        self.assertEqual(set(pol), set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS))
+        self.assertEqual(set(pol), set(rl.SPECIALISTS) | {"cio", rl.AUDITOR} | set(rl.WORKERS) | set(rl.SYNTHESIS_ROLES))
         for name, spec in pol.items():
             fm = rl.parse_front_matter((rl.AGENTS_DIR / ("%s.md" % name)).read_text(encoding="utf-8"))
             self.assertEqual((fm.get("model"), fm.get("effort")), (spec["model"], spec["effort"]), name)
