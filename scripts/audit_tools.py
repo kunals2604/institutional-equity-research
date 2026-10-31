@@ -190,6 +190,25 @@ def cached_file(run_dir: Path, source: str, retrievals: Dict[str, str], catalog:
     return retrievals.get(source, "")
 
 
+def plant_audit_canaries(run_dir: Path, rows: List[dict], rng: random.Random, n: int = 2) -> List[dict]:
+    """Known-false claims among the auditor's sample (`verify.plant_canaries` has the reason; `verify.audit_canaries` scores
+    them). The auditor is told nothing, and neither these rows nor their results enter the evidence."""
+    import verify
+    usable = [r for r in rows if len(verify.NUM_RE.findall(r.get("value") or "")) == 1 and len(re.sub(r"\D", "", r["value"])) >= 3]
+    planted = []
+    for r in rng.sample(usable, min(n, len(usable))):
+        c = dict(r, claim_id="%s-C%d" % (r["claim_id"].rsplit("-C", 1)[0], 9000 + rng.randrange(999)), value=verify.spoiled(r["value"], rng))
+        c["claim"] = (r.get("claim") or "").replace(r["value"], c["value"])
+        planted.append(c)
+    path = verify.canary_path(run_dir, "auditor")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"claims": [c["claim_id"] for c in planted]}), encoding="utf-8")
+    out = list(rows)
+    for c in planted:
+        out.insert(rng.randrange(len(out) + 1), c)
+    return out
+
+
 def sample(run_dir: Path, n: int, seed: str, out: Path) -> int:
     ledger = ledger_index(run_dir)
     report = run_dir / "cio" / "final_report.md"
@@ -246,6 +265,8 @@ def sample(run_dir: Path, n: int, seed: str, out: Path) -> int:
                      "source_url_or_id": r.get("source_url_or_id", ""), "locator": r.get("locator", ""),
                      "tier": r.get("source_tier", ""), "local_file": cached_file(run_dir, r.get("source_url_or_id", ""), retrievals, catalog),
                      "result": "", "notes": ""})
+    if rl.run_switch(run_dir, "canaries") == "on":
+        rows = plant_audit_canaries(run_dir, rows, rng)
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else ["claim_id"])

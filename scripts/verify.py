@@ -702,6 +702,8 @@ def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier", only: O
         rnd.shuffle(lst)
     picked = (first[:max(n // 2, n - len(numeric) - len(rest))] + numeric + rest)[:n]
     picked = (picked + [r for r in first if r not in picked])[:n]
+    if rl.run_switch(run_dir, "canaries") == "on":
+        picked = plant_canaries(run_dir, name, picked, rnd)
     out = vdir(run_dir) / ("%s_sample.csv" % name)
     out.parent.mkdir(parents=True, exist_ok=True)
     cols = ["claim_id", "claim", "tag", "value", "unit", "period", "basis", "source_title", "source_url_or_id", "locator"]
@@ -711,6 +713,45 @@ def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier", only: O
         for r in picked:
             w.writerow(r)
     return picked
+
+
+def canary_path(run_dir: Path, name: str) -> Path:
+    """Under _cache/engine/, which no agent may read: a checker that could see the list would prove nothing."""
+    return run_dir / "_cache" / "engine" / "canaries" / ("%s.json" % name)
+
+
+def spoiled(value: str, rnd: random.Random) -> str:
+    """The value made materially wrong, in its own printed form."""
+    token = NUM_RE.findall(value)[0]
+    number = float(token.replace(",", "")) * rnd.choice((0.7, 1.3))
+    return value.replace(token, ("{:,.2f}" if "." in token else "{:,.0f}").format(number), 1)
+
+
+def plant_canaries(run_dir: Path, name: str, picked: List[dict], rnd: random.Random) -> List[dict]:
+    """One known-false claim among those the verifier re-opens: a real claim, its source untouched, its number wrong by 30 %,
+    under an id no ledger holds. Nothing reaches the evidence (`split_canaries`), and every run gets a measured catch rate:
+    with no paid rehearsal, it is the only measure of whether the checker checks."""
+    source = [r for r in picked if len(NUM_RE.findall(r.get("value") or "")) == 1 and len(re.sub(r"\D", "", r["value"])) >= 3]
+    if not source:
+        return picked
+    base = rnd.choice(source)
+    prefix = base["claim_id"].rsplit("-C", 1)[0]
+    canary = dict(base, claim_id="%s-C%d" % (prefix, 9000 + rnd.randrange(999)), value=spoiled(base["value"], rnd))
+    canary["claim"] = (base.get("claim") or "").replace(base["value"], canary["value"])
+    path = canary_path(run_dir, name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"claims": [canary["claim_id"]], "from": base["claim_id"], "true_value": base["value"]}), encoding="utf-8")
+    out = list(picked)
+    out.insert(rnd.randrange(len(out) + 1), canary)
+    return out
+
+
+def split_canaries(run_dir: Path, name: str, want: List[str], got: Dict[str, dict]) -> Tuple[List[str], Dict[str, int]]:
+    """The real claims of a sample, and the score of the planted ones."""
+    path = canary_path(run_dir, name)
+    planted = json.loads(path.read_text(encoding="utf-8"))["claims"] if path.exists() else []
+    caught = sum((got.get(c) or {}).get("result") == "Material discrepancy" for c in planted if c in want)
+    return [c for c in want if c not in planted], {"planted": sum(c in want for c in planted), "caught": caught}
 
 
 def verifier_opened(run_dir: Path, name: str, claim_ids: List[str], tdir: Optional[Path] = None) -> List[str]:
@@ -831,6 +872,7 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
     errs += verifier_opened(run_dir, name, want)
     if errs:
         return {}, errs
+    want, canaries = split_canaries(run_dir, name, want, got)
     cnt = Counter(got[c]["result"] for c in want)
     mat = ["%s: %s" % (c, (got[c].get("evidence") or "")[:200]) for c in want if got[c]["result"] == "Material discrepancy"]
     unv = ["%s: %s" % (c, (got[c].get("evidence") or "")[:200]) for c in want if got[c]["result"] == "Not verifiable"]
@@ -852,7 +894,8 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
                           "Give each claim a source and locator anyone can open (document, page, URL), or remove it.", unv))
     earlier = set(((rl.load_json(vdir(run_dir) / ("%s.json" % name)) if (vdir(run_dir) / ("%s.json" % name)).exists() else {})
                    .get("tier_b") or {}).get("claims") or [])
-    rec = {"sampled": len(want), "results": dict(cnt), "findings": fs, "checked_at": now(), "claims": sorted(earlier | set(want))}
+    rec = {"sampled": len(want), "results": dict(cnt), "findings": fs, "checked_at": now(), "claims": sorted(earlier | set(want)),
+           "canaries": canaries}
     if write:
         path = vdir(run_dir) / ("%s.json" % name)
         full = rl.load_json(path) if path.exists() else {"agent": name, "tier_a": [], "waived": {}, "rounds": []}
@@ -900,6 +943,26 @@ def cio_findings(run_dir: Path, tdir: Path) -> List[dict]:
         return digest_bad + [finding("CIO_LEDGER_UNCHECKED", "cio", "no main session was found, so the CIO's ledger was not "
                                      "checked against what the CIO read", "Say so in the report's limitations.")]
     return claim_checks(ledger_rows([led]), Seen(sessions), source_keys(run_dir), "cio", m.get("research_cutoff", "")) + digest_bad
+
+
+def audit_canaries(run_dir: Path) -> Dict[str, int]:
+    """The auditor's: the same planted claims among its sample, scored from what it recorded."""
+    path, sample_csv = canary_path(run_dir, "auditor"), run_dir / "audit" / "sample.csv"
+    if not path.exists() or not sample_csv.exists():
+        return {"planted": 0, "caught": 0}
+    planted = set(json.loads(path.read_text(encoding="utf-8"))["claims"])
+    with sample_csv.open(encoding="utf-8", newline="") as f:
+        rows = [r for r in csv.DictReader(f) if r.get("claim_id") in planted]
+    return {"planted": len(planted), "caught": sum(r.get("result") == "Material discrepancy" for r in rows)}
+
+
+def canary_score(per: Dict[str, dict], run_dir: Optional[Path] = None) -> Dict[str, object]:
+    """The run's catch rate: how many known-false claims its checkers found."""
+    scores = [(r.get("tier_b") or {}).get("canaries") or {} for r in per.values()]
+    if run_dir is not None:
+        scores.append(audit_canaries(run_dir))
+    planted, caught = sum(c.get("planted", 0) for c in scores), sum(c.get("caught", 0) for c in scores)
+    return {"planted": planted, "caught": caught, "rate": round(caught / planted, 3) if planted else None}
 
 
 def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
@@ -990,7 +1053,7 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
     blocking = [f for f in findings if f["severity"] == "blocking" and not f.get("waived")]
     failed = [n for n, r in per.items() if r["status"] != "PASS"]
     out = {"run_id": rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name), "stage": stage, "checked_at": now(),
-           "status": "FAIL" if blocking or failed else "PASS", "run_findings": findings,
+           "status": "FAIL" if blocking or failed else "PASS", "run_findings": findings, "canaries": canary_score(per, run_dir),
            "specialists": {n: {"status": r["status"], "claims": r.get("claims", 0), "tier_b": r.get("tier_b", {}).get("results", {}),
                                "rounds": len(r.get("rounds", [])),
                                "findings": [{k: f[k] for k in ("id", "check", "severity", "owner", "detail")} |
@@ -1002,7 +1065,11 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
 
 
 def write_md(run_dir: Path, out: dict) -> None:
+    score = out.get("canaries") or {}
     lines = ["# Verification — run %s (%s stage)" % (out["run_id"], out["stage"]), "",
+             "Canaries: %s known-false claims planted among the checkers' samples, %s caught%s. They measure the checkers and "
+             "never enter the evidence." % (score.get("planted", 0), score.get("caught", 0),
+                                            " (%.0f %%)" % (100 * score["rate"]) if score.get("rate") is not None else ""), "",
              "Generated by `scripts/verify.py run`; do not edit. Checks the work against what each agent did (its "
              "transcripts and files), not only the shape of its report.", "", "**Status: %s**" % out["status"], "",
              "| Specialist | Status | Claims | Verifier re-check | Remediation rounds | Open findings |", "|---|---|---|---|---|---|"]

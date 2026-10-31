@@ -372,7 +372,6 @@
   "--weekly-ceiling"
  ],
  "not_yet_wired": {
-  "canaries": "Step 5",
   "early_stop": "Step 6",
   "reading_transport": "batch, Step 10",
   "--deepen": "the command Depth Disclosure prints, Step 8"

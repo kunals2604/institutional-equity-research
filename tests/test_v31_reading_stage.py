@@ -1485,8 +1485,11 @@ if not ONESHOT and agent not in ("reader", "critical-reader", "scanner"):
                 turn(("WebFetch", {"url": r["source_url_or_id"]}))
         bad = os.environ.get("FAKE_DISCREPANCY") and not state.get("discrepancy_sent")
         state["discrepancy_sent"] = True
-        rows = [{"claim_id": r["claim_id"], "result": "Material discrepancy" if bad and i == 0 else "Confirmed",
-                 "evidence": "the page prints 12,000" if bad and i == 0 else "", "source_opened": "doc.pdf p.1", "note": ""}
+        cf = run_dir / "_cache" / "engine" / "canaries" / (name + ".json")
+        planted = json.loads(cf.read_text())["claims"] if cf.exists() else []
+        real = [r["claim_id"] for r in sample if r["claim_id"] not in planted]
+        rows = [{"claim_id": r["claim_id"], "result": "Material discrepancy" if bad and r["claim_id"] == real[0] else "Confirmed",
+                 "evidence": "the page prints 12,000" if bad and r["claim_id"] == real[0] else "", "source_opened": "doc.pdf p.1", "note": ""}
                 for i, r in enumerate(sample)]
         with (run_dir / "qc" / "verification" / (name + "_claims.csv")).open("w", newline="") as f:
             w = _csv.DictWriter(f, fieldnames=["claim_id", "result", "evidence", "source_opened", "note"])
