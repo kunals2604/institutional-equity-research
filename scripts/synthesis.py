@@ -1559,6 +1559,9 @@ def assemble(run_dir: Path, log=print) -> List[str]:
     text = re.sub(r"(<!--\s*%s:BEGIN\s*-->).*?(<!--\s*%s:END\s*-->)" % (REGISTER_BLOCK, REGISTER_BLOCK),
                   lambda m_: "%s\n%s\n%s" % (m_.group(1), reg, m_.group(2)), text, flags=re.S)
     report.write_text(text, encoding="utf-8")
+    if sc:
+        import decide
+        (run_dir / "cio" / "DECISION_MEMO.md").write_text(decide.memo(run_dir), encoding="utf-8")
     log("assembled cio/final_report.md from %d section file(s)%s" % (len(sources), "; %d problem(s)" % len(errs) if errs else ""))
     return errs
 

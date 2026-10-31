@@ -94,7 +94,7 @@ The order is fixed: **evidence** (registry, themes) → **contradictions and fol
     - Report the residual as **closable but unobtainable** (with the attempt log) vs. **irreducible** (forecast, competitor conduct, rate regime).
     - **Never raise confidence by assertion.**
 12. **Adversarial review (symmetric).**
-    - **When:** whenever the draft mapped verdict is **BUY, STRONG BUY, SPECULATIVE BUY, AVOID or STRONG AVOID**, or whenever the verdict changes from a prior complete run.
+    - **When:** on every verdict, HOLD and WATCHLIST included: a verdict that sits in the middle is the easiest one to leave unchallenged.
     - **How:** re-invoke `bear-case` with your **draft conclusion** (not the specialist reports) for a targeted attack: put the draft conclusion in a file and run `agent_driver.py followup RUN_DIR bear-case --stage 3 --purpose "adversarial review of the draft" --message-file <file> --output specialists/bear-case_followup_<n>.md`. It attacks in whichever direction the draft points; errors of omission (wrongly avoiding a great opportunity) cost money as errors of commission do.
     - **After:** adjudicate every challenge in the contradiction log, re-score if any input changes (rebuild the scorecard), and re-run the confidence test.
 13. **Decision outputs** (`SCORING.md` §§9–10).

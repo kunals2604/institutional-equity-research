@@ -111,7 +111,7 @@ L1: customer-franchise durability (satisfaction, complaints and churn vs. compet
 - **Ground-truth channels covered:** n of 7, each named
 
 ## Must not conclude without sufficient evidence
-- That an interview, survey, store visit or channel check took place. None does in this system.
+- That an interview, survey, store visit or channel check took place, unless the owner recorded it in `corpus/owner_notes/`: then cite the note (`owner-note:<n>`) as the owner's account, tier 7, and corroborate it. Nothing else counts.
 - A fact from a single review, forum post or social-media comment. Report aggregates with sample sizes and dates.
 - Business trends from digital signals alone, or from fewer observations than the series' normal variation requires (T17).
 - A moat or management-integrity verdict. Supply the evidence; the owners decide.

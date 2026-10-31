@@ -15,7 +15,9 @@ Exit: `next` 0 with a step, 3 when the run is finished. `run` 0 at a judgment st
 """
 
 import argparse
+import datetime as dt
 import hashlib
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -78,6 +80,20 @@ def missing_documents(run: Path) -> bool:
     with p.open(encoding="utf-8", newline="") as f:
         import csv
         return any((r.get("status") or "") in ("missing", "download_failed") for r in csv.DictReader(f))
+
+
+def key_question_errors(run: Path) -> List[str]:
+    """Three to ten questions, and only questions: what the price implies stays out of the briefs until the forecast is
+    committed, or it would anchor the work it is meant to test."""
+    p = run / "engine" / "key_questions.md"
+    if not p.exists():
+        return ["engine/key_questions.md does not exist yet"]
+    lines = [l.strip() for l in p.read_text(encoding="utf-8").splitlines() if re.match(r"\s*\d+[.)]\s", l)]
+    errs = [] if 3 <= len(lines) <= 10 else ["write 3 to 10 numbered questions, not %d" % len(lines)]
+    errs += ["not a question: %s" % l[:80] for l in lines if not l.rstrip("*_ ").endswith("?")]
+    errs += ["a question carries a number that could anchor the work: %s" % l[:80] for l in lines
+             if re.search(r"(?:₹|INR|Rs\.?|\$)\s*\d|\d\s*(?:%|x\b|crore|lakh|bn\b|mn\b)", re.sub(r"^\d+[.)]\s", "", l))]
+    return errs
 
 
 def status_json(run: Path, rel: str) -> dict:
@@ -172,6 +188,8 @@ CHECKS: Dict[str, Callable[[Path], bool]] = {
     "themes_pass": themes_pass,
     "contradictions_adjudicated": contradictions_adjudicated,
     "followups_closed": followups_closed,
+    "key_questions_done": lambda r: not key_question_errors(r),
+    "adversarial_done": lambda r: bool(list((r / "specialists").glob("bear-case_followup_*.md"))),
     "cio_analysis_done": lambda r: filled(r, "cio/cio_analysis.md"),
     "layers_pass": layers_pass,
     "decision_done": lambda r: exists(r, "cio/scorecard.json") and any((r / "cio" / "sections").glob("*.md")) if exists(r, "cio/sections") else False,
@@ -210,8 +228,33 @@ def is_done(step: dict, run: Path) -> bool:
     return bool(CHECKS[step["done_when"]](run))
 
 
+def early_stop_open(run: Path) -> Optional[dict]:
+    rec = status_json(run, "engine/early_stop.json")
+    return rec if rec and not rec.get("decision") else None
+
+
+def decide_early(run: Path, decision: str, reason: str) -> None:
+    """The owner's answer to the early-stop pause."""
+    if not reason.strip():
+        raise SystemExit("say why: this is the record of the decision")
+    rl.update_json(run / "engine" / "early_stop.json", lambda d: d.update(decision=decision, reason=reason, at=rl_now()))
+    if decision == "stop":
+        rl.update_json(run / rl.RUN_MANIFEST, lambda m: m.update(status="stopped_gate"))
+
+
+def rl_now() -> str:
+    return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
+
+
 def next_step(run: Path) -> Optional[dict]:
     """The first step of this run that is not done. Nothing but the manifest and the disk decides it."""
+    if status_is(run, "stopped_gate"):
+        return None
+    pause = early_stop_open(run)
+    if pause:
+        return {"id": "early_stop", "stage": "1", "type": "owner", "done_when": "early_stop", "output": "the owner's decision",
+                "title": "%s raised a red flag (%s). Read its report, then decide: orchestrate.py decide-early RUN_DIR continue|stop --reason ..." % (
+                    pause["agent"], pause["flag"])}
     for s in active_steps(values_of(run)):
         if not is_done(s, run):
             return s
@@ -224,6 +267,8 @@ def command(step: dict, run: Path) -> str:
 
 def describe(step: dict, run: Optional[Path] = None) -> List[str]:
     lines = ["Stage %s · %s · %s: %s" % (step["stage"], step["id"], step["type"], step["title"])]
+    if step["type"] == "owner":
+        return lines
     if step["type"] == "cio":
         lines += ["Load the skill `%s`, follow its section for this step, and write: %s" % (STAGE_SKILLS[step["stage"]], step["output"])]
     elif run is not None:
@@ -241,7 +286,7 @@ def run_steps(run: Path, log=print, runner=None) -> int:
             if step is None:
                 log("the run is finished")
                 return 0
-            if step["type"] == "cio":
+            if step["type"] in ("cio", "owner"):
                 log("\n".join(describe(step, run)))
                 return 0
             log("running %s: %s" % (step["id"], step["title"]))
@@ -281,6 +326,10 @@ def main(argv=None) -> int:
     for name in ("next", "run", "status"):
         sub.add_parser(name).add_argument("run_dir")
     sub.add_parser("explain").add_argument("step")
+    de = sub.add_parser("decide-early")
+    de.add_argument("run_dir")
+    de.add_argument("decision", choices=["continue", "stop"])
+    de.add_argument("--reason", required=True)
     a = ap.parse_args(argv)
     if a.cmd == "plan":
         try:
@@ -302,6 +351,10 @@ def main(argv=None) -> int:
         print("\n".join(describe(step)))
         return 0
     run = Path(a.run_dir)
+    if a.cmd == "decide-early":
+        decide_early(run, a.decision, a.reason)
+        print("recorded: %s" % a.decision)
+        return 0
     if a.cmd == "status":
         print(status(run))
         return 0

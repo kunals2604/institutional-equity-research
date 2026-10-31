@@ -49,7 +49,7 @@ Analyze all four before classifying. Price, profitability, size and SME listing 
 
 ## 5. Continuous execution
 
-The phases in the framework and the CIO stages are internal milestones, not stopping points. Do not stop after source discovery, extraction, validation or any intermediate step, and do not ask permission to continue. If a source is unavailable, record the limitation, look for alternatives, and finish with the best available evidence. Stop for the user only when company identity is genuinely ambiguous or a hard technical failure makes meaningful research impossible.
+The phases in the framework and the CIO stages are internal milestones, not stopping points. The one exception is the early-stop pause (the `early_stop` switch): a red flag in the formal conclusion of `filings` or `management` pauses the run and asks the owner, who alone may stop it. It is a question, never an automatic end. Do not stop after source discovery, extraction, validation or any intermediate step, and do not ask permission to continue. If a source is unavailable, record the limitation, look for alternatives, and finish with the best available evidence. Stop for the user only when company identity is genuinely ambiguous or a hard technical failure makes meaningful research impossible.
 
 ## 6. Independence and write discipline
 

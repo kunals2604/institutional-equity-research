@@ -158,6 +158,9 @@ def compute(inp: dict, run_dir: Path = None) -> dict:
         if sc.get("verdict") not in rl.verdicts():      # the guide is computed; the verdict never is
             raise ValueError("the CIO writes the verdict: set `verdict`, `verdict_reasoning` and, if it leaves the computed "
                              "guide (%s), `guide_departure` (methodology/SCORING.md section 0)" % mapped)
+        held = bool(run_dir and rl.load_json(run_dir / rl.RUN_MANIFEST).get("held"))
+        if held and sc.get("held_action") not in rl.HELD_ACTIONS:
+            raise ValueError("the owner holds this: set `held_action` to one of %s, with its reasoning" % ", ".join(rl.HELD_ACTIONS))
         return sc
     override = sc.pop("override_verdict", None)
     if override:

@@ -42,6 +42,14 @@
    "done_when": "sector_modules_set"
   },
   {
+   "id": "key_questions",
+   "stage": "0",
+   "type": "cio",
+   "title": "Write the questions that decide this investment, as questions only",
+   "output": "engine/key_questions.md",
+   "done_when": "key_questions_done"
+  },
+  {
    "id": "reading_plan",
    "stage": "0b",
    "type": "script",
@@ -203,6 +211,14 @@
    "title": "Classify, score, reach the reasoned verdict, set the decision outputs",
    "output": "cio/scorecard_inputs.json, cio/scorecard.json, cio/sections/",
    "done_when": "decision_done"
+  },
+  {
+   "id": "adversarial",
+   "stage": "3",
+   "type": "cio",
+   "title": "Put the draft verdict to adversarial review, whichever way it points",
+   "output": "specialists/bear-case_followup_<n>.md, cio/contradiction_log.md",
+   "done_when": "adversarial_done"
   },
   {
    "id": "writers",

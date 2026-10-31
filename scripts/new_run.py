@@ -52,6 +52,8 @@ def main(argv=None) -> int:
     p.add_argument("--cutoff", default=None, help="YYYY-MM-DD (default: today, UTC)")
     p.add_argument("--replay", action="store_true", help="a historical replay: it never touches the scoreboard, the latest-run "
                    "pointer or the decision record, whatever its run id")
+    p.add_argument("--held", action="store_true", help="the owner already owns this: the decision also says hold, add, trim or exit")
+    p.add_argument("--cost-basis", type=float, default=None, help="the owner's cost per share, when --held")
     p.add_argument("--hurdle", type=float, default=None, help="override the IPS hurdle rate")
     p.add_argument("--reference-position", type=float, default=None, help="override the IPS reference position")
     p.add_argument("--policy", default=str(rl.INVESTMENT_POLICY), help="investment policy JSON (IPS)")
@@ -160,6 +162,8 @@ def main(argv=None) -> int:
         "currency": a.currency,
         "fiscal_year_end": a.fy_end,
         "replay": bool(a.replay),
+        "held": bool(a.held),
+        "cost_basis": a.cost_basis,
         "research_cutoff": cutoff,
         "started_at": now.isoformat(),
         "completed_at": None,

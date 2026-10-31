@@ -26,6 +26,7 @@ Write only your own report, ledger, workpapers ({{RUN_DIR}}/specialists/{{NAME}}
 If you are asked to checkpoint, finish the step you are in, put everything on disk, update progress.md, and reply CHECKPOINTED: a fresh session of yours then continues from your files.
 {{SME}}
 {{SECTOR_MODULES}}
+{{KEY_QUESTIONS}}
 {{LESSONS}}
 Your work is verified against what your sessions actually read and opened: every FACT or MANAGEMENT STATEMENT value must appear in a source you opened, as printed (a converted, summed or computed value is a CALCULATION with its formula), every cited source and page must have been opened by you, and a sample of your claims is re-opened at their sources by an independent verifier. Findings come back to you to fix.
 Before returning, run: python3 scripts/validate_report.py {{RUN_DIR}}/specialists/{{NAME}}.md --kind specialist --ledger {{RUN_DIR}}/specialists/{{NAME}}_ledger.csv

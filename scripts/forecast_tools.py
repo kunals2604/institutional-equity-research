@@ -33,6 +33,8 @@ Exit: 0 ok, 1 a check failed (a base-year tie outside tolerance, a formula error
 
 import argparse
 import ast
+import datetime as dt
+import hashlib
 import json
 import math
 import operator
@@ -334,11 +336,21 @@ def main(argv=None) -> int:
     tv.add_argument("--kind", required=True, choices=["fcff", "ri"])
     tv.add_argument("--extra", help="JSON file with what the forecast does not hold (wacc, terminal assumptions, shares ...)")
     tv.add_argument("--out", required=True)
+    cm = sub.add_parser("commit", help="fix the base model before consensus, surprises or peers are opened")
+    cm.add_argument("--model", required=True)
+    cm.add_argument("--out", required=True)
     rc = sub.add_parser("reconcile")
     rc.add_argument("--forecast", required=True)
     rc.add_argument("--valuation", required=True)
     rc.add_argument("--out")
     a = ap.parse_args(argv)
+    if a.cmd == "commit":
+        data = Path(a.model).read_bytes()
+        Path(a.out).write_text(json.dumps({"model": a.model, "sha256": hashlib.sha256(data).hexdigest(),
+                                           "at": dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()}, indent=2) + "\n",
+                               encoding="utf-8")
+        print("committed %s" % a.model)
+        return 0
     try:
         if a.cmd == "model":
             res = model(load(a.inputs))

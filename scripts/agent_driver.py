@@ -597,6 +597,16 @@ def oneshot_reader(run_dir: Path, act: dict, base: "Assignment") -> "Assignment"
                                resume_msg=resume, fix_rounds=ONESHOT_FIX_ROUNDS)
 
 
+def key_questions_text(run_dir: Path) -> str:
+    """The questions that decide the investment, identical for every specialist, so the one-brief rule holds. Questions
+    only: what the price implies stays out until the forecast is committed."""
+    p = run_dir / "engine" / "key_questions.md"
+    if not p.exists():
+        return ""
+    return ("THE QUESTIONS THAT DECIDE THIS INVESTMENT. Your Method stands in full. Spend your depth where it bears on these, and "
+            "answer those in your domain under Questions and Dependencies for the CIO, with claim IDs:\n%s" % p.read_text(encoding="utf-8").strip())
+
+
 def specialist_prompt(run_dir: Path, name: str) -> str:
     """The Stage-1 prompt: templates/specialist_prompt.md filled with the run's identity block (engine/identity.md,
     written once by the CIO) and the specialist's name. One template, so no specialist gets a different brief."""
@@ -617,6 +627,7 @@ def specialist_prompt(run_dir: Path, name: str) -> str:
             .replace("{{PACK}}", rl.pack_rel(run_dir, name)).replace("{{COVERAGE}}", rl.coverage_rel(run_dir))
             .replace("{{READING_NOTE}}", READING_NOTE_ON if rl.reading_on(run_dir) else READING_NOTE_OFF)
             .replace("{{SECTOR_MODULES}}", sector_modules_text(run_dir, name))
+            .replace("{{KEY_QUESTIONS}}", key_questions_text(run_dir))
             .replace("{{LESSONS}}", lessons(name)))
 
 
@@ -2215,11 +2226,47 @@ def cmd_verify(eng: Engine, only: List[str]) -> int:
     return 0
 
 
+EARLY_FLAGS = {"filings": (r"Reporting reliability:?\**:?\s*\**\s*(Highly concerning)", "G1"),
+               "management": (r"Governance[^\n]{0,30}:\**\s*\**\s*(Compromised)", "G3")}
+
+
+def specialist_order(run_dir: Path) -> List[str]:
+    """The order of Stage 1. With early_stop on, management moves to third, because only then can its red flag raise the
+    pause before most of the spend."""
+    order = list(SPECIALIST_ORDER)
+    if rl.run_switch(run_dir, "early_stop") == "on":
+        order.remove("management")
+        order.insert(2, "management")
+    return order
+
+
+def early_flag(run_dir: Path, name: str) -> str:
+    """A red flag that a specialist's formal conclusion states, with the gate it bears on; empty when there is none, the
+    switch is off or the owner has already said to go on."""
+    if rl.run_switch(run_dir, "early_stop") != "on" or name not in EARLY_FLAGS:
+        return ""
+    record = run_dir / "engine" / "early_stop.json"
+    if record.exists() and rl.load_json(record).get("decision") == "continue":
+        return ""
+    report = run_dir / "specialists" / ("%s.md" % name)
+    pattern, gate = EARLY_FLAGS[name]
+    m = re.search(pattern, rl.section(report.read_text(encoding="utf-8"), "Domain Conclusion") or "", re.I) if report.exists() else None
+    return "%s: %s" % (gate, m.group(1)) if m else ""
+
+
+def raise_early_flag(eng: "Engine", name: str, flag: str) -> None:
+    """A pause that asks the owner. It never ends the research: only the owner can."""
+    rl.write_json(eng.run_dir / "engine" / "early_stop.json", {"agent": name, "flag": flag, "at": reading.now_iso(), "decision": None})
+    eng.stop = eng.stop or ("%s raised a red flag (%s). The rest of this run is unspent. Read its report, then: python3 scripts/orchestrate.py "
+                            "decide-early RUN_DIR continue|stop --reason \"...\"" % (name, flag))
+    eng.log(eng.stop)
+
+
 def cmd_specialists(eng: Engine, only: List[str], parallel: int, verify_claims: bool = True) -> int:
     run_dir = eng.run_dir
     version = rl.version_tuple(rl.load_json(run_dir / rl.RUN_MANIFEST).get("methodology_version"))
     mine = rl.run_specialists(run_dir)            # a run has the specialists of its methodology version and switches
-    names = [n for n in SPECIALIST_ORDER if n in mine and (not only or n in only)]
+    names = [n for n in specialist_order(run_dir) if n in mine and (not only or n in only)]
     unknown = [n for n in only if n not in mine]
     if unknown:
         raise SystemExit("not specialists of this run (methodology %s): %s" % (".".join(map(str, version)), ", ".join(unknown)))
@@ -2249,6 +2296,10 @@ def cmd_specialists(eng: Engine, only: List[str], parallel: int, verify_claims: 
             if verify_claims and verify_specialist(eng, item[0].agent) != "pass":
                 rc = 1
             if eng.stop:
+                return 1
+            flag = early_flag(run_dir, item[0].agent)
+            if flag:
+                raise_early_flag(eng, item[0].agent, flag)
                 return 1
         return rc
     rc = run_jobs(eng, items, parallel)

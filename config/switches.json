@@ -220,12 +220,14 @@
   "bear-case"
  ],
  "not_depth_flags": [
+  "--action",
   "--actual",
   "--agent",
   "--all",
   "--all-values",
   "--alt",
   "--args",
+  "--attest",
   "--author",
   "--bakeoff",
   "--basis",
@@ -240,6 +242,7 @@
   "--coe",
   "--company",
   "--context-limit",
+  "--cost-basis",
   "--currency",
   "--cutoff",
   "--date",
@@ -258,6 +261,7 @@
   "--extra",
   "--extra-host",
   "--facts",
+  "--file",
   "--force",
   "--forecast",
   "--frequency",
@@ -265,6 +269,7 @@
   "--from-fy",
   "--fromdate",
   "--fy-end",
+  "--held",
   "--history",
   "--hurdle",
   "--id",
@@ -342,6 +347,7 @@
   "--segment",
   "--segment-turns",
   "--set",
+  "--size",
   "--skip",
   "--sleep",
   "--snapshot",
@@ -369,10 +375,10 @@
   "--wacc",
   "--waive",
   "--wayback-prefix",
-  "--weekly-ceiling"
+  "--weekly-ceiling",
+  "--what"
  ],
  "not_yet_wired": {
-  "early_stop": "Step 6",
   "reading_transport": "batch, Step 10",
   "--deepen": "the command Depth Disclosure prints, Step 8"
  }

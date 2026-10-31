@@ -306,7 +306,7 @@ def claim_keys(row: dict, keys: Dict[str, Set[str]]) -> Set[str]:
 def checkable_source(src: str) -> bool:
     """A source a session could have opened: a URL, a file, a FilingForge id; not a claim id or a prose label."""
     s = (src or "").strip()
-    return bool(re.match(r"^(https?://|/|FilingForge:|_cache/|corpus/|[\w.-]+\.(pdf|html?|csv|json|xml|xlsx|txt|md)$)", s)
+    return bool(re.match(r"^(https?://|/|FilingForge:|owner-note:|_cache/|corpus/|[\w.-]+\.(pdf|html?|csv|json|xml|xlsx|txt|md)$)", s)
                 or re.fullmatch(r"[0-9a-f-]{20,}", s))
 
 
