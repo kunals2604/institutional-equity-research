@@ -1,0 +1,90 @@
+{
+ "_about": "Presets are only bundles of switches; checks attach to switches, never to a preset's name, because --set makes combinations. Estimates are API-equivalent dollars and are NOT measured unless their status says so: no run of 3.x or later has finished.",
+ "default": "standard",
+ "profiles": {
+  "lean": {
+   "summary": "Feasible inside about a week of the current plan. A first serious look.",
+   "estimate_usd": 150,
+   "estimate_status": "design target, unmeasured",
+   "switches": {
+    "reading": "off",
+    "digest": "on",
+    "second_reads": "off",
+    "effort": "high",
+    "specialists": "core",
+    "verifier_sample": "small",
+    "synthesis": "compact",
+    "audit": "sampled",
+    "history_years": 7,
+    "gap_rounds": 1,
+    "early_stop": "on",
+    "canaries": "on",
+    "spend_ceiling": 150,
+    "reading_transport": "plan"
+   }
+  },
+  "standard": {
+   "summary": "The full team on the web digest. The default.",
+   "estimate_usd": 380,
+   "estimate_status": "estimate: judgment costs are defaults, nothing measured",
+   "switches": {
+    "reading": "off",
+    "digest": "on",
+    "second_reads": "off",
+    "effort": "xhigh",
+    "specialists": "all",
+    "verifier_sample": "full",
+    "synthesis": "full",
+    "audit": "full",
+    "history_years": 10,
+    "gap_rounds": "until_closed",
+    "early_stop": "on",
+    "canaries": "on",
+    "spend_ceiling": 380,
+    "reading_transport": "plan"
+   }
+  },
+  "deep": {
+   "summary": "Every in-scope page read and recorded. Needs a larger plan.",
+   "estimate_usd": 1400,
+   "estimate_status": "estimate from a 3.9 % sample of chunks",
+   "switches": {
+    "reading": "on",
+    "digest": "off",
+    "second_reads": "on",
+    "effort": "xhigh",
+    "specialists": "all",
+    "verifier_sample": "full",
+    "synthesis": "full",
+    "audit": "full",
+    "history_years": 10,
+    "gap_rounds": "until_closed",
+    "early_stop": "on",
+    "canaries": "on",
+    "spend_ceiling": 1500,
+    "reading_transport": "plan"
+   }
+  },
+  "max": {
+   "summary": "Deep, at maximum effort, over fifteen years, with no pause on cost.",
+   "estimate_usd": null,
+   "estimate_status": "not estimated: measure it after the first deep run",
+   "switches": {
+    "reading": "on",
+    "digest": "off",
+    "second_reads": "on",
+    "effort": "max",
+    "specialists": "all",
+    "verifier_sample": "full",
+    "synthesis": "full",
+    "audit": "full",
+    "history_years": 15,
+    "gap_rounds": "until_closed",
+    "early_stop": "off",
+    "canaries": "on",
+    "spend_ceiling": null,
+    "reading_transport": "plan"
+   }
+  }
+ }
+}

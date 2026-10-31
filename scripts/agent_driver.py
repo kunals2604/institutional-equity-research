@@ -1562,6 +1562,7 @@ class Engine:
         while True:
             if kind in ("start", "fixfresh"):
                 start_kind, start_msg = kind, message
+            self.check_ceiling()
             if self.stop:
                 return self.pause(a, sessions, sess)
             try:
@@ -1726,6 +1727,17 @@ class Engine:
             else:
                 kind, message = "fix", (a.fix_builder(errs) if a.fix_builder else a.fix_msg % "\n".join(errs[:40]))
 
+    def check_ceiling(self) -> None:
+        """The run's spend_ceiling switch: stop at a session boundary once its recorded cost reaches it."""
+        ceiling = rl.run_switch(self.run_dir, "spend_ceiling")
+        if ceiling is None or self.stop:
+            return
+        spent = run_cost(self.run_dir)
+        if spent >= float(ceiling):
+            self.stop = ("this run has spent $%.2f, at its spend_ceiling of $%.0f: raise it (python3 scripts/manifest.py RUN_DIR "
+                         "ceiling <dollars>) or stop here" % (spent, float(ceiling)))
+            self.log(self.stop)
+
     def too_many_sessions(self, a: Assignment, sessions: List[dict], sess: dict, transcript: Path) -> bool:
         if len(sessions) <= CONTINUATIONS:
             return False
@@ -1870,6 +1882,13 @@ def sessions_usage(sessions: List[dict]) -> dict:
         u["peak_context"] = max(u["peak_context"], us.get("peak_context", 0) or 0)
     u["minutes_first_to_last"] = round(u["minutes_first_to_last"], 1)
     return u
+
+
+def run_cost(run_dir: Path) -> float:
+    """What the run has recorded so far, in API-equivalent dollars."""
+    records = reading.load_json(run_dir / "engine" / "jobs.json", {"jobs": []})["jobs"]
+    records += reading.load_json(reading.launches_path(run_dir), {"launches": []})["launches"]
+    return sum(job_cost(r.get("sessions", [])) for r in records)
 
 
 def job_cost(sessions: List[dict]) -> float:
@@ -2199,7 +2218,7 @@ def cmd_verify(eng: Engine, only: List[str]) -> int:
 def cmd_specialists(eng: Engine, only: List[str], parallel: int, verify_claims: bool = True) -> int:
     run_dir = eng.run_dir
     version = rl.version_tuple(rl.load_json(run_dir / rl.RUN_MANIFEST).get("methodology_version"))
-    mine = rl.specialists_for(version)            # a run has the specialists of its own methodology version
+    mine = rl.run_specialists(run_dir)            # a run has the specialists of its methodology version and switches
     names = [n for n in SPECIALIST_ORDER if n in mine and (not only or n in only)]
     unknown = [n for n in only if n not in mine]
     if unknown:
@@ -2663,6 +2682,9 @@ def main(argv=None) -> int:
                 items.append((asg, job))
             return run_jobs(eng, items, 1) if items else 0
         message = Path(a.message_file).read_text(encoding="utf-8")
+        if a.cmd == "audit" and rl.run_switch(run_dir, "audit") == "sampled":
+            message += ("\n\nThis run's audit switch is sampled: use audit_tools.py sample --n 15 and synthesis.py restatements "
+                        "--n 8, and say so in your report.")
         if a.cmd == "followup":
             return cmd_followup(eng, a.agent, message, a.purpose, a.stage, a.output)
         if a.cmd == "audit":

@@ -119,6 +119,7 @@ PROPAGATION_COLUMNS = ("claim", "dependent", "action", "reason")
 FACT_TAGS = ("FACT", "MANAGEMENT STATEMENT")
 SOURCE_BLOCK = (3, 0.10)       # SOURCE_NOT_OPENED blocks above 3 claims or 10 % of the checked claims
 DEFAULT_SAMPLE = 8
+SMALL_SAMPLE = 4
 NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
 DIGEST_ID_RE = re.compile(r"\bD-[0-9a-f]{10}\b")
 PDF_PAGE_RE = re.compile(r"\bPDF\s*(?:page|pp?)\.?\s*(\d{1,4})", re.I)
@@ -683,7 +684,8 @@ def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier", only: O
     """The claims the verifier re-checks: those the report's conclusion rests on first (claim IDs in its Domain
     Conclusion and summary sections), then numeric FACTs, then the rest, drawn reproducibly; more for an agent whose
     earlier runs had material discrepancies."""
-    n = n or DEFAULT_SAMPLE + (4 if lesson_counts().get((name, "CLAIM_DISCREPANCY")) else 0)
+    n = n or (SMALL_SAMPLE if rl.run_switch(run_dir, "verifier_sample") == "small" else DEFAULT_SAMPLE) + (
+        4 if lesson_counts().get((name, "CLAIM_DISCREPANCY")) else 0)
     rows = [r for r in ledger_rows(ledgers_of(run_dir, name)) if (r.get("tag") or "").upper() in FACT_TAGS
             and checkable_source(r.get("source_url_or_id") or "") and (only is None or r["claim_id"] in only)]
     rep = run_dir / "specialists" / ("%s.md" % name)

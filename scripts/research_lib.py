@@ -405,6 +405,7 @@ OVERCLAIM_RE = re.compile(r"\b(read (?:in full|end to end|cover to cover|every p
 # "on" = Stage-0b reading, "off" = the web digest, Stage 0c), the `forecasting` specialist, sector modules, and the
 # synthesis pipeline that integrates every specialist finding and every reading or digest item into the final report.
 V32 = (3, 2, 0)
+V40 = (4, 0, 0)
 READING_MODES = ("on", "off")
 DIGEST_DIR = "corpus/digest"
 DIGEST_COVERAGE = "corpus/digest/COVERAGE.md"
@@ -487,10 +488,31 @@ def current_version() -> tuple:
     return version_tuple(methodology_version())
 
 
-def specialists_for(run_version: Optional[tuple] = None) -> Dict[str, str]:
-    """The Stage-1 specialists a run of this methodology version must have (all of them for current runs)."""
+def specialists_for(run_version: Optional[tuple] = None, switches: Optional[dict] = None) -> Dict[str, str]:
+    """The Stage-1 specialists a run of this methodology version must have (all of them for current runs), narrowed by the
+    run's `specialists` switch."""
     v = run_version or current_version()
-    return {n: p for n, p in SPECIALISTS.items() if v >= SPECIALIST_SINCE.get(n, (0,))}
+    out = {n: p for n, p in SPECIALISTS.items() if v >= SPECIALIST_SINCE.get(n, (0,))}
+    if (switches or {}).get("specialists") == "core":
+        core = load_json(ROOT / "config" / "switches.json")["core_specialists"]
+        out = {n: p for n, p in out.items() if n in core}
+    return out
+
+
+def run_switches(run_dir: Path) -> dict:
+    """A run's resolved depth switches; empty for a run from before switches."""
+    p = Path(run_dir) / RUN_MANIFEST
+    return (load_json(p).get("switches") or {}) if p.exists() else {}
+
+
+def run_switch(run_dir: Path, name: str, default=None):
+    return run_switches(run_dir).get(name, default)
+
+
+def run_specialists(run_dir: Path) -> Dict[str, str]:
+    """The specialists this run has: its methodology version's, narrowed by its switches."""
+    m = load_json(Path(run_dir) / RUN_MANIFEST)
+    return specialists_for(version_tuple(m.get("methodology_version")), m.get("switches"))
 
 
 def effective_version(legacy: bool = False, version: Optional[tuple] = None) -> tuple:
@@ -865,7 +887,7 @@ def validate_specialist_report(path: Path, ledger_ids: Optional[Set[str]] = None
             required = required + [SME_SECTION]
         check_sections(text, required, res)
         check_crosswalk(text, res)
-        check_coverage(name, text, fm, res, v)
+        check_coverage(name, text, fm, res, v, run_switches(path.parent.parent).get("history_years"))
         if name in SPECIALISTS and v >= V23:
             extra = [(s["id"], s["step"]) for s in sector_steps_for(path.parent.parent, name)] if v >= V32 else []
             check_method_checklist(name, text, res, v, extra)
@@ -934,9 +956,13 @@ _COVERAGE_RULES = (
 )
 
 
-def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result, version: Optional[tuple] = None) -> None:
-    """Historical Depth Standard (methodology/RESEARCH_PLAYBOOK.md §2), as it applied to the run's version."""
+def check_coverage(name: str, text: str, fm: Dict[str, str], res: Result, version: Optional[tuple] = None,
+                   history_years: Optional[int] = None) -> None:
+    """Historical Depth Standard (methodology/RESEARCH_PLAYBOOK.md §2), as it applied to the run's version. A run whose
+    history_years switch is shorter is held to that: it chose it openly, and its Depth Disclosure says so."""
     mins = depth_minimums()
+    if history_years:
+        mins = {k: min(v, history_years) if k.endswith("years") else v for k, v in mins.items()}
     v = version or current_version()
     exception = (fm.get("coverage_exception") or "").strip()
     for agent, sections, counter, key, label, hard, since in _COVERAGE_RULES:

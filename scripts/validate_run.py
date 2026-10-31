@@ -44,7 +44,7 @@ def check_specialists(run_dir: Path, manifest: dict, results: list, legacy: bool
     all_ids = set()
     expected = {"ticker": manifest.get("ticker"), "run_id": manifest.get("run_id")}
     v = rl.effective_version(legacy, version)
-    for name, prefix in rl.specialists_for(v).items():
+    for name, prefix in rl.run_specialists(run_dir).items():
         report = run_dir / "specialists" / ("%s.md" % name)
         ledger = run_dir / "specialists" / ("%s_ledger.csv" % name)
         lres, ids = rl.validate_ledger(ledger, prefix)
@@ -142,7 +142,7 @@ def check_reading(run_dir: Path, results: list, stage: str, version: Optional[tu
         results.append(fr)
     packs = run_dir / rl.corpus_dir_rel(run_dir) / "packs"
     pr = rl.Result(str(packs))
-    for name in rl.specialists_for(version):
+    for name in rl.run_specialists(run_dir):
         if not (packs / ("%s.md" % name)).exists():
             pr.error("no %s pack for %s (%s)" % ("reading" if on else "digest", name, index_tool))
     results.append(pr)

@@ -25,7 +25,7 @@ import research_lib as rl  # noqa: E402
 STATUSES = ("preflight", "specialists_running", "specialists_complete", "specialists_incomplete",
             "synthesis", "qc_auto_passed", "qc_auto_failed", "complete", "insufficient_evidence",
             "qc_failed", "failed", "interrupted")
-PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay"}
+PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay", "profile", "switches"}
 FROZEN_AT_START = {"research_cutoff", "sector_modules", "fiscal_year_end"}
 
 
@@ -55,6 +55,8 @@ def main(argv=None) -> int:
     inv.add_argument("--purpose", required=True)
     n = sub.add_parser("note")
     n.add_argument("text")
+    ce = sub.add_parser("ceiling", help="change the run's spend_ceiling switch (dollars, or none)")
+    ce.add_argument("value")
     md = sub.add_parser("mode", help="switch the run's reading mode (refused once any specialist has been invoked)")
     md.add_argument("what", choices=["reading"])
     md.add_argument("value", choices=rl.READING_MODES)
@@ -108,6 +110,9 @@ def apply(a, p, path: Path) -> int:
         node.setdefault("invocations", []).append({"stage": a.stage, "purpose": a.purpose, "at": now()})
     elif a.cmd == "note":
         m.setdefault("notes", []).append({"at": now(), "text": a.text})
+    elif a.cmd == "ceiling":
+        m.setdefault("switches", {})["spend_ceiling"] = None if a.value.lower() == "none" else float(a.value)
+        m.setdefault("notes", []).append({"at": now(), "text": "spend_ceiling set to %s" % a.value})
     elif a.cmd == "mode":
         started = [n for n, s in (m.get("specialists") or {}).items() if (s or {}).get("invocations")]
         if started:
@@ -115,6 +120,16 @@ def apply(a, p, path: Path) -> int:
                     "change; start a new run" % (", ".join(sorted(started)), m.get("reading_mode", "on")))
         old_mode = m.get("reading_mode", "on")
         m["reading_mode"] = a.value
+        if m.get("switches"):               # the switches that depend on the reading mode move with it
+            on = a.value == "on"
+            m["switches"].update(reading=a.value, digest="off" if on else "on", second_reads="on" if on else "off")
+            if not on:
+                m["switches"]["reading_transport"] = "plan"
+            contract = path.parent / "contract.json"
+            if contract.exists():
+                c = rl.load_json(contract)
+                c["switches"] = m["switches"]
+                rl.write_json(contract, c)
         m.setdefault("notes", []).append({"at": now(), "text": "reading mode %s -> %s: %s" % (old_mode, a.value, a.reason)})
     rl.write_json(path, m)
     print("updated %s" % path)

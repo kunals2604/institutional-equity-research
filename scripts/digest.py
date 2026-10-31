@@ -598,7 +598,7 @@ def build(run_dir: Path, tdir: Optional[Path] = None, log=print) -> dict:
     packs = out_dir / "packs"
     packs.mkdir(exist_ok=True)
     version = rl.version_tuple(m.get("methodology_version"))
-    for name in rl.specialists_for(version):
+    for name in rl.run_specialists(run_dir):
         mine = [r for r in index_rows if name in r[7]]
         lines = ["# Digest pack — %s (run %s)" % (name, pl["run_id"]), "",
                  "**Reading stage OFF.** Read in full (the reading audit checks it): the digest topic files you own. They "

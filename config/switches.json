@@ -1,0 +1,381 @@
+{
+ "_about": "Every choice that trades depth for cost. docs/SWITCHES.md is generated from this file by `python3 scripts/switches.py docs`; edit here. A switch never caps a verdict or a confidence level: a lighter run states what it did not do, and the judgment and the owner weigh that.",
+ "switches": {
+  "reading": {
+   "values": [
+    "on",
+    "off"
+   ],
+   "acts_in": "Stage 0b",
+   "frozen_after": "specialists",
+   "flags": [
+    "--reading"
+   ],
+   "buys": "Every in-scope page read once and recorded page by page.",
+   "loses": "The page-by-page record of what was read; specialists read their own domain's documents instead.",
+   "confidence": "Accounting and governance findings rest on what specialists chose to open."
+  },
+  "digest": {
+   "values": [
+    "on",
+    "off"
+   ],
+   "acts_in": "Stage 0c",
+   "frozen_after": "specialists",
+   "flags": [],
+   "buys": "Web summaries of each report, kept as tier-6 leads and page-confirmed by script.",
+   "loses": "The leads that point specialists at what to read. Off only with reading on.",
+   "confidence": "None by itself: digest items are never evidence."
+  },
+  "second_reads": {
+   "values": [
+    "on",
+    "off"
+   ],
+   "acts_in": "Stage 0b",
+   "frozen_after": "specialists",
+   "flags": [
+    "--no-calibration"
+   ],
+   "buys": "An independent second read of every chunk, with conflicts adjudicated.",
+   "loses": "The cross-check of a reader's misses. Only meaningful with reading on.",
+   "confidence": "A reading miss goes unnoticed."
+  },
+  "effort": {
+   "values": [
+    "high",
+    "xhigh",
+    "max"
+   ],
+   "acts_in": "every Opus agent",
+   "frozen_after": "run start",
+   "flags": [
+    "--effort"
+   ],
+   "buys": "More reasoning per turn.",
+   "loses": "Reasoning depth per turn; not measured yet what that costs in findings.",
+   "confidence": "Unmeasured."
+  },
+  "specialists": {
+   "values": [
+    "core",
+    "all"
+   ],
+   "acts_in": "Stage 1",
+   "frozen_after": "specialists",
+   "flags": [
+    "--only"
+   ],
+   "buys": "Every domain researched by its own independent head.",
+   "loses": "core runs financials, filings, management, forecasting, valuation and bear-case: no industry, moat, scuttlebutt, concalls or special-situations reports, so thin evidence for some layers.",
+   "confidence": "Moat, industry and ground-truth judgments rest on indirect evidence."
+  },
+  "verifier_sample": {
+   "values": [
+    "small",
+    "full"
+   ],
+   "acts_in": "Stages 1-2",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "More of each specialist's claims re-opened at the source (full 8, small 4).",
+   "loses": "Fewer claims re-opened, so a misread is likelier to pass.",
+   "confidence": "Lower assurance that claims say what their sources say."
+  },
+  "synthesis": {
+   "values": [
+    "compact",
+    "full"
+   ],
+   "acts_in": "Stage 3",
+   "frozen_after": "synthesis",
+   "flags": [],
+   "buys": "Independent theme analysts, layer analysts and section writers.",
+   "loses": "Fewer independent sessions; all four layers are still assessed, and every item still gets a recorded fate.",
+   "confidence": "Fewer independent eyes on how the evidence connects."
+  },
+  "audit": {
+   "values": [
+    "sampled",
+    "full"
+   ],
+   "acts_in": "Stage 4",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "The whole audit (full 30 claims and 15 restatements).",
+   "loses": "sampled audits 15 claims and 8 restatements.",
+   "confidence": "Lower assurance on the final report."
+  },
+  "history_years": {
+   "values": [
+    7,
+    10,
+    15
+   ],
+   "acts_in": "Stages 0-1",
+   "frozen_after": "specialists",
+   "flags": [
+    "--years",
+    "--core-years",
+    "--quarters",
+    "--ppt-quarters"
+   ],
+   "buys": "A longer record: more cycles, and more of management's history.",
+   "loses": "Below 10 years the record may miss a full cycle.",
+   "confidence": "Through-cycle judgments rest on fewer cycles."
+  },
+  "gap_rounds": {
+   "values": [
+    1,
+    "until_closed"
+   ],
+   "acts_in": "Stage 2",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "Every closable gap closed before synthesis.",
+   "loses": "Closable gaps stay open after one round, and the report says which.",
+   "confidence": "Known gaps remain."
+  },
+  "early_stop": {
+   "values": [
+    "on",
+    "off"
+   ],
+   "acts_in": "Stage 1",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "A pause that asks the owner when a red flag appears early, before the rest is spent. Never an automatic kill.",
+   "loses": "Off spends the full run on a name with a red flag, which a deep run may want anyway.",
+   "confidence": "None."
+  },
+  "canaries": {
+   "values": [
+    "on",
+    "off"
+   ],
+   "acts_in": "verification and audit",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "Known-false claims mixed into the checkers' samples: a measured catch rate for every run.",
+   "loses": "The only measure of whether the checkers are working.",
+   "confidence": "None directly: it measures assurance rather than adding it."
+  },
+  "spend_ceiling": {
+   "values": "number or none",
+   "acts_in": "the engine",
+   "frozen_after": "never",
+   "flags": [],
+   "buys": "An automatic pause when a run's recorded cost reaches this many dollars.",
+   "loses": "With none, nothing pauses a run on cost.",
+   "confidence": "None."
+  },
+  "reading_transport": {
+   "values": [
+    "plan",
+    "batch"
+   ],
+   "acts_in": "Stage 0b",
+   "frozen_after": "specialists",
+   "flags": [],
+   "buys": "plan uses the subscription; batch reads through the API at half price, with real money and an API key.",
+   "loses": "Nothing in depth: it changes who pays.",
+   "confidence": "None."
+  }
+ },
+ "combinations": [
+  {
+   "when": {
+    "reading": "off"
+   },
+   "require": {
+    "digest": "on"
+   },
+   "why": "with reading off the digest is Stage 0"
+  },
+  {
+   "when": {
+    "reading": "off"
+   },
+   "require": {
+    "second_reads": "off"
+   },
+   "why": "second reads apply only to the reading stage"
+  },
+  {
+   "when": {
+    "reading": "off"
+   },
+   "require": {
+    "reading_transport": "plan"
+   },
+   "why": "the batch transport applies only to the reading stage"
+  }
+ ],
+ "core_specialists": [
+  "financials",
+  "filings",
+  "management",
+  "forecasting",
+  "valuation",
+  "bear-case"
+ ],
+ "not_depth_flags": [
+  "--actual",
+  "--agent",
+  "--all",
+  "--all-values",
+  "--alt",
+  "--args",
+  "--author",
+  "--bakeoff",
+  "--basis",
+  "--batch",
+  "--budget-ms",
+  "--by",
+  "--check",
+  "--check-runs",
+  "--chunks",
+  "--claude",
+  "--claude-bin",
+  "--coe",
+  "--company",
+  "--context-limit",
+  "--currency",
+  "--cutoff",
+  "--date",
+  "--days",
+  "--doc",
+  "--doctypes",
+  "--dom",
+  "--download",
+  "--dpi",
+  "--dry-run",
+  "--end",
+  "--endpoint",
+  "--evidence",
+  "--exchange",
+  "--expect",
+  "--extra",
+  "--extra-host",
+  "--facts",
+  "--force",
+  "--forecast",
+  "--frequency",
+  "--from",
+  "--from-fy",
+  "--fromdate",
+  "--fy-end",
+  "--history",
+  "--hurdle",
+  "--id",
+  "--index",
+  "--inputs",
+  "--ir",
+  "--isin",
+  "--json",
+  "--kind",
+  "--language",
+  "--last",
+  "--ledger",
+  "--lender",
+  "--library",
+  "--limit",
+  "--list",
+  "--live-probe",
+  "--match",
+  "--max",
+  "--max-launches",
+  "--max-mb",
+  "--max-pages",
+  "--max-wait-hours",
+  "--message-file",
+  "--metrics",
+  "--model",
+  "--n",
+  "--name",
+  "--no-reuse",
+  "--no-verify",
+  "--no-wayback",
+  "--no-write",
+  "--note",
+  "--offline",
+  "--out",
+  "--out-dir",
+  "--output",
+  "--page",
+  "--parallel",
+  "--parallel-ceiling",
+  "--part",
+  "--parts",
+  "--per-doc",
+  "--period",
+  "--policy",
+  "--price",
+  "--prices",
+  "--probe",
+  "--profile",
+  "--purpose",
+  "--push",
+  "--quarterly",
+  "--query",
+  "--range",
+  "--reason",
+  "--reference",
+  "--reference-position",
+  "--remote",
+  "--replan",
+  "--replay",
+  "--report",
+  "--restart",
+  "--retries",
+  "--role",
+  "--root",
+  "--rotate",
+  "--run",
+  "--run-id",
+  "--scenario",
+  "--scoreboard",
+  "--scorecard",
+  "--scrip",
+  "--search",
+  "--seed",
+  "--segment",
+  "--segment-turns",
+  "--set",
+  "--skip",
+  "--sleep",
+  "--snapshot",
+  "--solve",
+  "--source",
+  "--stage",
+  "--step",
+  "--strict",
+  "--summary",
+  "--symbol",
+  "--ticker",
+  "--timeout",
+  "--timeout-min",
+  "--to",
+  "--todate",
+  "--tolerance",
+  "--transcripts",
+  "--type",
+  "--types",
+  "--unit",
+  "--url",
+  "--user-agent",
+  "--valuation",
+  "--view",
+  "--wacc",
+  "--waive",
+  "--wayback-prefix",
+  "--weekly-ceiling"
+ ],
+ "not_yet_wired": {
+  "synthesis": "compact has no effect until Step 4",
+  "canaries": "Step 5",
+  "early_stop": "Step 6",
+  "reading_transport": "batch, Step 10",
+  "--deepen": "the command Depth Disclosure prints, Step 8"
+ }
+}

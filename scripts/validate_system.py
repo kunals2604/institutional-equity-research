@@ -98,6 +98,26 @@ def operative_markdown():
     return files
 
 
+def check_switches(rep):
+    """Every choice that trades depth for cost is a documented switch, and the reference cannot drift from it."""
+    import switches
+    reg = switches.registry()
+    depth = {f for spec in reg["switches"].values() for f in spec["flags"]}
+    flags = set()
+    for f in sorted((ROOT / "scripts").glob("*.py")):
+        flags |= set(re.findall(r'add_argument\(\s*"(--[a-z0-9-]+)"', f.read_text(encoding="utf-8")))
+    unknown = sorted(flags - depth - set(reg["not_depth_flags"]))
+    rep.add("every command-line flag is a depth switch or declared not to affect depth", not unknown,
+            str(unknown[:8]) if unknown else "%d flags, %d of them depth switches" % (len(flags), len(depth & flags)))
+    pre = switches.presets()
+    for name, p in pre["profiles"].items():
+        rep.add("preset %s is a valid set of switches" % name, not switches.problems(p["switches"]) and
+                set(p["switches"]) == set(reg["switches"]), "; ".join(switches.problems(p["switches"]))[:150])
+    rep.add("every preset states how far to trust its cost", all(p.get("estimate_status") for p in pre["profiles"].values()))
+    current = switches.DOCS.exists() and switches.DOCS.read_text(encoding="utf-8") == switches.docs_text()
+    rep.add("docs/SWITCHES.md matches the registry", current, "" if current else "run python3 scripts/switches.py docs")
+
+
 def check_sector_modules(rep):
     """Methodology 3.2.0: the sector-module catalogue parses, covers every playbook, and every step is owned by a
     specialist, has a unique id and names canonical metric keys."""
@@ -495,7 +515,7 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
     rep = Report()
     for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation,
-               check_isolation_and_connectors, check_sector_modules):
+               check_isolation_and_connectors, check_sector_modules, check_switches):
         try:
             fn(rep)
         except Exception as exc:  # a crashing check is a failing check

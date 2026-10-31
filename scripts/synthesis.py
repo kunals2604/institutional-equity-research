@@ -363,9 +363,15 @@ def dimension_index() -> Dict[str, List[str]]:
     return inv
 
 
+def run_rules(run_dir: Path) -> dict:
+    """The materiality rules this run started under (its contract); older runs have none and take the current ones."""
+    contract = run_dir / "contract.json"
+    return (rl.load_json(contract).get("materiality") if contract.exists() else None) or materiality_rules()
+
+
 def classify(items: List[dict], run_dir: Path) -> None:
     th = active_themes(run_dir)
-    rules = materiality_rules()
+    rules = run_rules(run_dir)
     dims_of = dimension_index()
     by_author = {}
     for tid, t in th.items():
@@ -461,7 +467,7 @@ def assign_ids(items: List[dict]) -> None:
 def inputs_of(run_dir: Path) -> List[Path]:
     v = run_version(run_dir)
     out = []
-    for name in rl.specialists_for(v):
+    for name in rl.run_specialists(run_dir):
         out.append(run_dir / "specialists" / ("%s.md" % name))
     out += sorted((run_dir / "specialists").glob("*_followup_*.md"))
     out += specialist_ledger_paths(run_dir)
@@ -474,7 +480,7 @@ def inputs_of(run_dir: Path) -> List[Path]:
 def build_registry(run_dir: Path, log=print) -> dict:
     v = run_version(run_dir)
     items: List[dict] = []
-    for name in rl.specialists_for(v):
+    for name in rl.run_specialists(run_dir):
         p = run_dir / "specialists" / ("%s.md" % name)
         if p.exists():
             items += report_items(run_dir, p, name)
@@ -1053,6 +1059,7 @@ def followups(run_dir: Path, log=print, write: bool = True) -> dict:
 
 REGISTER_BLOCK = "INTEGRATION_REGISTER"
 REGISTER_SECTION = "Evidence Integration Register"
+DEPTH_SECTION = "Depth Disclosure"
 
 
 def all_dispositions(run_dir: Path) -> Dict[str, dict]:
@@ -1220,7 +1227,7 @@ def tieout_exceptions(run_dir: Path) -> Set[str]:
 def uptake(run_dir: Path, reg: List[dict], disp: Dict[str, dict], cited: Set[str]) -> List[dict]:
     rows = []
     common = common_claims(reg)
-    for name in rl.specialists_for(run_version(run_dir)):
+    for name in rl.run_specialists(run_dir):
         kf = [i for i in reg if i["author"] == name and i["kind"] == "key_finding"]
         claims = [i for i in reg if i["author"] == name and i["kind"] == "ledger_claim"]
         cw = [i for i in reg if i["author"] == name and i["kind"] == "crosswalk"]
@@ -1454,6 +1461,11 @@ def assemble(run_dir: Path, log=print) -> List[str]:
     out = [front_matter(run_dir, sc)]
     for s in required:
         key = rl.norm_heading(s)
+        if key == rl.norm_heading(DEPTH_SECTION):
+            import switches
+            blocks.pop(key, None)          # generated from the run's own switches, never written by hand
+            out.append("## %s\n\n%s" % (DEPTH_SECTION, switches.disclosure(rl.load_json(run_dir / rl.RUN_MANIFEST))))
+            continue
         if key == rl.norm_heading(REGISTER_SECTION):
             reg = integration(run_dir, write=True)["register"]
             out.append("## %s\n\n<!-- %s:BEGIN -->\n%s\n<!-- %s:END -->\n" % (REGISTER_SECTION, REGISTER_BLOCK, reg, REGISTER_BLOCK))
