@@ -468,7 +468,7 @@ def events_check_off(run_dir: Path, pl: dict, items: List[dict], log=print) -> d
     with path.open(encoding="utf-8", newline="") as f:
         events = list(csv.DictReader(f))
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
-    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
+    fy_end = rl.fy_end_month(m)
     by_fy = defaultdict(list)
     for d in pl["documents"]:
         by_fy[reading.doc_fiscal_year(d, fy_end)].append(d)
@@ -531,7 +531,7 @@ def build(run_dir: Path, tdir: Optional[Path] = None, log=print) -> dict:
     out_dir = dpath(run_dir)
     head = HEAD % pl["run_id"]
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
-    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
+    fy_end = rl.fy_end_month(m)
     import entities as ent
     graph = ent.EntityGraph()
     series = defaultdict(dict)

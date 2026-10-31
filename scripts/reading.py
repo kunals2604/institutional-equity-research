@@ -2437,7 +2437,7 @@ def events_check(run_dir: Path, log=print) -> dict:
     p = load_json(run_dir / READING / "plan.json")
     pol = run_policy(run_dir)
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
-    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
+    fy_end = rl.fy_end_month(m)
     by_fy = defaultdict(list)
     for d in p["documents"]:
         by_fy[doc_fiscal_year(d, fy_end)].append(d)
@@ -2601,7 +2601,7 @@ def dossiers(run_dir: Path, log=print) -> dict:
     import entities as ent
     graph = ent.EntityGraph()
     m = rl.load_json(run_dir / rl.RUN_MANIFEST) if (run_dir / rl.RUN_MANIFEST).exists() else {}
-    fy_end = int(str(m.get("fy_end") or "03-31")[:2]) if re.match(r"\d{2}-\d{2}", str(m.get("fy_end") or "")) else 3
+    fy_end = rl.fy_end_month(m)
     for c in p["chunks"]:
         units = load_json(run_dir / CACHE / "chunks" / ("%s.json" % c["id"]), {"units": {}})["units"]
         doc = docs[c["doc"]]

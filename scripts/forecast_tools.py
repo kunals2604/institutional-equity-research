@@ -245,6 +245,8 @@ def to_valuation(mres: dict, scenario: str, kind: str, extra: dict) -> dict:
     """The forecast path in the input format of valuation_tools.py: `fcff` (dcf: revenue growth and EBIT margin paths,
     reinvestment from the model) or `ri` (residual-income: book value, ROE and payout paths). `extra` supplies what a
     forecast does not hold (wacc or cost of equity, terminal assumptions, net debt, shares ...), each with its claim."""
+    if mres.get("errors"):
+        raise ValueError("the model failed its own checks: %s" % "; ".join(map(str, mres["errors"][:4])))
     rows = mres["scenarios"][scenario]["rows"]
     n = len(rows)
     if kind == "fcff":
@@ -253,7 +255,10 @@ def to_valuation(mres: dict, scenario: str, kind: str, extra: dict) -> dict:
         if miss:
             raise ValueError("the model has no %s line (fcff needs revenue and ebit)" % ", ".join(miss))
         rev = [r["revenue"] for r in rows]
-        base_rev = float(extra.get("base_revenue") or rev[0] / (1 + rows[0].get("revenue_growth", 0)))
+        if extra.get("base_revenue") is None and "revenue_growth" not in rows[0]:
+            raise ValueError("pass base_revenue in --extra: without it or a revenue_growth driver the first year's growth "
+                             "cannot be known, and assuming it flat would distort the whole path")
+        base_rev = float(extra.get("base_revenue") or rev[0] / (1 + rows[0]["revenue_growth"]))
         growth = [rev[0] / base_rev - 1] + [rev[i] / rev[i - 1] - 1 for i in range(1, n)]
         out = {"years": n, "base_revenue": base_rev, "revenue_growth": growth,
                "ebit_margin": [r["ebit"] / r["revenue"] for r in rows]}
@@ -288,9 +293,10 @@ def reconcile(fm: dict, val: dict) -> dict:
         vg = vg if isinstance(vg, list) else [vg]
         v_cagr = math.prod(1 + (vg[i] if i < len(vg) else vg[-1]) for i in range(n)) ** (1 / n) - 1
         f_cagr = fm["scenarios"]["base"]["summary"].get("cagr_revenue")
-        cmp_["revenue_cagr"] = {"forecast": f_cagr, "valuation": v_cagr}
-        if f_cagr is not None and abs(f_cagr - v_cagr) > 0.02:
-            flags.append("revenue CAGR: forecast %.1f %% vs valuation %.1f %%" % (100 * f_cagr, 100 * v_cagr))
+        if f_cagr is not None:
+            cmp_["revenue_cagr"] = {"forecast": f_cagr, "valuation": v_cagr}
+            if abs(f_cagr - v_cagr) > 0.02:
+                flags.append("revenue CAGR: forecast %.1f %% vs valuation %.1f %%" % (100 * f_cagr, 100 * v_cagr))
     if "ebit_margin" in val and "ebit" in rows[0] and "revenue" in rows[0]:
         vm = val["ebit_margin"]
         vm_last = vm[-1] if isinstance(vm, list) else vm
@@ -302,13 +308,16 @@ def reconcile(fm: dict, val: dict) -> dict:
         if "roe" in val:
             vr = val["roe"]
             vr_avg = statistics.mean(vr) if isinstance(vr, list) else vr
-        else:
-            vr_avg = statistics.mean(p / val.get("base_equity", rows[0]["equity"]) for p in
-                                     (val["profit"] if isinstance(val["profit"], list) else [val["profit"]]))
+        else:                              # a profit path on the forecast's own equity, so the same path gives the same ROE
+            prof = val["profit"] if isinstance(val["profit"], list) else [val["profit"]] * n
+            vr_avg = statistics.mean(p / r["equity"] for p, r in zip(prof, rows) if r["equity"])
         fr = statistics.mean(r["pat"] / r["equity"] for r in rows if r["equity"])
         cmp_["average_roe"] = {"forecast": fr, "valuation": vr_avg}
         if abs(fr - vr_avg) > 0.015:
             flags.append("average ROE: forecast %.1f %% vs valuation %.1f %%" % (100 * fr, 100 * vr_avg))
+    if not cmp_:
+        raise ValueError("nothing was compared: the forecast needs revenue (with its CAGR), ebit or pat and equity lines, and "
+                         "the valuation inputs revenue_growth, ebit_margin, roe or profit")
     return {"comparisons": cmp_, "flags": flags}
 
 

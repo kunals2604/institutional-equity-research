@@ -1147,6 +1147,24 @@ def key_quantity_errors(text: str, kq: List[dict]) -> List[str]:
     return errs
 
 
+def handoff_errors(run_dir: Path) -> List[str]:
+    """Valuation on the forecast (cio.md Stage 3, step 6): the two specialists work apart until here, so this is the one
+    place their numbers meet. It must have happened, and the reconcile must have compared something."""
+    if not (run_dir / "specialists" / "forecasting.md").exists():
+        return []
+    errs = []
+    rec = run_dir / "calc" / "forecasting_reconcile.json"
+    if not rec.exists():
+        errs.append("calc/forecasting_reconcile.json is missing: run forecast_tools.py reconcile")
+    elif not rl.load_json(rec).get("comparisons"):
+        errs.append("calc/forecasting_reconcile.json compared nothing: give it the valuation's dcf or residual-income inputs")
+    if not (run_dir / "calc" / "forecasting_to_valuation.json").exists():
+        errs.append("calc/forecasting_to_valuation.json is missing: run forecast_tools.py to-valuation")
+    if not list((run_dir / "specialists").glob("valuation_followup_*.md")):
+        errs.append("no valuation follow-up values the company on the forecasting specialist's base path")
+    return errs
+
+
 def dimension_owner_errors(run_dir: Path, sc: dict) -> List[str]:
     """Each scored dimension's cited claims reach (directly or through the claim graph) a claim of an owning specialist."""
     import claim_graph
@@ -1272,6 +1290,7 @@ def integration(run_dir: Path, write: bool = True) -> dict:
             if r["status"] in ("mismatch", "other_claim") and str(r["line"]) not in exc:
                 errs.append("final report line %s: the number does not tie to the cited claim (%s; %s) — fix it, or classify "
                             "it in qc/tieout_exceptions.csv (line,classification,reason)" % (r["line"], r["status"], r["cited"][:70]))
+    errs += handoff_errors(run_dir)
     if sc:
         errs += dimension_owner_errors(run_dir, sc)
         for L in LAYERS:

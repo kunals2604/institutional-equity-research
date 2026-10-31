@@ -38,7 +38,7 @@ Estimate what the business may be worth under **defensible, traceable** scenario
 ## Market data tools
 - `python3 scripts/market_data.py close --symbol <SYM> --date <cutoff> --run RUN_DIR`: the exchange close, volume, turnover and delivery % (NSE bhavcopy, tier 1).
 - `python3 scripts/market_data.py adtv --symbol <SYM> --end <cutoff> --days 90 --run RUN_DIR --out RUN_DIR/calc/valuation_adtv.json`.
-- `python3 scripts/market_data.py history --symbol <SYM> --years 20 --run RUN_DIR --verify 12 --out RUN_DIR/calc/valuation_price_history.json`: a long daily history (tier 5) with sampled dates verified against exchange bhavcopy, plus split and dividend events.
+- `python3 scripts/market_data.py history --symbol <SYM> --end <cutoff> --years 20 --run RUN_DIR --out RUN_DIR/calc/valuation_price_history.json`: a long history from exchange bhavcopy files (tier 1), month-end sampled (`--frequency weekly` where drawdown precision matters), adjusted for splits and bonuses, with dividends. Rights issues are listed, not adjusted: say so where they matter.
 
 ## Free connectors
 Benchmark total returns: `connectors.py tri --index "NIFTY 500" --from DD-Mon-YYYY --to DD-Mon-YYYY` (NSE Indices, daily from inception). Inflation and macro inputs: `connectors.py mospi` (CPI, WPI, national accounts). Risk-free rate: `connectors.py open fbil` (G-sec curve) or RBI data (`open rbi-data`). Every result is cached and logged (`config/data_sources.json` lists each source and its access); cite the cached file or snapshot, never WebFetch's rendering.

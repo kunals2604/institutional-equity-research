@@ -1724,6 +1724,12 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def fy_end_month(manifest: dict) -> int:
+    """The month a run's fiscal year ends (March when the manifest does not say)."""
+    m = re.match(r"(\d{2})-\d{2}", str(manifest.get("fiscal_year_end") or ""))
+    return int(m.group(1)) if m else 3
+
+
 def write_json(path: Path, data: dict) -> None:
     """Atomic: a kill or a full disk leaves the old file whole, never a truncated one the next engine start cannot read."""
     tmp = path.with_name("%s.tmp%d" % (path.name, os.getpid()))

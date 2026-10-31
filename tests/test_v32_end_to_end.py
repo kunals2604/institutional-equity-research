@@ -87,7 +87,18 @@ class V32Run(FixtureRun):
         if reading == "off":
             write_digest(self.dir, self.specialists)
 
+    def forecast_handoff(self):
+        """Valuation on the forecast (cio.md Stage 3, step 6)."""
+        rl.write_json(self.dir / "calc" / "forecasting_to_valuation.json", {"years": 5, "base_revenue": 100.0})
+        rl.write_json(self.dir / "calc" / "forecasting_reconcile.json",
+                      {"comparisons": {"revenue_cagr": {"forecast": 0.1, "valuation": 0.1}}, "flags": []})
+        (self.dir / "specialists" / "valuation_followup_1.md").write_text(
+            "---\nspecialist: valuation\ncompany: x\nticker: x\nexchange: NSE\nrun_id: x\nresearch_cutoff: 2026-01-01\n"
+            "report_status: complete\nmodel_requested: opus\nindependence_attestation: \"x\"\n---\n\n"
+            "# Valuation on the forecast\n\nThe base path gives the same range [FACT: VAL-C001].\n", encoding="utf-8")
+
     def build_report(self, drop_gating=False, kq_value=None, log_candidates=True):
+        self.forecast_handoff()
         """Stage 3 as the pipeline leaves it: the scorecard and the legacy-format sections split into the writers'
         and the CIO's section files, theme briefs and layer drafts that disposition every item, then assembly."""
         from test_research_system import final_report

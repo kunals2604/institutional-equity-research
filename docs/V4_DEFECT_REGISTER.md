@@ -74,19 +74,19 @@ battery, and a run still needs mains power and an open lid.
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| D1 | H | Handoff to valuation is prose only | No script references `forecasting_to_valuation`; Stage 3 passes with no reconcile and no re-valuation | `synthesis.py:276`, `cio.md:346` | Open |
-| D2 | H | `reconcile` reports agreement when nothing was compared (**ran**) | Mismatched inputs give empty flags and "agree within the thresholds", exit 0 | `forecast_tools.py:351,292` | Open |
-| D3 | M | Year-1 growth silently 0 % (**ran**) | Without `base_revenue` the first step divides by itself; a model failing its tie is still written | `forecast_tools.py:256,355` | Open |
-| D4 | M | ROE compared on a fixed base (**ran**) | Identical profit paths gave 18.0 % against 51.9 %, a spurious contradiction | `forecast_tools.py:306` | Open |
-| D5 | M | `valuation.md` command cannot run | Passes a nonexistent `--verify` and omits the required `--end`, so `market_data.py` exits 2 | `valuation.md:41`, `market_data.py:290` | Open |
-| D6 | M | `fy_end` key never matches | The manifest key is `fiscal_year_end`, so every company is treated as March year-end and non-March events match the wrong year | `digest.py:447,510`, `reading.py:2437,2601` | Open |
+| D1 | H | Handoff to valuation is prose only | No script references `forecasting_to_valuation`; Stage 3 passes with no reconcile and no re-valuation | `synthesis.py:276`, `cio.md:346` | Fixed |
+| D2 | H | `reconcile` reports agreement when nothing was compared (**ran**) | Mismatched inputs give empty flags and "agree within the thresholds", exit 0 | `forecast_tools.py:351,292` | Fixed |
+| D3 | M | Year-1 growth silently 0 % (**ran**) | Without `base_revenue` the first step divides by itself; a model failing its tie is still written | `forecast_tools.py:256,355` | Fixed |
+| D4 | M | ROE compared on a fixed base (**ran**) | Identical profit paths gave 18.0 % against 51.9 %, a spurious contradiction | `forecast_tools.py:306` | Fixed |
+| D5 | M | `valuation.md` command cannot run | Passes a nonexistent `--verify` and omits the required `--end`, so `market_data.py` exits 2 | `valuation.md:41`, `market_data.py:290` | Fixed |
+| D6 | M | `fy_end` key never matches | The manifest key is `fiscal_year_end`, so every company is treated as March year-end and non-March events match the wrong year | `digest.py:447,510`, `reading.py:2437,2601` | Fixed |
 
 ## E. Scoring honesty
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| E1 | H | Report says "no override" while one manual score decided the verdict | Bharti: IA4 set to 2 where the tool gave 100; with 100, IA is about 48, HOLD. Show every departure from a computed guide (disclosure, not a block) | `research_lib.py:1640` | Open |
-| E2 | M | The ladder leaves price bands undefined | Bharti: 1,175–1,200 and 1,575–1,600 carry no decision | `valuation_tools.py:343` | Open |
+| E1 | H | Report says "no override" while one manual score decided the verdict | Bharti: IA4 set to 2 where the tool gave 100; with 100, IA is about 48, HOLD. Show every departure from a computed guide (disclosure, not a block) | `research_lib.py:1640` | Moved to Step 6 (the verdict rewrite) |
+| E2 | M | The ladder leaves price bands undefined | Bharti: 1,175–1,200 and 1,575–1,600 carry no decision | `valuation_tools.py:343` | Moved to Step 6 (the verdict rewrite) |
 | E3 | M | Hurdle documentation conflicts | The skill says default 0.12; policy says null. Nothing compares `hurdle_rate` with the computed cost of equity; `outcomes.py:334` treats a missing hurdle as 0 | `SKILL.md:21`, `new_run.py:65` | Open |
 
 ## F. Contracts and enforcement
