@@ -889,7 +889,9 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
         if not (run_dir / "specialists" / ("%s.md" % name)).exists():
             continue
         rec = specialist(run_dir, name, tdir)
-        if not rec.get("tier_b") and not rec.get("waived", {}).get("%s-TIER_B" % name):
+        tier_b = rec.get("tier_b") or {}
+        unverified = not tier_b or (not tier_b.get("sampled") and rec.get("claims", 0) > 0)   # an empty sample checked nothing
+        if unverified and not rec.get("waived", {}).get("%s-TIER_B" % name):
             rec["tier_a"].append(dict(finding("SPECIALIST_UNVERIFIED", name, "the verifier did not re-check this specialist's "
                                                                               "claims (agent_driver.py verify)",
                                               "Run python3 scripts/agent_driver.py verify RUN_DIR --only %s." % name),

@@ -241,6 +241,9 @@ def check_errors(run_dir: Path, doc: Optional[str] = None, tdir: Optional[Path] 
         scope = {doc}
     sch = schema()
     errs = []
+    if doc is None and scope and not any(fkey in scope for fkey, _, _ in load_items(run_dir)):
+        errs.append("no item recorded for any of the %d documents of this job: the search-log rows alone do not make a "
+                    "digest" % len(scope))
     log_rows = search_log_keys(run_dir)
     if not dpath(run_dir, "SEARCH_LOG.md").exists():
         errs.append("corpus/digest/SEARCH_LOG.md does not exist yet: one row per planned document "

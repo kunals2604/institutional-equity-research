@@ -16,13 +16,16 @@ the single source of truth:
 Standard library only; Python 3.9 compatible.
 """
 
+import contextlib
 import csv
 import datetime as dt
+import fcntl
 import json
 import math
+import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 CONSTITUTION = ROOT / ".claude" / "skills" / "investment-constitution" / "SKILL.md"
@@ -1722,4 +1725,24 @@ def load_json(path: Path) -> dict:
 
 
 def write_json(path: Path, data: dict) -> None:
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    """Atomic: a kill or a full disk leaves the old file whole, never a truncated one the next engine start cannot read."""
+    tmp = path.with_name("%s.tmp%d" % (path.name, os.getpid()))
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(path))
+
+
+@contextlib.contextmanager
+def locked(path: Path):
+    """Hold a file's lock for a read-change-write, so two writers (the engine, manifest.py, validate_run) cannot lose
+    each other's change."""
+    lock = path.with_name(path.name + ".lock")
+    with lock.open("w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+
+
+def update_json(path: Path, change: Callable[[dict], None]) -> None:
+    with locked(path):
+        data = load_json(path)
+        change(data)
+        write_json(path, data)

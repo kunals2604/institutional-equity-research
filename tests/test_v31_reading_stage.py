@@ -1440,6 +1440,29 @@ if not ONESHOT and agent not in ("reader", "critical-reader", "scanner"):
         turn()
         (run_dir / "progress.txt").write_text(str(state.get("units", 0)))
         finish("CHECKPOINTED")
+    if int(os.environ.get("FAKE_SLEEP_ABORTS", 0)) and not state.get("slept"):   # a stream cut by system sleep, as recorded
+        state["slept"] = True
+        state_path.write_text(json.dumps(state))
+        for k in range(int(os.environ["FAKE_SLEEP_ABORTS"])):
+            emit({"type": "system", "subtype": "api_error", "level": "error", "retryAttempt": k + 1, "timestamp": now, "error": {
+                  "message": "Connection error.", "formatted": "Connection lost while your computer was asleep",
+                  "connection": {"code": "StreamSuspended"}}})
+        time.sleep(30)
+        sys.exit(1)
+    if state.get("crashes", 0) < int(os.environ.get("FAKE_CRASHES", 0)):         # dies after a turn of real work
+        state["crashes"] = state.get("crashes", 0) + 1
+        turn()
+        state_path.write_text(json.dumps(state))
+        sys.exit(1)
+    if os.environ.get("FAKE_DEAD") and not state.get("revived"):                 # dies with nothing done, every time
+        sys.exit(1)
+    if os.environ.get("FAKE_IDLE"):                                              # answers without touching a file
+        turn()
+        print(json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "nothing done", "session_id": sid,
+                          "total_cost_usd": 0.1, "num_turns": 1,
+                          "permission_denials": [{"tool_name": "Bash"}] if os.environ["FAKE_IDLE"] == "denied" else []}))
+        state_path.write_text(json.dumps(state))
+        sys.exit(0)
     if os.environ.get("FAKE_PEEK") and not state.get("peeked"):
         state["peeked"] = True
         turn(("Read", {"file_path": str(run_dir / "specialists" / "moat.md")}))

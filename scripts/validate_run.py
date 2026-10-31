@@ -332,13 +332,20 @@ def main(argv=None) -> int:
 
     if read_only:
         return 0 if passed else 1
-    manifest["status"] = {
+    status = {
         ("specialists", True): "specialists_complete",
         ("specialists", False): "specialists_incomplete",
         ("final", True): "qc_auto_passed",
         ("final", False): "qc_auto_failed",
     }[(a.stage, passed)]
-    rl.write_json(mpath, manifest)
+    specialists = manifest.get("specialists")
+
+    def record(m: dict) -> None:           # the engine may have logged an invocation since this run began
+        m["status"] = status
+        for name, node in (specialists or {}).items():
+            cur = m.setdefault("specialists", {}).setdefault(name, {})
+            cur.update({k: v for k, v in node.items() if k != "invocations"})
+    rl.update_json(mpath, record)
     if a.stage == "final":
         (run_dir / "qc").mkdir(exist_ok=True)
         rl.write_json(run_dir / "qc" / "auto_checks.json", {

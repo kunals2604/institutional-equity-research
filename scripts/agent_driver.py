@@ -61,6 +61,7 @@ import json
 import os
 import re
 import shutil
+import statistics
 import signal
 import socket
 import subprocess
@@ -83,6 +84,11 @@ FIX_ROUNDS_REPORT = 3          # specialists, follow-ups, auditor: resumes with 
 RESUME_TRIES = 2               # resumes after a crash or timeout before a session is given up
 RESTARTS = 1                   # readers: fresh restarts of the same chunks before they are skipped
 CONTINUATIONS = 12             # fresh sessions one assignment may use (a guard against a loop, not a depth limit)
+SLEEP_ABORT = "StreamSuspended"  # the CLI's code for a stream cut by system sleep; it retries by itself, up to 10 a call
+SLEEP_ABORT_LIMIT = 3          # such aborts in one attempt before the engine stops the session: each re-sends the context
+WATCH_S = 20.0                 # how often a running session's transcript is read for them
+METER_GAP_MIN = 0.02           # a weekly-meter move below this is rounding
+METER_GAP_RATIO = 3.0          # moved this many times what the recorded cost explains: capacity used and not recorded
 SEGMENT_TURNS = 25             # long agents: turns per segment, after which the engine looks at the context
 CHECKPOINT_TURNS = 30          # turns allowed to finish the current step and write the checkpoint
 CONTEXT_LIMIT = 250000         # above this a long agent continues in a fresh session (average context about half)
@@ -132,6 +138,8 @@ def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
     raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
                     "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py", "archive_transcripts.py")
+SLEEP_STOP = ("the machine went to sleep during this session, and every retry re-sends its context at the cost of real "
+              "capacity. Keep the Mac on mains power with the lid open, then run the engine again; it resumes this session")
 SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "forecasting",
                     "valuation", "special-situations", "bear-case")
 SPECIALIST_PROMPT = rl.ROOT / "templates" / "specialist_prompt.md"
@@ -303,6 +311,7 @@ class Assignment:
     on_result: Optional[Callable[[str, str], None]] = None  # (kind, result text): the engine records the read
     fix_builder: Optional[Callable[[List[str]], str]] = None
     mcp: Tuple[str, ...] = ()       # MCP servers this agent gets (MCP_SERVERS); every other agent gets none
+    may_find_nothing: bool = False  # a session that changed nothing can be a true result, unless it was denied its tools
 
 
 def run_paths(run_dir: Path) -> List[Path]:
@@ -871,6 +880,15 @@ def synthesis_prompt(run_dir: Path, role: str, subject: str) -> str:
                         "cio/contradiction_log.md and the qc/ outputs"), subject, rr, subject))
 
 
+def carry_on(eng: "Engine", a: Assignment) -> None:
+    """A job that closed without passing left work on disk: its successor continues from there, never from zero."""
+    earlier = [j for j in eng.jobs()["jobs"] if j["agent"] == a.agent and j["kind"] == a.kind and
+               j.get("subject", "") == a.subject]
+    if earlier and earlier[-1].get("status") != "pass":
+        a.prompt += CONTINUATION_NOTE.format(k=sum(len(j.get("sessions", [])) for j in earlier) + 1, progress=a.progress)
+        a.purpose = "continue after %s (%s)" % (earlier[-1]["id"], earlier[-1].get("status", ""))
+
+
 def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> int:
     """The synthesis pipeline's agent steps (cio.md Stage 3). Every subject whose check already passes is skipped, so a
     step re-run after follow-ups and `synthesis.py registry` reruns only what changed (the fix message names the ids)."""
@@ -914,11 +932,15 @@ def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> i
         if not job and not a.check() and not (role == "theme-analyst" and synthesis.answer_waiting(run_dir, sub_)):
             eng.log("%s %s: its check already passes; not run again" % (role, sub_))
             continue
+        if not job:
+            carry_on(eng, a)
         items.append((a, job))
     if not items:
         return 0
-    # parts before their reduce: run sequentially in order unless parallel was asked for
-    return run_jobs(eng, items, parallel)
+    parts = [x for x in items if ".p" in x[0].subject]       # a reduce reads its parts, so they finish first
+    rest = [x for x in items if ".p" not in x[0].subject]
+    rc = run_jobs(eng, parts, parallel) if parts else 0
+    return rc if rc or eng.stop or not rest else run_jobs(eng, rest, parallel)
 
 
 DIGEST_TYPES = ("annual_report", "transcript", "investor_presentation")
@@ -981,7 +1003,8 @@ def librarian_assignment(run_dir: Path, prompt: str) -> Assignment:
                       tools=agent_tools("librarian"), allowed=allowed,
                       denied=DENY_TRANSCRIPTS + DENY_SECRETS + shell_denies(), dirs=run_paths(run_dir), check=check,
                       resume_msg=RESUME_MSG % "corpus/librarian_log.md", fix_msg=REPORT_FIX_MSG, stage="0",
-                      purpose="find the documents the map lacks", mcp=("playwright",))
+                      purpose="find the documents the map lacks", mcp=("playwright",),
+                      owned=("corpus/document_map.csv",), may_find_nothing=True)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -1091,11 +1114,60 @@ def last_context(transcript: Path) -> int:
 # Usage windows
 # --------------------------------------------------------------------------------------------------------------
 
+def api_errors(transcript: Path, offset: int = 0) -> Tuple[Counter, int]:
+    """The failed API calls the CLI retried by itself since `offset`, by cause, and the new offset. They reach neither the
+    engine's stream nor a result's cost, yet each re-sends the context (BAJFINANCE: one chunk, 42 sleep aborts, 29 points
+    of the weekly meter for $2 recorded)."""
+    found = Counter()
+    try:
+        with transcript.open("rb") as f:
+            f.seek(offset)
+            data = f.read()
+    except OSError:
+        return found, offset
+    end = data.rfind(b"\n") + 1              # a line still being written waits for the next read
+    for line in data[:end].splitlines():
+        if b'"api_error"' in line:
+            m = re.search(rb"""code\\?['"]:\s*\\?['"](\w+)""", line)
+            found[m.group(1).decode() if m else "unknown"] += 1
+    return found, offset + end
+
+
+def assistant_turns(transcript: Path) -> int:
+    """Turns the session completed: a session that advanced between two failures has not stalled."""
+    try:
+        with transcript.open("rb") as f:
+            return sum(1 for line in f if re.search(rb'"type":\s*"assistant"', line[:400]))
+    except OSError:
+        return 0
+
+
+def meter_gap(att: dict) -> float:
+    """Weekly-meter points an attempt moved beyond what its recorded cost explains (0 when it is explained)."""
+    b, a = (att.get("util_before") or {}).get("seven_day"), (att.get("util_after") or {}).get("seven_day")
+    if b is None or a is None or a - b < METER_GAP_MIN:
+        return 0.0
+    expected = (att.get("cost_usd") or 0.0) / WEEK_USD
+    return round(a - b - expected, 3) if a - b > METER_GAP_RATIO * expected else 0.0
+
+
+def owned_state(run_dir: Path, a: "Assignment") -> Dict[str, List[int]]:
+    """Size and modification time of every file the agent owns."""
+    out = {}
+    for pat in a.owned:
+        for p in run_dir.glob(pat):
+            if p.is_file():
+                st = p.stat()
+                out[str(p.relative_to(run_dir))] = [st.st_size, st.st_mtime_ns]
+    return out
+
+
 def windows_of(info: dict) -> Dict[str, dict]:
-    """{"five_hour": {"utilization", "resetsAt"}, "seven_day": {...}} from a rate_limit_info."""
+    """{"five_hour": {"utilization", "resetsAt"}, "seven_day": {...}} from a rate_limit_info. A window past its reset says
+    nothing about the current one."""
     out = {}
     for k, v in ((info or {}).get("unifiedWindows") or {}).items():
-        if isinstance(v, dict) and v.get("utilization") is not None:
+        if isinstance(v, dict) and v.get("utilization") is not None and (v.get("resetsAt") or float("inf")) > time.time():
             out[k] = {"utilization": float(v["utilization"]), "resetsAt": v.get("resetsAt")}
     t = (info or {}).get("rateLimitType")
     if t in ("five_hour", "seven_day") and t not in out and (info or {}).get("utilization") is not None:
@@ -1287,7 +1359,9 @@ class Engine:
             return
         with self.lock:
             now = time.time()
-            self.usage, self.usage_at = info, now
+            known = (self.usage or {}).get("unifiedWindows") or {}      # an event may carry only one of the windows
+            self.usage = dict(info, unifiedWindows=dict(known, **(info.get("unifiedWindows") or {})))
+            self.usage_at = now
             run = self.run_dir.name if (self.run_dir / rl.RUN_MANIFEST).exists() else ""
             try:
                 usage_log_path().parent.mkdir(parents=True, exist_ok=True)
@@ -1369,9 +1443,11 @@ class Engine:
             cmd += ["--add-dir", str(d)]
         return cmd
 
-    def run_process(self, cmd: List[str], out: Path, label: str, on_start=None, stdin_data: Optional[str] = None) -> dict:
+    def run_process(self, cmd: List[str], out: Path, label: str, on_start=None, stdin_data: Optional[str] = None,
+                    watch: Optional[Path] = None) -> dict:
         out.parent.mkdir(parents=True, exist_ok=True)
         timed = {"out": False}
+        suspended, finished = threading.Event(), threading.Event()
         with out.open("w", encoding="utf-8") as fo, Path(str(out) + ".err").open("w", encoding="utf-8") as fe:
             proc = subprocess.Popen(cmd, cwd=str(rl.ROOT), env=child_env(), stdout=subprocess.PIPE, stderr=fe,
                                     stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
@@ -1393,6 +1469,18 @@ class Engine:
             timer = threading.Timer(self.o.timeout_s, on_timeout)
             timer.daemon = True
             timer.start()
+
+            def watchdog():                 # the CLI retries sleep aborts by itself, so only the transcript shows them
+                offset, seen = (watch.stat().st_size if watch.exists() else 0), 0
+                while not finished.wait(WATCH_S):
+                    found, offset = api_errors(watch, offset)
+                    seen += found.get(SLEEP_ABORT, 0)
+                    if seen >= SLEEP_ABORT_LIMIT:
+                        suspended.set()
+                        stop_child(proc)
+                        return
+            if watch is not None:
+                threading.Thread(target=watchdog, daemon=True).start()
             result = None
             for line in proc.stdout:
                 s = line.strip()
@@ -1415,9 +1503,10 @@ class Engine:
             proc.stdout.close()
             rc = proc.wait()
             timer.cancel()
+            finished.set()
             with self.lock:
                 self.children.discard(proc)
-        return {"rc": rc, "timed_out": timed["out"], "result": result, "pid": proc.pid}
+        return {"rc": rc, "timed_out": timed["out"], "result": result, "pid": proc.pid, "suspended": suspended.is_set()}
 
     # -- one assignment, to its end ---------------------------------------------------------------------------
     def run(self, a: Assignment) -> str:
@@ -1428,13 +1517,15 @@ class Engine:
         rec = self.get_record(a)
         sessions = rec.get("sessions", [])
         logs = self.run_dir / "_cache" / "engine" / "out"
-        fixes = resumes = 0
+        fixes = resumes = denied = 0
         polished = False
+        if a.owned and "owned_before" not in rec:
+            self.update_record(a, owned_before=owned_state(self.run_dir, a))
         if sessions and not sessions[-1].get("ended"):
             sess = sessions[-1]
-            if alive(sess.get("pid")):
+            if session_alive(sess.get("pid")):
                 self.log("%s: the session process %s of an earlier engine still runs; waiting for it to end" % (a.label, sess["pid"]))
-                while alive(sess.get("pid")):
+                while session_alive(sess.get("pid")) and not self.stop:
                     time.sleep(30)
             fixing = sess.get("purpose") == "fix"          # a fresh-call fix session (one-shot reads)
             if Path(sess["transcript"]).exists():
@@ -1452,6 +1543,7 @@ class Engine:
             sess = self.new_session(a, sessions, tdir)
             kind = "start"
         start_kind, start_msg = kind, message
+        turns_seen = assistant_turns(Path(sess["transcript"]))
 
         def again() -> Tuple[str, str]:     # resume the session, or start it when the CLI never created it
             if not Path(sess["transcript"]).exists():
@@ -1469,6 +1561,7 @@ class Engine:
             except LimitStop:
                 return self.pause(a, sessions, sess)
             transcript = Path(sess["transcript"])
+            offset = transcript.stat().st_size if transcript.exists() else 0
             max_turns = 0
             if a.long:
                 max_turns = CHECKPOINT_TURNS if kind == "checkpoint" else self.o.segment_turns
@@ -1482,7 +1575,7 @@ class Engine:
                 sess["pid"] = pid
                 self.update_record(a, runner="headless", sessions=sessions)
             out = logs / ("%s-%s-%d.jsonl" % (a.label, sess["session_id"][:8], len(sess["attempts"]) + 1))
-            got = self.run_process(cmd, out, a.label, on_start, a.message(kind, message) if a.oneshot else None)
+            got = self.run_process(cmd, out, a.label, on_start, a.message(kind, message) if a.oneshot else None, transcript)
             sess["pid"] = None
             res = got["result"] or {}
             total = res.get("total_cost_usd")            # the CLI reports a session's cost cumulatively across resumes
@@ -1499,6 +1592,26 @@ class Engine:
                    "output": rel_out(out), "context_after": last_context(transcript),
                    "util_before": {k: v["utilization"] for k, v in w0.items()},
                    "util_after": {k: v["utilization"] for k, v in windows_of(self.usage).items()}}
+            retried = api_errors(transcript, offset)[0]
+            if retried:
+                att["api_errors"] = dict(retried)
+            denials = [str(d.get("tool_name")) for d in res.get("permission_denials") or []]
+            if denials:
+                att["permission_denials"] = denials
+                denied += len(denials)
+            gap = meter_gap(att)
+            if gap:
+                att["meter_gap"] = gap
+                self.log("%s: USAGE: the weekly meter moved %.0f points more than this attempt's recorded $%.2f explains%s" % (
+                    a.label, 100 * gap, att.get("cost_usd") or 0.0,
+                    " (%s)" % ", ".join("%d %s" % (n, c) for c, n in retried.most_common()) if retried else ""))
+            if got.get("suspended"):
+                self.stop = self.stop or SLEEP_STOP
+                self.log("%s: %s" % (a.label, SLEEP_STOP))
+            turns_now = assistant_turns(transcript)
+            if turns_now > turns_seen:
+                resumes = 0                # it advanced: a failure now is a new one, not the same stall again
+            turns_seen = turns_now
             if a.guarded:
                 touched = integrity_diff(before, fingerprint(self.run_dir, a, self.busy_owned(a)))
                 if touched:
@@ -1541,6 +1654,8 @@ class Engine:
                     kind, message = "checkpoint", CHECKPOINT_MSG.format(limit=self.o.context_limit, progress=a.progress)
                     continue
                 if kind == "checkpoint":
+                    if self.too_many_sessions(a, sessions, sess, transcript):
+                        return "failed"
                     self.log("%s: the checkpoint ran out of turns; handing over anyway (the files hold what it wrote)" % a.label)
                     sess, message = self.hand_over(a, sessions, sess, tdir)
                     kind = "start"
@@ -1559,7 +1674,15 @@ class Engine:
                 time.sleep(RESUME_WAIT_S * resumes)
                 kind, message = again()
                 continue
-            errs = a.check()
+            if kind == "checkpoint":              # it was mid-work: a report that already passes does not mean it is done
+                if self.too_many_sessions(a, sessions, sess, transcript):
+                    return "failed"
+                self.log("%s: %s checkpointed at %s tokens; continuing in a fresh session" % (
+                    a.label, a.agent, format(att["context_after"], ",")))
+                sess, message = self.hand_over(a, sessions, sess, tdir)
+                kind = "start"
+                continue
+            errs = a.check() or self.no_work(a, denied)
             if not errs and a.polish and not polished:
                 polished = True
                 issues = a.polish()
@@ -1576,16 +1699,6 @@ class Engine:
                     format(u["peak_context"], ","), job_cost(sessions),
                     ", %d sessions" % len(sessions) if len(sessions) > 1 else ""))
                 return "pass"
-            if kind == "checkpoint":              # it finished its step and wrote everything: a fresh session goes on
-                if len(sessions) > CONTINUATIONS:
-                    self.end_session(sess, transcript)
-                    self.close(a, sessions, "failed", "more than %d sessions without passing its check" % CONTINUATIONS)
-                    return "failed"
-                self.log("%s: %s checkpointed at %s tokens; continuing in a fresh session" % (
-                    a.label, a.agent, format(att["context_after"], ",")))
-                sess, message = self.hand_over(a, sessions, sess, tdir)
-                kind = "start"
-                continue
             fixes += 1
             fresh = a.oneshot and ONESHOT_FRESH_FIX and a.fix_builder is not None
             self.log("%s: the check fails (%d errors)%s" % (a.label, len(errs), (
@@ -1604,6 +1717,26 @@ class Engine:
                 kind = "fixfresh"
             else:
                 kind, message = "fix", (a.fix_builder(errs) if a.fix_builder else a.fix_msg % "\n".join(errs[:40]))
+
+    def too_many_sessions(self, a: Assignment, sessions: List[dict], sess: dict, transcript: Path) -> bool:
+        if len(sessions) <= CONTINUATIONS:
+            return False
+        self.end_session(sess, transcript)
+        self.close(a, sessions, "failed", "more than %d sessions without passing its check" % CONTINUATIONS)
+        return True
+
+    def no_work(self, a: Assignment, denied: int) -> List[str]:
+        """A check can pass on files that were already there: a job whose session changed none of its files has done
+        nothing, unless finding nothing is a true result and it was free to look."""
+        rec = self.get_record(a)
+        if not a.owned or "owned_before" not in rec or owned_state(self.run_dir, a) != rec["owned_before"]:
+            return []
+        if a.may_find_nothing and not denied:
+            return []
+        if denied:
+            return ["this session changed none of its files and %d tool call(s) were denied. Commands must start exactly "
+                    "as your definition gives them (python3 scripts/...), with no shell variables or chaining." % denied]
+        return ["this session changed none of its files: do the work this job asks for, and write it"]
 
     def new_session(self, a: Assignment, sessions: List[dict], tdir: Path) -> dict:
         sid = str(uuid.uuid4())
@@ -1756,6 +1889,20 @@ def alive(pid) -> bool:
         return False
 
 
+def on_battery() -> bool:
+    try:
+        return "Battery Power" in subprocess.run(["pmset", "-g", "batt"], capture_output=True, text=True).stdout
+    except OSError:
+        return False
+
+
+def session_alive(pid) -> bool:
+    """Is this still a Claude session? After a reboot a recorded pid can belong to anything, and waiting on it hangs."""
+    if not alive(pid):
+        return False
+    return "claude" in subprocess.run(["ps", "-o", "command=", "-p", str(pid)], capture_output=True, text=True).stdout.lower()
+
+
 def rel_out(p: Path) -> str:
     try:
         return str(p.resolve().relative_to(rl.ROOT.resolve()))
@@ -1768,18 +1915,19 @@ def invocation(run_dir: Path, agent: str, stage: str, purpose: str) -> None:
     path = run_dir / rl.RUN_MANIFEST
     if not path.exists():
         return
-    m = json.loads(path.read_text(encoding="utf-8"))
-    if agent == rl.AUDITOR:
-        node = m.setdefault("auditor", {"status": "pending", "report": rl.AUDIT_REPORT, "invocations": []})
-    elif agent in rl.SPECIALISTS:
-        node = m.setdefault("specialists", {}).setdefault(agent, {"status": "pending", "invocations": []})
-    elif agent in rl.SYNTHESIS_ROLES:
-        node = m.setdefault("synthesis", {}).setdefault(agent, {"invocations": []})
-    else:
-        node = m.setdefault("workers", {}).setdefault(agent, {"invocations": []})
-    node.setdefault("invocations", []).append({"stage": stage, "purpose": purpose, "runner": "agent_driver",
-                                               "at": reading.now_iso()})
-    rl.write_json(path, m)
+
+    def add(m: dict) -> None:
+        if agent == rl.AUDITOR:
+            node = m.setdefault("auditor", {"status": "pending", "report": rl.AUDIT_REPORT, "invocations": []})
+        elif agent in rl.SPECIALISTS:
+            node = m.setdefault("specialists", {}).setdefault(agent, {"status": "pending", "invocations": []})
+        elif agent in rl.SYNTHESIS_ROLES:
+            node = m.setdefault("synthesis", {}).setdefault(agent, {"invocations": []})
+        else:
+            node = m.setdefault("workers", {}).setdefault(agent, {"invocations": []})
+        node.setdefault("invocations", []).append({"stage": stage, "purpose": purpose, "runner": "agent_driver",
+                                                   "at": reading.now_iso()})
+    rl.update_json(path, add)
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -1816,6 +1964,9 @@ class Session:
             self.eng.stop = self.eng.stop or "stopped by signal %d" % signum
             self.eng.stop_all()
         self.old = {s: signal.signal(s, on_signal) for s in (signal.SIGTERM, signal.SIGINT)}
+        if sys.platform == "darwin" and on_battery():
+            self.eng.log("WARNING: this Mac is on battery. caffeinate cannot hold it awake there or with the lid closed, and "
+                         "a session cut by sleep costs real capacity: plug it in and keep the lid open.")
         if sys.platform == "darwin" and shutil.which("caffeinate") and not os.environ.get("EQR_NO_CAFFEINATE"):
             try:
                 self.caf = subprocess.Popen(["caffeinate", "-i", "-s", "-w", str(os.getpid())], stdout=subprocess.DEVNULL,
@@ -2097,6 +2248,8 @@ def resume_or_fresh(eng: Engine, a: Assignment, message: str) -> Tuple[Assignmen
         break
     base = a.prompt
     for j in reversed(eng.jobs()["jobs"]):             # the agent's own last prompt (the auditor's is not a template)
+        if (j.get("sessions") or [{}])[0].get("continued_from"):
+            continue                       # a follow-up that resumed a session: its prompt is the fix text, not the brief
         if j["agent"] == a.agent and prompt_path(eng.run_dir, j["id"]).exists():
             base = prompt_path(eng.run_dir, j["id"]).read_text(encoding="utf-8")
             base = re.split(r"\n\n(?:FOLLOW-UP|CONTINUATION) \(", base, 1)[0]
@@ -2143,17 +2296,32 @@ def write_ledger(run_dir: Path) -> None:
 
 
 def window_cost(rows: List[dict]) -> Dict[str, float]:
-    """$ per whole window, measured: cost of segments over the utilization they moved (same window, no reset between)."""
+    """$ per whole window, measured over the longest unbroken stretch of clean work: all the cost in the stretch against the
+    meter's movement across it. Attempt by attempt the meter moves in whole points, so single attempts cannot be added up.
+    A stretch ends at a reset, at an attempt with retried API errors, and at one whose rate is far below the rest: failed
+    streams use capacity no cost records, which is how BAJFINANCE's estimate came to read $38 a week (clean work: $166)."""
     out = {}
-    for k in ("five_hour", "seven_day"):
-        cost = used = 0.0
-        for at in rows:
-            b, a = (at.get("util_before") or {}).get(k), (at.get("util_after") or {}).get(k)
-            if b is not None and a is not None and a > b and at.get("cost_usd"):
-                cost += at["cost_usd"]
-                used += a - b
-        if used >= 0.02:
-            out[k] = cost / used
+    rows = sorted(rows, key=lambda at: at.get("at") or "")
+    for k, least in MIN_WINDOW_SAMPLE.items():
+        moved = lambda at: (at.get("util_after") or {}).get(k, 0.0) - (at.get("util_before") or {}).get(k, 0.0)  # noqa: E731
+        rates = [at["cost_usd"] / moved(at) for at in rows if at.get("cost_usd") and k in (at.get("util_before") or {})
+                 and k in (at.get("util_after") or {}) and moved(at) > 0]
+        if not rates:
+            continue
+        floor, best, start, cost = statistics.median(rates) / 3, None, None, 0.0
+        for at in rows + [{}]:                    # the empty row closes the last stretch
+            before, after = (at.get("util_before") or {}).get(k), (at.get("util_after") or {}).get(k)
+            dirty = (not at or at.get("api_errors") or before is None or after is None or after < before or
+                     (after > before and (at.get("cost_usd") or 0.0) / (after - before) < floor))
+            if dirty:
+                if start is not None and (best is None or last - start > best[1]):
+                    best = (cost, last - start)
+                start, cost = None, 0.0
+                continue
+            start = before if start is None else start
+            last, cost = after, cost + (at.get("cost_usd") or 0.0)
+        if best and best[1] >= least:
+            out[k] = best[0] / best[1]
     return out
 
 
@@ -2201,8 +2369,9 @@ JUDGMENT_DEFAULT = {"specialists": 150.0, "verifier": 15.0, "auditor": 12.0, "ci
 JUDGMENT_DEFAULT_V32 = {"specialists": 165.0, "verifier": 17.0, "auditor": 16.0, "cio": 30.0, "historian": 5.0,
                         "synthesis": 100.0}
 DIGEST_DEFAULT = 10.0
-WINDOW_DEFAULT = 28.0           # $ of API-equivalent work in one five-hour window (measured twice; BAJFINANCE measured ~$14)
-WEEK_WINDOWS = 7.0              # five-hour windows in one weekly window when the weekly window has not been measured
+WINDOW_USD = 14.0               # $ of API-equivalent work in one five-hour window (BAJFINANCE, clean work)
+WEEK_USD = 166.0                # the same for one weekly window ($38.08 for 23 points of clean reading, BAJFINANCE)
+MIN_WINDOW_SAMPLE = {"five_hour": 0.5, "seven_day": 0.1}   # meter movement below this is too little to measure a window
 
 
 def measured_read_costs(run_dirs: List[Path]) -> Dict[str, Tuple[float, int]]:
@@ -2266,8 +2435,8 @@ def estimate(run_dir: Path, log=print) -> dict:
     attempts += [a for d in runs for j in reading.load_json(d / "engine" / "jobs.json", {"jobs": []})["jobs"]
                  for s in j.get("sessions", []) for a in s.get("attempts", [])]
     measured_windows = window_cost(attempts)
-    window = measured_windows.get("five_hour") or WINDOW_DEFAULT
-    week = measured_windows.get("seven_day") or window * WEEK_WINDOWS
+    window = measured_windows.get("five_hour") or WINDOW_USD
+    week = measured_windows.get("seven_day") or WEEK_USD
     total = reading_cost + sum(judg.values())
     remaining = left + sum(judg.values())
     out = {"reading": round(reading_cost, 2), "reading_by_role": {k: round(v, 2) for k, v in by_role.items()},
@@ -2285,7 +2454,7 @@ def estimate(run_dir: Path, log=print) -> dict:
               "Reading mode: %s%s." % ("on" if on else "off", "" if on else " (the web digest replaces the reading stage)"),
               "Still to spend: ≈ $%.0f ≈ %.1f five-hour windows (≈ $%.0f each) ≈ %.1f weeks (one weekly window ≈ $%.0f%s)." % (
                   remaining, out["windows_remaining"], window, out["weeks_remaining"], week,
-                  ", measured" if measured_windows.get("seven_day") else ", assumed %.0f five-hour windows" % WEEK_WINDOWS), "",
+                  ", measured on this run's clean work" if measured_windows.get("seven_day") else ", the last clean measurement"), "",
               "Reading rates ($ per 12k-token chunk): %s. Judgment from %s." % (
                   "; ".join("%s %.2f (%s)" % (r, v[0], "measured, %d launches" % v[1] if v[1] else "default") for r, v in rate.items()),
                   jsrc)]
@@ -2450,7 +2619,13 @@ def main(argv=None) -> int:
             return cmd_verify(eng, [x.strip() for x in a.only.split(",") if x.strip()])
         if a.cmd == "events":
             job = open_job(eng, "historian", "historian")
-            return run_jobs(eng, [(historian_assignment(run_dir, historian_prompt(run_dir, a.years), a.years), job)], 1)
+            asg = historian_assignment(run_dir, historian_prompt(run_dir, a.years), a.years)
+            if not job and not asg.check():
+                eng.log("historian: its check already passes; not run again")
+                return 0
+            if not job:
+                carry_on(eng, asg)
+            return run_jobs(eng, [(asg, job)], 1)
         if a.cmd == "synthesis":
             return cmd_synthesis(eng, a.step, [x.strip() for x in a.only.split(",") if x.strip()], a.parallel)
         if a.cmd == "digest":
@@ -2462,8 +2637,16 @@ def main(argv=None) -> int:
             if bad:
                 eng.log("unknown document type(s): %s" % ", ".join(bad))
                 return 2
-            return run_jobs(eng, [(digest_assignment(run_dir, dt_, digest_prompt(run_dir, dt_)),
-                                   open_job(eng, "digest", "digest", dt_)) for dt_ in types], 1)
+            items = []
+            for dt_ in types:
+                asg, job = digest_assignment(run_dir, dt_, digest_prompt(run_dir, dt_)), open_job(eng, "digest", "digest", dt_)
+                if not job and not asg.check():
+                    eng.log("digest %s: its check already passes; not run again" % dt_)
+                    continue
+                if not job:
+                    carry_on(eng, asg)
+                items.append((asg, job))
+            return run_jobs(eng, items, 1) if items else 0
         message = Path(a.message_file).read_text(encoding="utf-8")
         if a.cmd == "followup":
             return cmd_followup(eng, a.agent, message, a.purpose, a.stage, a.output)
@@ -2511,6 +2694,8 @@ def dry_run(eng: Engine, a) -> int:
         asg = digest_assignment(run_dir, dt_, "<prompt>")
     elif a.cmd == "librarian":
         asg = librarian_assignment(run_dir, "<prompt>")
+    elif a.cmd == "events":
+        asg = historian_assignment(run_dir, "<prompt>", a.years)
     else:
         asg = specialist_assignment(run_dir, a.agent, "<prompt>")
     print("next: %s (%s at %s)%s" % (asg.agent, asg.model, asg.effort, " on " + ", ".join(asg.chunks) if asg.chunks else ""))

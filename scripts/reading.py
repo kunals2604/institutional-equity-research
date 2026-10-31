@@ -60,6 +60,7 @@ import csv
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import shutil
 import struct
@@ -285,7 +286,9 @@ def period_key(doc_type: str, period: str) -> tuple:
 
 def write_json(path: Path, data) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp = path.with_name("%s.tmp%d" % (path.name, os.getpid()))
+    tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(str(tmp), str(path))
 
 
 def load_json(path: Path, default=None):

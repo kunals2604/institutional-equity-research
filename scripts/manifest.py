@@ -61,10 +61,15 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
 
     path = Path(a.run_dir) / rl.RUN_MANIFEST
-    m = rl.load_json(path)
     if a.cmd == "show":
-        print(json.dumps(m, indent=2, ensure_ascii=False))
+        print(json.dumps(rl.load_json(path), indent=2, ensure_ascii=False))
         return 0
+    with rl.locked(path):
+        return apply(a, p, path)
+
+
+def apply(a, p, path: Path) -> int:
+    m = rl.load_json(path)
     if a.cmd == "set":
         for pair in a.pairs:
             if "=" not in pair:

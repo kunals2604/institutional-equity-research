@@ -56,14 +56,19 @@ body would bloat it, and the register is the designed place for them.
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| C1 | H | **Sleep aborts are invisible** (**ran**: measured in the transcripts) | One chunk hit 42 "computer was asleep" stream aborts; four launches moved the weekly meter 40 points for $8 recorded. `StreamSuspended` appears nowhere in `scripts/` or `docs/`. `caffeinate -s` works on mains power only | `agent_driver.py:1813` | Open |
-| C2 | H | A job can pass having produced nothing | `a.check()` alone closes a job: follow-ups without `--output`, re-audits reusing a name, zero-item digests, empty verifier samples, checkpoints of a passing report. Real case: librarian J001 was denied Bash, found nothing and passed | `agent_driver.py:1556,1564,664,700`, `digest.py:229,636`, `verify.py:840` | Open |
-| C3 | H | Stage 3 follow-ups can lose the brief | `a.prompt = message` stores only the fix text, then a later fresh session uses it as the base, with no RUN_DIR, identity, cutoff or sector modules | `agent_driver.py:2083,2095` | Open |
-| C4 | H | `resumes` never resets | A third abort across a multi-day specialist abandons it | `agent_driver.py:1425,1545` | Open |
-| C5 | M | State files are neither atomic nor locked | A kill truncates `jobs.json`; `validate_run` holds the manifest for its whole run, so an engine record written meanwhile is lost | `research_lib.py:1725`, `reading.py:288`, `manifest.py:64`, `validate_run.py:198,338` | Open |
-| C6 | M | `window_cost` is biased | Divides recorded cost by meter movement, so failed streams and any other usage pollute it. Measured clean figure is about $166 a week, not the $38 it reports | `agent_driver.py:2146,2258` | Open |
-| C7 | M | Weekly ceiling can lapse | An event carrying only `five_hour` replaces the record, so the 95 % reserve passes with no weekly data (trigger unconfirmed) | `agent_driver.py:1306,1284` | Open |
-| C8 | L | Liveness and resume gaps | A reused PID hangs the engine; hand-over skips `CONTINUATIONS`; `--parallel` runs a reduce with its parts; failed jobs restart with no note; `digest` and `events` re-run passed jobs; `events --dry-run` raises | `agent_driver.py:1431,1537,890,2045,2446,2509` | Open |
+| C1 | H | **Sleep aborts are invisible** (**ran**: measured in the transcripts) | One chunk hit 42 "computer was asleep" stream aborts; four launches moved the weekly meter 40 points for $8 recorded. `StreamSuspended` appears nowhere in `scripts/` or `docs/`. `caffeinate -s` works on mains power only | `agent_driver.py:1813` | Fixed |
+| C2 | H | A job can pass having produced nothing | `a.check()` alone closes a job: follow-ups without `--output`, re-audits reusing a name, zero-item digests, empty verifier samples, checkpoints of a passing report. Real case: librarian J001 was denied Bash, found nothing and passed | `agent_driver.py:1556,1564,664,700`, `digest.py:229,636`, `verify.py:840` | Fixed |
+| C3 | H | Stage 3 follow-ups can lose the brief | `a.prompt = message` stores only the fix text, then a later fresh session uses it as the base, with no RUN_DIR, identity, cutoff or sector modules | `agent_driver.py:2083,2095` | Fixed |
+| C4 | H | `resumes` never resets | A third abort across a multi-day specialist abandons it | `agent_driver.py:1425,1545` | Fixed |
+| C5 | M | State files are neither atomic nor locked | A kill truncates `jobs.json`; `validate_run` holds the manifest for its whole run, so an engine record written meanwhile is lost | `research_lib.py:1725`, `reading.py:288`, `manifest.py:64`, `validate_run.py:198,338` | Fixed |
+| C6 | M | `window_cost` is biased | Divides recorded cost by meter movement, so failed streams and any other usage pollute it. Measured clean figure is about $166 a week, not the $38 it reports | `agent_driver.py:2146,2258` | Fixed |
+| C7 | M | Weekly ceiling can lapse | An event carrying only `five_hour` replaces the record, so the 95 % reserve passes with no weekly data (trigger unconfirmed) | `agent_driver.py:1306,1284` | Fixed |
+| C8 | L | Liveness and resume gaps | A reused PID hangs the engine; hand-over skips `CONTINUATIONS`; `--parallel` runs a reduce with its parts; failed jobs restart with no note; `digest` and `events` re-run passed jobs; `events --dry-run` raises | `agent_driver.py:1431,1537,890,2045,2446,2509` | Fixed |
+
+C1 and C6 were checked on the real BAJFINANCE records: the detector counts all 42 `StreamSuspended` aborts in the stored
+transcript, and the rebuilt `window_cost` reads $169 a week and $15.6 a five-hour window, against the independent
+measurement of $166 and $14. C1 stops a session at three sleep aborts but cannot prevent sleep: the engine warns on
+battery, and a run still needs mains power and an open lid.
 
 ## D. Forecasting
 
