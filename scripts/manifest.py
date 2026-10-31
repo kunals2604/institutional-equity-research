@@ -25,7 +25,8 @@ import research_lib as rl  # noqa: E402
 STATUSES = ("preflight", "specialists_running", "specialists_complete", "specialists_incomplete",
             "synthesis", "qc_auto_passed", "qc_auto_failed", "complete", "insufficient_evidence",
             "qc_failed", "failed", "interrupted")
-PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode"}
+PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay"}
+FROZEN_AT_START = {"research_cutoff", "sector_modules", "fiscal_year_end"}
 
 
 def now() -> str:
@@ -80,6 +81,14 @@ def apply(a, p, path: Path) -> int:
                 p.error("%s is set at run creation and cannot be changed" % parts[0])
             if parts[0] == "status":
                 p.error("use the 'status' subcommand")
+            started = [n for n, sp in (m.get("specialists") or {}).items() if (sp or {}).get("invocations")]
+            if parts[0] in FROZEN_AT_START and started:
+                p.error("%s cannot change once a specialist has run (%s): every brief was written from it" % (
+                    parts[0], ", ".join(sorted(started)[:3])))
+            if parts[0] == "price" and m.get("status") in rl.FINAL_STATUSES:
+                p.error("the price of a finished run cannot change")
+            if key == "model.effort_override" and val not in rl.EFFORTS:
+                p.error("effort must be one of %s" % ", ".join(rl.EFFORTS))
             node = m
             for part in parts[:-1]:
                 node = node.setdefault(part, {})

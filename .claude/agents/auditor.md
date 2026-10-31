@@ -39,7 +39,7 @@ You are **independent**: you write only your own files under `RUN_DIR/audit/`. Y
       and effort; every specialist read its reading pack. Each failure is a Major finding (Critical when it touches a
       decision-critical claim).
    2. Run `python3 scripts/reading.py sample RUN_DIR --n 15 --out RUN_DIR/audit/reading_sample.csv`: a reproducible sample
-      of pages that only one (Sonnet) read covered, at least a third of them receipted `no_items`. For each page, open the
+      of pages that only one second-model read covered, at least a third of them receipted `no_items`. For each page, open the
       **rendered PDF page** yourself, list every fact of the schema's types it contains, and compare with the readers'
       items on that page (the CSV lists them). Record each page as **Complete | Minor omission | Material omission** in
       the CSV. A material omission (an item of a type marked `material` in `methodology/READING_SCHEMAS.md`) is a

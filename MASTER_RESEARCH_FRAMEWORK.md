@@ -1,7 +1,7 @@
 # ELITE MASTER INVESTMENT RESEARCH FRAMEWORK
 ## Comprehensive Fundamental Investment Analysis of [COMPANY NAME]
 
-> **Role of this document (v2.0, Claude Code migration, 2026-10-12).** This is the comprehensive **research specification**: *what* must be investigated. It is applied by a CIO and nine specialist agents (`.claude/agents/`), launched with `/research-company`.
+> **Role of this document (v2.0, Claude Code migration, 2026-10-12).** This is the comprehensive **research specification**: *what* must be investigated. It is applied by a CIO and the specialist agents (`.claude/agents/`), launched with `/research-company`.
 > Where this document and the files below overlap, these are **authoritative**:
 > - `.claude/skills/investment-constitution/SKILL.md`: the canonical four-layer definitions, the layer-fit scale, epistemic tags, claim-ID citation and the evidence hierarchy
 > - `methodology/SCORING.md`: Business Quality and Investment Attractiveness dimensions, weights, anchors, gates, confidence and verdict mapping

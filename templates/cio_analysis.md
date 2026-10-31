@@ -1,6 +1,6 @@
 # CIO Independent Analysis — {company} ({ticker}) · run {run_id}
 
-The CIO's own work beyond the nine specialists (`.claude/agents/cio.md` Stage 3 step 7). Every number comes from code in `calc/cio_*` and is a CIO-C ledger claim.
+The CIO's own work beyond the specialists (`.claude/agents/cio.md` Stage 3 step 7). Every number comes from code in `calc/cio_*` and is a CIO-C ledger claim.
 
 ## 1. Primary reading by the CIO
 Latest annual report (chairman's/MD letter, MD&A) and the Q&A of the latest two earnings calls: what changed the CIO's view, with locators.

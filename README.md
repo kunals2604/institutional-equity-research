@@ -1,6 +1,6 @@
 # Institutional Equity Research
 
-A Claude Code–native, multi-agent research system for evaluating listed companies (built with Indian equities in mind, but company-agnostic). A **CIO** acquires and cross-checks the company's filings (NSE, BSE, the IR site, the Internet Archive and the owner's local library), has **every in-scope page read once and recorded** by reader agents (critical sections read twice, by two different models), orchestrates **ten independent specialists** who start from the resulting dossiers, audits and adjudicates their evidence, assesses the company under all four investment layers, and issues two separate, calibrated scores and a verdict. An **independent auditor** then checks the draft before it can pass QC. Every material claim is traceable to a source location.
+A Claude Code–native, multi-agent research system for evaluating listed companies (built with Indian equities in mind, but company-agnostic). A **CIO** acquires and cross-checks the company's filings (NSE, BSE, the IR site, the Internet Archive and the owner's local library), has **every in-scope page read once and recorded** by reader agents (critical sections read twice, by two different models), orchestrates **independent specialists** who start from the resulting dossiers, audits and adjudicates their evidence, assesses the company under all four investment layers, and issues two separate, calibrated scores and a verdict. An **independent auditor** then checks the draft before it can pass QC. Every material claim is traceable to a source location.
 
 ```text
 /research-company "TVS Motor Company Limited" TVSMOTOR NSE
@@ -29,7 +29,7 @@ A Claude Code–native, multi-agent research system for evaluating listed compan
 | Path | Purpose |
 |---|---|
 | `CLAUDE.md` | Compact session instructions |
-| `.claude/agents/` | The fifteen operative agent definitions (`cio`, ten specialists, `auditor`, and the workers `librarian`, `reader`, `critical-reader`) |
+| `.claude/agents/` | The operative agent definitions (`cio`, the specialists, `auditor`, the workers and the synthesis roles; `scripts/validate_system.py` checks the roster) |
 | `.claude/skills/research-company/` | The `/research-company` workflow |
 | `.claude/skills/investment-constitution/` | Canonical definitions, preloaded into every specialist |
 | `methodology/` | Scoring, evidence standards, report contracts, research playbook (10+ year depth standard, the reading stage), reading schemas, model policy, metric dictionary, 18 sector playbooks, source guide, investor lenses |

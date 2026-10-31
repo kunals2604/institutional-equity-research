@@ -178,6 +178,7 @@ class V32Run(FixtureRun):
             {"label": "liquidity cover", "aliases": ["liquid assets cover"], "value": "0.86x", "claim_ids": ["FIN-C003"]}]})
         problems = synthesis.assemble(self.dir, log=lambda m: None)
         assert problems == [], problems
+        (self.dir / "qc" / "verification.json").touch()     # the verification ran after the last ledger was written
         return sc
 
 

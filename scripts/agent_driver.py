@@ -339,7 +339,8 @@ def specialist_owned(name: str) -> Tuple[str, ...]:
 def independence_denies(run_dir: Path, me: str, review: bool = False) -> List[str]:
     """What a specialist must not read: the other specialists' work, the CIO's and the auditor's, the engine's records
     (they hold every specialist's return message), other runs, the archive, the scoreboard and agent transcripts.
-    `review` (a Stage-3 follow-up: cross-examination after the independent work is filed) lifts only the first."""
+    `review` (a Stage-3 follow-up: cross-examination after the independent work is filed) lifts the first, the synthesis
+    briefs and the merged ledger."""
     out = []
     for other in rl.SPECIALISTS:
         if other == me or review:
@@ -348,8 +349,8 @@ def independence_denies(run_dir: Path, me: str, review: bool = False) -> List[st
             out.append(abs_rule("Read", run_dir, "/" + pat))
     for d in ("cio", "audit", "qc", "engine", "_cache/engine"):
         out.append(abs_rule("Read", run_dir, "/%s/**" % d))
-    if not review:                          # the synthesis briefs integrate every specialist's work (methodology 3.2.0)
-        out.append(abs_rule("Read", run_dir, "/synthesis/**"))
+    if not review:                          # the synthesis briefs and the merged ledger hold every specialist's work
+        out += [abs_rule("Read", run_dir, "/synthesis/**"), abs_rule("Read", run_dir, "/evidence_ledger.csv")]
     for d in other_runs(run_dir):
         out.append(abs_rule("Read", d, "/**"))
     out += [abs_rule("Read", rl.ROOT, "/archive/**"), abs_rule("Read", rl.ROOT, "/docs/**"),
@@ -700,8 +701,8 @@ def specialist_assignment(run_dir: Path, name: str, prompt: str, stage: str = "1
 def auditor_assignment(run_dir: Path, prompt: str, stage: str = "4", purpose: str = "independent audit of the draft",
                        output: str = "") -> Assignment:
     model, effort = reading.pinned(run_dir, rl.AUDITOR)
-    allowed = ["Read", "Bash", "WebSearch", "WebFetch", abs_rule("Write", run_dir, "/audit/**"),
-               abs_rule("Edit", run_dir, "/audit/**")]
+    allowed = ["Read", "WebSearch", "WebFetch", abs_rule("Write", run_dir, "/audit/**"),
+               abs_rule("Edit", run_dir, "/audit/**")] + ["Bash(python3 scripts/%s:*)" % s for s in AUDITOR_SCRIPTS]
     denied = [abs_rule("Read", d, "/**") for d in other_runs(run_dir)] + [
         abs_rule("Read", rl.ROOT, "/archive/**"), abs_rule("Read", run_dir, "/engine/**"),
         abs_rule("Read", run_dir, "/_cache/engine/**")] + DENY_TRANSCRIPTS + DENY_SECRETS + shell_denies()
@@ -714,7 +715,7 @@ def auditor_assignment(run_dir: Path, prompt: str, stage: str = "4", purpose: st
     return Assignment(kind="auditor", agent=rl.AUDITOR, model=model, effort=effort, prompt=prompt, label="",
                       tools=agent_tools(rl.AUDITOR), allowed=allowed, denied=denied, dirs=run_paths(run_dir), check=check,
                       long=True, progress=progress, resume_msg=RESUME_MSG % progress, fix_msg=REPORT_FIX_MSG,
-                      owned=("audit/**",), stage=stage, purpose=purpose)
+                      owned=("audit/**",), guarded=True, stage=stage, purpose=purpose)
 
 
 def verifier_assignment(run_dir: Path, name: str, prompt: str) -> Assignment:
@@ -771,8 +772,12 @@ def historian_prompt(run_dir: Path, years: int = 10) -> str:
                 reading.rel_run(run_dir), int(cutoff[:4]) - years, cutoff, reading.rel_run(run_dir), years))
 
 
-SYNTHESIS_SCRIPTS = ("synthesis.py check-", "synthesis.py status", "audit_tools.py tieout", "doc_text.py", "corpus.py",
+SYNTHESIS_SCRIPTS = ("synthesis.py check-theme", "synthesis.py check-layer", "synthesis.py check-section", "synthesis.py status", "audit_tools.py tieout", "doc_text.py", "corpus.py",
                      "claim_graph.py up", "claim_graph.py down", "fin_metrics.py", "valuation_tools.py", "forecast_tools.py")
+# What the auditor re-runs: reads and recomputations, every one writing only where it is told (under audit/).
+AUDITOR_SCRIPTS = ("audit_tools.py", "synthesis.py integration", "synthesis.py restatements", "digest.py sample", "reading.py sample",
+                   "validate_report.py", "valuation_tools.py", "fin_metrics.py", "forecast_tools.py", "score_guides.py",
+                   "reconcile_numbers.py", "claim_graph.py", "doc_text.py", "corpus.py", "fetch_source.py", "market_data.py")
 CIO_DECISION_FILES = ("final_report.md", "scorecard.json", "scorecard_inputs.json", "cio_analysis.md",
                       "contradiction_log.md", "quality_control.md", "audit_resolutions.md", "propagation.csv")
 
@@ -962,7 +967,8 @@ def digest_assignment(run_dir: Path, doc_type: str, prompt: str) -> Assignment:
     denied = ([r for r in independence_denies(run_dir, "digest") if "/qc/" not in r] + shell_denies() +
               [abs_rule("Read", run_dir / "_cache" / "text", "/**"), abs_rule("Read", run_dir / "_cache" / "cio", "/**"),
                abs_rule("Read", run_dir / "_cache" / "librarian", "/**"), abs_rule("Read", run_dir / "corpus" / "reading", "/**"),
-               abs_rule("Read", run_dir / "corpus" / "dossiers", "/**"), "Read(~/Documents/FilingForgeLibrary/**)",
+               abs_rule("Read", run_dir / "corpus" / "dossiers", "/**")] + (
+                  [abs_rule("Read", library_dir(), "/**")] if library_dir() else []) + [
                "Bash(python3 scripts/doc_text.py:*)", "Bash(python3 scripts/corpus.py:*)"])
 
     def check() -> List[str]:
@@ -1253,10 +1259,13 @@ def guarded_files(run_dir: Path, a: Assignment, busy_owned=()) -> List[Path]:
     engine runs; reads of them are caught by the permission profile and the transcript audit."""
     pats = [p for other in rl.SPECIALISTS if other != a.agent for p in specialist_owned(other)
             if not p.startswith("_cache/")]
+    if a.agent == rl.AUDITOR:              # everything but audit/ is outside its write confinement, not only others' work
+        pats = ["specialists/**", "calc/**", "qc/**", "synthesis/**", "cio/**"]
+    extra = [p for d in ("qc", "synthesis", "cio") for p in (run_dir / d).rglob("*")] if a.agent == rl.AUDITOR else []
     out = []
     for p in list((run_dir / "specialists").rglob("*")) + list((run_dir / "calc").glob("*")) + \
-            list((run_dir / "corpus").rglob("*")) + [run_dir / "research_brief.md"]:
-        if not p.is_file():
+            list((run_dir / "corpus").rglob("*")) + [run_dir / "research_brief.md"] + extra:
+        if not p.is_file() or p.suffix == ".lock":
             continue
         r = str(p.relative_to(run_dir)).replace("\\", "/")
         if r.startswith("corpus/") or r == "research_brief.md" or owned_by(r, pats):
@@ -1275,9 +1284,8 @@ def fingerprint(run_dir: Path, a: Assignment, busy_owned=()) -> Dict[str, Tuple[
 
 
 def integrity_diff(before: Dict[str, Tuple[int, int]], after: Dict[str, Tuple[int, int]]) -> List[str]:
-    changed = [r for r in before if r in after and after[r] != before[r]]
-    removed = [r for r in before if r not in after]
-    return sorted(changed + removed)
+    """Changed, removed and new: an agent that adds a file to someone else's folder has touched it too."""
+    return sorted(r for r in set(before) | set(after) if before.get(r) != after.get(r))
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -2128,10 +2136,14 @@ def verify_specialist(eng: Engine, name: str) -> str:
     run_dir = eng.run_dir
     rid = reading.run_id_of(run_dir)
     rec = rl.load_json(verify.vdir(run_dir) / ("%s.json" % name)) if (verify.vdir(run_dir) / ("%s.json" % name)).exists() else {}
-    if (rec.get("tier_b") or {}).get("results") and not [f for f in rec["tier_b"].get("findings", []) if not f.get("waived")]:
+    new_claims = verify.unchecked_new_claims(run_dir, name, rec)
+    if (rec.get("tier_b") or {}).get("results") and not new_claims and not [
+            f for f in rec["tier_b"].get("findings", []) if not f.get("waived")]:
         eng.log("%s: its claims were already re-checked; nothing open" % name)
         return "pass"
-    if not (verify.vdir(run_dir) / ("%s_sample.csv" % name)).exists():
+    if new_claims:
+        verify.sample(run_dir, name, only=new_claims)
+    elif not (verify.vdir(run_dir) / ("%s_sample.csv" % name)).exists():
         verify.sample(run_dir, name)
     rel = reading.rel_run(run_dir)
     base = ("You are the VERIFIER for run %s, checking the %s specialist. RUN_DIR: %s\nRe-check every claim in "
@@ -2528,7 +2540,7 @@ def main(argv=None) -> int:
     lb.add_argument("--message-file", required=True)
     s = sub.add_parser("specialists")
     common(s, 120)
-    s.add_argument("--only", default="", help="comma-separated specialists (default: all ten, in cio.md order)")
+    s.add_argument("--only", default="", help="comma-separated specialists (default: all of the run's, in cio.md order)")
     s.add_argument("--parallel", type=int, default=1)
     s.add_argument("--no-verify", action="store_true", help="skip the verifier's re-check of each specialist's claims")
     vf = sub.add_parser("verify")
@@ -2612,6 +2624,9 @@ def main(argv=None) -> int:
         return dry_run(eng, a)
     with Session(eng, a.cmd):
         if a.cmd == "reading":
+            if not rl.reading_on(run_dir):
+                eng.log("reading: this run's reading stage is off (reading_mode off): the digest is its Stage 0")
+                return 2
             return cmd_reading(eng, a.bakeoff, a.max_launches, a.parallel)
         if a.cmd == "specialists":
             return cmd_specialists(eng, [x.strip() for x in a.only.split(",") if x.strip()], a.parallel, not a.no_verify)

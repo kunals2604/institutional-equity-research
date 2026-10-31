@@ -240,9 +240,10 @@ def headless_sessions(run_dir: Path, tdir: Path) -> List[dict]:
 def independence_patterns(me: str, run_id: str) -> Tuple[re.Pattern, re.Pattern]:
     """(what a specialist's tool calls must not name, what its tool results must not print as content)."""
     others = "|".join(re.escape(o) for o in sorted(rl.SPECIALISTS, key=len, reverse=True) if o != me)
-    files = (r"specialists/(?:%s)(?:\.md|_ledger|_followup|_workpapers)|calc/(?:%s)_|_cache/scratch/(?:%s)/"
+    files = (r"specialists/(?:%s)(?:\.md|_ledger|_followup|_workpapers)|calc/(?:%s)_|_cache/scratch/(?:%s)/|specialists/\*"
              % (others, others, others))
     calls = re.compile(r"(?:%s)|(?:runs/[\w.-]+|\$\{?\w+\}?|RUN_DIR)/(?:cio|audit|qc|engine|synthesis)/|_cache/engine/|"
+                       r"(?<![\w./-])(?:cio|audit|qc|engine|synthesis)/[\w.*/-]+\.(?:md|json|csv)|evidence_ledger\.csv|"
                        r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|research/_archive/|\.claude/projects/|verify\.py\s+waive|"
                        r"runs/(?!%s\b)\d{8}T\d{6}Z" % (files, re.escape(run_id)))
     content = re.compile(r"(?:%s)[^\s:]*:" % files)

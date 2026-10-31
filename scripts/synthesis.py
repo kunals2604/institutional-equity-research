@@ -1458,6 +1458,9 @@ def assemble(run_dir: Path, log=print) -> List[str]:
             reg = integration(run_dir, write=True)["register"]
             out.append("## %s\n\n<!-- %s:BEGIN -->\n%s\n<!-- %s:END -->\n" % (REGISTER_SECTION, REGISTER_BLOCK, reg, REGISTER_BLOCK))
             continue
+        if key == rl.norm_heading("Independent Audit and Resolutions") and key not in blocks and not (run_dir / rl.AUDIT_REPORT).exists():
+            out.append("## %s\n\nThe independent audit runs on this assembled draft (cio.md Stage 4).\n" % s)
+            continue
         if key not in blocks:
             errs.append("no section file writes %r (cio/sections/ for the CIO's sections, synthesis/sections/ for the writers')" % s)
             continue
@@ -1523,7 +1526,6 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("registry")
     r.add_argument("run_dir")
-    r.add_argument("--update", action="store_true", help="rebuild after follow-ups (ids of unchanged items are kept)")
     sub.add_parser("status").add_argument("run_dir")
     sub.add_parser("layer-inputs").add_argument("run_dir")
     sub.add_parser("followups").add_argument("run_dir")

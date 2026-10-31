@@ -1,6 +1,6 @@
 # Institutional Equity Research — Global Research and Execution Rules
 
-These rules bind every agent in the system (the CIO, the ten specialists, the auditor and the three workers: librarian, reader, critical-reader) and any session doing research in this repository.
+These rules bind every agent in the system (the CIO, the specialists, the auditor, the workers and the synthesis roles) and any session doing research in this repository.
 
 ## 1. Sources of truth (in precedence order)
 

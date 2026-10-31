@@ -16,7 +16,7 @@
 
 Arguments (full mode): the quoted company name, ticker and exchange are **all required**. Options: `--cutoff YYYY-MM-DD` (default today, UTC), `--hurdle <decimal>` (default 0.12, a placeholder the CIO confirms with cited inputs), `--reference-position <amount>` (default 5,000,000 in the reporting currency), `--effort <low|medium|high|xhigh|max>` (overrides the pinned effort of every Opus subagent for this run), `--notes "<text>"`. Missing identifiers are rejected. If the name, ticker and exchange do not identify the same security, the CIO stops and asks.
 
-Models and efforts are pinned per agent in `methodology/MODEL_POLICY.md` (the CIO and every specialist, the auditor and the critical reader on Opus at xhigh; the reader and the librarian on Sonnet at high; `--effort max` raises every Opus agent for one run). Start the session on Opus at xhigh: the CIO checks it at Stage 0 (`reading_audit.py session`) and tells you if it is not.
+Models and efforts are pinned per agent in `methodology/MODEL_POLICY.md` (the CIO, every specialist and the auditor on Opus at xhigh; in the reading stage Opus at high reads every chunk, with a Sonnet or Haiku second read; the reader and the librarian on Sonnet at high; `--effort max` raises every Opus agent for one run). Start the session on Opus at xhigh: the CIO checks it at Stage 0 (`reading_audit.py session`) and tells you if it is not.
 
 Specialists run sequentially by default: each one is launched, finishes, and is validated before the next starts. A session-limit stop then interrupts at most one specialist, which resumes from its `progress.md` checkpoint with its finished work intact. Sequential mode changes the order, never the depth: no specialist is ever asked to shorten its work because of an interruption.
 

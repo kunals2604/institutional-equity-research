@@ -31,8 +31,8 @@ def git_head(root: Path) -> str:
         out = subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"],
                              capture_output=True, text=True, check=True)
         dirty = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--",
-                                ".claude", "methodology", "scripts", "MASTER_RESEARCH_FRAMEWORK.md",
-                                "PROJECT_INSTRUCTIONS.md"],
+                                ".claude", "methodology", "scripts", "config", "templates",
+                                "MASTER_RESEARCH_FRAMEWORK.md", "PROJECT_INSTRUCTIONS.md"],
                                capture_output=True, text=True, check=True).stdout.strip()
         return out.stdout.strip() + ("+uncommitted-method-changes" if dirty else "")
     except Exception:
@@ -49,6 +49,8 @@ def main(argv=None) -> int:
     p.add_argument("--fy-end", default="03-31", help="MM-DD fiscal year end")
     p.add_argument("--isin", default="unknown")
     p.add_argument("--cutoff", default=None, help="YYYY-MM-DD (default: today, UTC)")
+    p.add_argument("--replay", action="store_true", help="a historical replay: it never touches the scoreboard, the latest-run "
+                   "pointer or the decision record, whatever its run id")
     p.add_argument("--hurdle", type=float, default=None, help="override the IPS hurdle rate")
     p.add_argument("--reference-position", type=float, default=None, help="override the IPS reference position")
     p.add_argument("--policy", default=str(rl.INVESTMENT_POLICY), help="investment policy JSON (IPS)")
@@ -76,8 +78,10 @@ def main(argv=None) -> int:
         print("WARNING: exchange %r not in %s" % (exchange, EXCHANGES), file=sys.stderr)
     if exchange.endswith("-SME") and a.segment != "sme":
         p.error("exchange %s implies --segment sme" % exchange)
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", cutoff):
-        p.error("--cutoff must be YYYY-MM-DD")
+    try:
+        dt.date.fromisoformat(cutoff)
+    except ValueError:
+        p.error("--cutoff must be a real date, YYYY-MM-DD")
     run_id = a.run_id or now.strftime("%Y%m%dT%H%M%SZ")
     if not rl.RUN_ID_RE.fullmatch(run_id):
         p.error("run id must look like 20261012T074500Z")
@@ -147,6 +151,7 @@ def main(argv=None) -> int:
         "isin": a.isin,
         "currency": a.currency,
         "fiscal_year_end": a.fy_end,
+        "replay": bool(a.replay),
         "research_cutoff": cutoff,
         "started_at": now.isoformat(),
         "completed_at": None,

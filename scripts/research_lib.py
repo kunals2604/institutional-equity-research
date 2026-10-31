@@ -41,6 +41,8 @@ PROBABILITY_BANDS = ("remote", "low", "moderate", "elevated", "high")
 
 # Run layout (see methodology/REPORT_CONTRACTS.md).
 RUN_MANIFEST = "run_manifest.json"
+FINAL_STATUSES = ("complete", "insufficient_evidence")
+EFFORTS = ("low", "medium", "high", "xhigh", "max")
 QC_RECORD = "cio/quality_control.md"
 LATEST_POINTER = "latest_run.txt"
 RUN_ID_RE = re.compile(r"\d{8}T\d{6}Z")

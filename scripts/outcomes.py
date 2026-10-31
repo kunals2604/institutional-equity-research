@@ -331,7 +331,11 @@ def score(root: Path, today: dt.date, quote: Optional[Quote], log_path: Optional
             p0, hurdle = _num(d["price"]), _num(d["hurdle_rate"])
             if q and q.get("close") and p0:
                 ret = float(q["close"]) / p0 - 1
-                need = (1 + (hurdle or 0)) ** (months / 12) - 1
+                if hurdle is None:          # no recorded hurdle: nothing to judge the return against, and never zero
+                    row.update({"return": ret, "judged": "no hurdle recorded"})
+                    verdicts.append(row)
+                    continue
+                need = (1 + hurdle) ** (months / 12) - 1
                 row.update({"return": ret, "hurdle_pro_rata": need})
                 if d["verdict"] in BUY_SIDE:
                     row["judged"] = "right" if ret >= need else "wrong"

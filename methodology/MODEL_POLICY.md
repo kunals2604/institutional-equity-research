@@ -6,7 +6,7 @@ pinned in each agent's frontmatter (`validate_system.py` checks them against the
 longer depends on what the model picker was left at. (In run BHARTIARTL 20261012T132311Z every agent, the CIO
 included, ran at effort *high* while the owner believed it was *max*; the reading audit now catches that.)
 
-**Effort (owner's decision, 2026-10-19):** every Opus agent is pinned at **xhigh**, not max. A first-time read of
+**Effort (owner's decision, 2026-10-19):** every Opus agent is pinned at **xhigh**, not max, except the one-shot chunk read, which runs at **high** (the `critical-reader` line below). A first-time read of
 a company costs hours of reading and several usage windows even at xhigh; max remains available per run with
 `--effort max`. The readers' work is checked by script and by a second, independent read either way; a read that
 ran above its pinned effort is reported, not failed.
@@ -35,9 +35,10 @@ If a task needs Sonnet at maximum effort to do well, it is a reasoning task and 
 | Downloads, structured filings, de-duplication, tables, tie-outs, page record, coverage tables, reading audit, scoring arithmetic | scripts | none | exact |
 | Finding documents the indexes missed | `librarian` | Sonnet · high | search and download; a script validates every file |
 | A dated ten-year timeline of the company's major events from news and the web (leads and a completeness check of the reading, never evidence) | `historian` | Sonnet · high | search and list; a script checks every row and that every source was opened |
-| Reading non-critical sections, transcripts, presentations, filings | `reader` | Sonnet · high | meets the five tests |
+| Reading every chunk (one call, no tools) | `critical-reader` | Opus · high | Sonnet and Haiku cannot be primary (41–59 % and 46 % recall against 92 %); the check makes skipping visible |
+| The independent second read of non-critical sections, transcripts, presentations, filings | `scanner` | Haiku · high | conflicts are adjudicated by Opus; a class it matches in the run's own calibration may be read by it alone |
 | With the reading stage off (methodology 3.2.0): web summaries of the reports, transcripts and presentations, recorded as tier-6 leads in the reading schema; a script page-confirms them against the filings | `digest` | Sonnet · high | fully specified (plan and schema), checkable (each quote on its snapshot page, each amount in its quote, each page opened in its session), omissions detectable (a search-log row per document; `digest.py calibrate` against a run that read the same pages), no judgment |
-| Reading critical sections (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/2, secretarial audit, related-party filings) | `critical-reader` **and** `reader`, independently; a fresh `critical-reader` resolves every disagreement | Opus · xhigh and Sonnet · high | highest stakes; two different models miss different things |
+| The independent second read of critical sections (auditor's reports, CARO, IFC, critical notes, Board's report, AOC-1/2, secretarial audit, related-party filings) | `reader` beside the Opus read; a fresh `critical-reader` resolves every disagreement | Opus · xhigh and Sonnet · high | highest stakes; two different models miss different things |
 | The specialists (eleven from methodology 3.2.0), the auditor, the CIO | specialists, `auditor`, main session | Opus · xhigh | judgment |
 | The synthesis pipeline (methodology 3.2.0): integrating and dispositioning the evidence by theme, assessing each layer, drafting the evidence sections of the report | `theme-analyst`, `layer-analyst`, `section-writer` | Opus · xhigh | judgment: what the evidence means, which source is better, what is material |
 | Re-checking a sample of each specialist's claims at their sources (the verification loop, `scripts/verify.py`) | `verifier` | Opus · xhigh | whether a source says what a claim says needs reading in context; the script checks run first and cost nothing |
@@ -109,7 +110,7 @@ therefore happens **inside every run** and is never carried over from another co
 stratified sample of the run's chunks (one per non-critical section class first) and the engine reads that sample with
 both models before any other non-critical chunk; once it is reconciled, `reading.py` scores the Sonnet read of each
 class against the adjudicated items with the rule above and writes `corpus/reading/calibration.json`
-(`BAKEOFF.md`). A class that passes is read by Sonnet alone for the rest of that run; every other class, and every
+(`BAKEOFF.md`). A class that passes is read by the second model alone for the rest of that run; every other class, and every
 critical class always, is read by both models. The global `calibration` block above stays `pending` (it applies only
 to a plan made with `--no-calibration`, which double-reads everything). The auditor's sample of Sonnet-read pages and
 the reading audit keep checking every run. Measured costs per chunk, per specialist and per run are recorded in

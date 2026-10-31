@@ -79,6 +79,8 @@ CHECKS = {
     "SOURCE_UNCHECKABLE": ("blocking", "agent", True,
                            "Cite every FACT to something that can be opened: a URL, a file or a document id, never a "
                            "description or a claim id."),
+    "AFTER_CUTOFF": ("blocking", "agent", True,
+                     "Use nothing dated after the run's research cutoff; the cutoff is the point in time the run stands at."),
     "PAGE_NOT_OPENED": ("major", "agent", True, "Open the cited page of a document before you cite a fact from it."),
     "PACK_READ": ("blocking", "agent", True, "Read every must-read dossier of your reading pack in full."),
     "CHECKLIST_EVIDENCE": ("major", "agent", True,
@@ -110,6 +112,8 @@ CHECKS = {
                                "did with each (updated, or unaffected and why)."),
     "CIO_CLAIM_GRAPH": ("blocking", "cio", False, ""),
     "CIO_DEPENDENT_NOT_REVIEWED": ("blocking", "cio", False, ""),
+    "CIO_LEDGER_UNCHECKED": ("major", "cio", False, ""),
+    "VERIFICATION_STALE": ("blocking", "cio", False, ""),
 }
 PROPAGATION_COLUMNS = ("claim", "dependent", "action", "reason")
 FACT_TAGS = ("FACT", "MANAGEMENT STATEMENT")
@@ -269,6 +273,18 @@ def source_keys(run_dir: Path) -> Dict[str, Set[str]]:
     return out
 
 
+def unchecked_new_claims(run_dir: Path, name: str, rec: dict) -> List[str]:
+    """Claims a follow-up added after the verifier last ran (the Stage-3 valuation numbers, say), which it has not yet
+    re-checked. They are the ones a late correction most often rests on."""
+    tier_b = rec.get("tier_b") or {}
+    if not tier_b.get("results"):
+        return []
+    rows = ledger_rows(ledgers_of(run_dir, name))
+    done = {r.get("claim_id") for r in rows if r.get("_file") == "%s_ledger.csv" % name} | set(tier_b.get("claims") or [])
+    return [r["claim_id"] for r in rows if r.get("claim_id") not in done and (r.get("tag") or "").strip().upper() in FACT_TAGS
+            and checkable_source(r.get("source_url_or_id") or "")]
+
+
 def claim_keys(row: dict, keys: Dict[str, Set[str]]) -> Set[str]:
     src = (row.get("source_url_or_id") or "").strip()
     if not src:
@@ -356,7 +372,20 @@ def digest_fact_findings(run_dir: Path, rows: List[dict], agent: str) -> List[di
                     "that document and page; or re-tag the claim as a lead (ESTIMATE with its basis) or remove it.", bad)]
 
 
-def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent: str) -> List[dict]:
+def after_cutoff(rows: List[dict], cutoff: str) -> List[str]:
+    """FACT and MANAGEMENT STATEMENT claims whose source is dated after the run's cutoff. A date given to the month or the
+    year is compared at that precision, so nothing that could be within the cutoff is called late."""
+    out = []
+    for r in rows:
+        if (r.get("tag") or "").strip().upper() not in FACT_TAGS:
+            continue
+        date = (r.get("source_date") or "").strip()
+        if re.match(r"\d{4}(-\d{2}(-\d{2})?)?$", date) and cutoff and date > cutoff[:len(date)]:
+            out.append("%s (%s)" % (r.get("claim_id"), date))
+    return out
+
+
+def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent: str, cutoff: str = "") -> List[dict]:
     """NUMBER_NOT_SEEN, SOURCE_NOT_OPENED and PAGE_NOT_OPENED over a ledger's FACT and MANAGEMENT STATEMENT claims."""
     out = []
     not_seen, unopened, unpaged, checked = [], [], [], 0
@@ -396,6 +425,10 @@ def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent:
                            "or rounded it, record the printed value (and the conversion as a CALCULATION); if you computed "
                            "it, tag it CALCULATION with formula_or_inputs; if you cannot find it, remove the claim.",
                            not_seen))
+    late = after_cutoff(rows, cutoff)
+    if late:
+        out.append(finding("AFTER_CUTOFF", agent, "%d claim(s) rest on a source dated after the cutoff %s" % (len(late), cutoff),
+                           "Remove each claim, or replace its source with one dated on or before the cutoff.", late))
     if scaled:
         out.append(finding("SCALE_NOT_SEEN", agent, "%d value(s) seen only at another scale" % len(scaled),
                            "For each: open the source and check the number and its unit. Record the value as printed, and "
@@ -484,7 +517,7 @@ def specialist(run_dir: Path, name: str, tdir: Optional[Path] = None, write: boo
         findings.append(finding("MODEL_EFFORT", name, "no transcript of this specialist was found: nothing it did can be "
                                                        "verified", "Run it through the engine, or waive with the reason."))
     seen = Seen(sessions)
-    findings += claim_checks(rows, seen, source_keys(run_dir), name)
+    findings += claim_checks(rows, seen, source_keys(run_dir), name, rl.load_json(run_dir / rl.RUN_MANIFEST).get("research_cutoff", ""))
     findings += digest_fact_findings(run_dir, rows, name)
     findings += checklist_findings(run_dir, name, ids)
     findings += sector_module_findings(run_dir, name, rows)
@@ -643,13 +676,13 @@ def fix_message(rec: dict, severities=("blocking",), tier_b: bool = True) -> Lis
 # Tier B: the verifier agent's sample
 # --------------------------------------------------------------------------------------------------------------
 
-def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier") -> List[dict]:
+def sample(run_dir: Path, name: str, n: int = 0, seed: str = "verifier", only: Optional[List[str]] = None) -> List[dict]:
     """The claims the verifier re-checks: those the report's conclusion rests on first (claim IDs in its Domain
     Conclusion and summary sections), then numeric FACTs, then the rest, drawn reproducibly; more for an agent whose
     earlier runs had material discrepancies."""
     n = n or DEFAULT_SAMPLE + (4 if lesson_counts().get((name, "CLAIM_DISCREPANCY")) else 0)
     rows = [r for r in ledger_rows(ledgers_of(run_dir, name)) if (r.get("tag") or "").upper() in FACT_TAGS
-            and checkable_source(r.get("source_url_or_id") or "")]
+            and checkable_source(r.get("source_url_or_id") or "") and (only is None or r["claim_id"] in only)]
     rep = run_dir / "specialists" / ("%s.md" % name)
     text = rep.read_text(encoding="utf-8") if rep.exists() else ""
     key = set()
@@ -812,7 +845,9 @@ def claims_result(run_dir: Path, name: str, write: bool = True) -> Tuple[dict, L
     if unv:
         fs.append(finding("CLAIM_UNVERIFIABLE", name, "%d re-checked claims could not be located at their sources" % len(unv),
                           "Give each claim a source and locator anyone can open (document, page, URL), or remove it.", unv))
-    rec = {"sampled": len(want), "results": dict(cnt), "findings": fs, "checked_at": now()}
+    earlier = set(((rl.load_json(vdir(run_dir) / ("%s.json" % name)) if (vdir(run_dir) / ("%s.json" % name)).exists() else {})
+                   .get("tier_b") or {}).get("claims") or [])
+    rec = {"sampled": len(want), "results": dict(cnt), "findings": fs, "checked_at": now(), "claims": sorted(earlier | set(want))}
     if write:
         path = vdir(run_dir) / ("%s.json" % name)
         full = rl.load_json(path) if path.exists() else {"agent": name, "tier_a": [], "waived": {}, "rounds": []}
@@ -857,8 +892,9 @@ def cio_findings(run_dir: Path, tdir: Path) -> List[dict]:
         ents = [d for d in ra.load_lines(jl) if not d.get("timestamp") or t0 <= d["timestamp"][:19] <= t1]
         sessions.append({"entries": ents})
     if not sessions:
-        return digest_bad
-    return claim_checks(ledger_rows([led]), Seen(sessions), source_keys(run_dir), "cio") + digest_bad
+        return digest_bad + [finding("CIO_LEDGER_UNCHECKED", "cio", "no main session was found, so the CIO's ledger was not "
+                                     "checked against what the CIO read", "Say so in the report's limitations.")]
+    return claim_checks(ledger_rows([led]), Seen(sessions), source_keys(run_dir), "cio", m.get("research_cutoff", "")) + digest_bad
 
 
 def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:

@@ -87,23 +87,29 @@ battery, and a run still needs mains power and an open lid.
 |---|---|---|---|---|---|
 | E1 | H | Report says "no override" while one manual score decided the verdict | Bharti: IA4 set to 2 where the tool gave 100; with 100, IA is about 48, HOLD. Show every departure from a computed guide (disclosure, not a block) | `research_lib.py:1640` | Moved to Step 6 (the verdict rewrite) |
 | E2 | M | The ladder leaves price bands undefined | Bharti: 1,175–1,200 and 1,575–1,600 carry no decision | `valuation_tools.py:343` | Moved to Step 6 (the verdict rewrite) |
-| E3 | M | Hurdle documentation conflicts | The skill says default 0.12; policy says null. Nothing compares `hurdle_rate` with the computed cost of equity; `outcomes.py:334` treats a missing hurdle as 0 | `SKILL.md:21`, `new_run.py:65` | Open |
+| E3 | M | Hurdle documentation conflicts | The skill says default 0.12; policy says null. Nothing compares `hurdle_rate` with the computed cost of equity; `outcomes.py:334` treats a missing hurdle as 0 | `SKILL.md:21`, `new_run.py:65` | Fixed |
 
 ## F. Contracts and enforcement
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| F1 | M | Roster and counts are stale | "ten", "nine", "fifteen" agents across 15+ files, including `templates/cio_analysis.md`, copied into every new run | `README.md:3,16,32`, `PROJECT_INSTRUCTIONS.md:3`, `SCORING.md:398`, others | Open |
-| F2 | M | Model contracts contradict the code | Opus at high reads every chunk; docs say xhigh and Sonnet-only in places | `MODEL_POLICY.md:9,38,40,68,110`, `CLAUDE.md:6`, `cio.md:103`, `reader.md:3` | Open |
-| F3 | M | Injection rule missing where access is widest | Absent from `cio.md`, the three readers and the constitution | | Open |
-| F4 | M | `--cutoff` is mostly a label | Unenforced in `digest`, `connectors`, `corpus`, `fetch_source`, `browser`; no placeholder reaches specialists; `2026-13-45` is accepted | `new_run.py:79`, `agent_driver.py:602` | Open |
-| F5 | M | A replay would overwrite live state | Ordering uses run IDs, so a 2018-cutoff run today replaces the scoreboard row and `latest_run.txt` | `scoreboard.py:101`, `finalize_run.py` | Open |
-| F6 | M | Run plumbing is loose | `reading` runs on a reading-off run; `research_cutoff`, `sector_modules`, `fiscal_year_end` and `price` stay mutable; `effort_override` takes any string | `agent_driver.py:2439`, `manifest.py:28` | Open |
-| F7 | M | Write confinement is weaker than stated | The auditor has unrestricted Bash and no guard; new files are ignored; the FilingForge deny rule is hard-coded | `agent_driver.py:693,704,1200,937` | Open |
-| F8 | M | Independence checks have gaps | `cd <run>; cat cio/scorecard.json` matches nothing; `evidence_ledger.csv` is not denied; read denies do not bind Bash | `reading_audit.py:217`, `agent_driver.py:339` | Open |
-| F9 | M | Verification coverage gaps | Follow-up claims are never sampled; no freshness check against later ledger edits; the CIO check silently skips with no transcript | `agent_driver.py:1975`, `validate_run.py:77`, `verify.py:807` | Open |
-| F10 | L | Smaller drift | `--update` ignored; split key unused; docstring wrong on `review`; version stamped from current rather than run; `new_run` dirty check omits `config/` and `templates/`; `assemble` errors before Stage 4 exists | `synthesis.py:563,1353`, `validate_run.py:344`, `build_scorecard.py:145`, `new_run.py:33` | Open |
-| F11 | S | Analysts may be unable to run their own check (suspected) | `Bash(python3 scripts/synthesis.py check-:*)` may need a word boundary; one headless test settles it | `agent_driver.py:764,808` | Open |
+| F1 | M | Roster and counts are stale | "ten", "nine", "fifteen" agents across 15+ files, including `templates/cio_analysis.md`, copied into every new run | `README.md:3,16,32`, `PROJECT_INSTRUCTIONS.md:3`, `SCORING.md:398`, others | Fixed |
+| F2 | M | Model contracts contradict the code | Opus at high reads every chunk; docs say xhigh and Sonnet-only in places | `MODEL_POLICY.md:9,38,40,68,110`, `CLAUDE.md:6`, `cio.md:103`, `reader.md:3` | Fixed |
+| F3 | M | Injection rule missing where access is widest | Absent from `cio.md`, the three readers and the constitution | | Fixed |
+| F4 | M | `--cutoff` is mostly a label | Unenforced in `digest`, `connectors`, `corpus`, `fetch_source`, `browser`; no placeholder reaches specialists; `2026-13-45` is accepted | `new_run.py:79`, `agent_driver.py:602` | Fixed |
+| F5 | M | A replay would overwrite live state | Ordering uses run IDs, so a 2018-cutoff run today replaces the scoreboard row and `latest_run.txt` | `scoreboard.py:101`, `finalize_run.py` | Fixed |
+| F6 | M | Run plumbing is loose | `reading` runs on a reading-off run; `research_cutoff`, `sector_modules`, `fiscal_year_end` and `price` stay mutable; `effort_override` takes any string | `agent_driver.py:2439`, `manifest.py:28` | Fixed |
+| F7 | M | Write confinement is weaker than stated | The auditor has unrestricted Bash and no guard; new files are ignored; the FilingForge deny rule is hard-coded | `agent_driver.py:693,704,1200,937` | Fixed |
+| F8 | M | Independence checks have gaps | `cd <run>; cat cio/scorecard.json` matches nothing; `evidence_ledger.csv` is not denied; read denies do not bind Bash | `reading_audit.py:217`, `agent_driver.py:339` | Fixed |
+| F9 | M | Verification coverage gaps | Follow-up claims are never sampled; no freshness check against later ledger edits; the CIO check silently skips with no transcript | `agent_driver.py:1975`, `validate_run.py:77`, `verify.py:807` | Fixed |
+| F10 | L | Smaller drift | `--update` ignored; split key unused; docstring wrong on `review`; version stamped from current rather than run; `new_run` dirty check omits `config/` and `templates/`; `assemble` errors before Stage 4 exists | `synthesis.py:563,1353`, `validate_run.py:344`, `build_scorecard.py:145`, `new_run.py:33` | Fixed |
+| F11 | S | Analysts may be unable to run their own check (suspected) | `Bash(python3 scripts/synthesis.py check-:*)` may need a word boundary; one headless test settles it | `agent_driver.py:764,808` | Fixed |
+
+F4 adds `AFTER_CUTOFF` (blocking) on `source_date`: 0 hits on the 552 real Bharti claims. A web page's date is only as good
+as the agent records it, so the rule binds what is cited, not what a session read. F5: `new_run.py --replay` keeps a
+replay away from the scoreboard, the pointer and the decision record. F8 widened the audit's patterns to relative paths:
+0 new hits on the real specialist sessions. F11 is resolved by naming each subcommand whole, so the suspected prefix
+problem cannot arise.
 
 ## Stated rules with no mechanical check
 

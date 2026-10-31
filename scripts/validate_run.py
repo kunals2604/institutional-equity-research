@@ -79,6 +79,10 @@ def check_verification(run_dir: Path, results: list, stage: str) -> None:
     if not path.exists():
         r.error("verification missing: run python3 scripts/verify.py run RUN_DIR --stage %s" % stage)
     else:
+        version = rl.version_tuple(rl.load_json(run_dir / rl.RUN_MANIFEST).get("methodology_version"))
+        changed = [p.name for p in (run_dir / "specialists").glob("*_ledger.csv") if p.stat().st_mtime > path.stat().st_mtime]
+        if changed and version >= rl.V32:
+            r.error("a ledger changed after the verification ran (%s): run verify.py run again" % ", ".join(sorted(changed)[:5]))
         v = rl.load_json(path)
         if stage == "final" and v.get("stage") != "final":
             r.error("verification was run for the %s stage: run verify.py run RUN_DIR --stage final" % v.get("stage"))

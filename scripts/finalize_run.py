@@ -75,8 +75,10 @@ def main(argv=None) -> int:
     mpath = run_dir / rl.RUN_MANIFEST
     manifest = rl.load_json(mpath)
     outcome, sc, reason = decide(run_dir)
+    if manifest.get("replay"):             # a historical replay stands at another date: it must not replace today's state
+        print("replay run: the scoreboard, latest_run.txt and the decision record were not changed")
 
-    if outcome == "complete":
+    if outcome == "complete" and not manifest.get("replay"):
         if sc["run_id"] != manifest["run_id"] or sc["ticker"] != manifest["ticker"]:
             print("ERROR: scorecard identity does not match manifest", file=sys.stderr)
             return 1
