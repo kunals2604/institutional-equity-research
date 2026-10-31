@@ -1,7 +1,7 @@
 # Scoring Methodology — Business Quality and Investment Attractiveness
 
 <!-- METHODOLOGY_VERSION: 4.0.0 -->
-Methodology version **3.2.0** adds the synthesis pipeline and its integration checks, the reading switch with the web digest, the forecasting specialist (an owner of BQ3, IA2 and IA5) and the sector modules; the scoring rules are those of 3.0.0. Methodology version **3.0.0**: the decision is made the way an institutional fund manager makes it (§0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, explicit decision drivers and a conviction measure. 2.4.0 added the scuttlebutt specialist, the independent audit and the document map; 2.3.0 the hurdle-adjusted IA4, the confidence rule and the robustness test; 2.2.0 the quantitative anchor guides. Scorecards without `methodology_version` ≥ 3.0.0 are validated by the 2.x rules (fixed base weights, the 2.x verdict mapping). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
+Methodology version **4.0.0** makes the verdict a reasoned judgment with the scored sequence as a computed guide (§0), adds depth switches, the code-driven pipeline and canaries. Version **3.2.0** added the synthesis pipeline and its integration checks, the reading switch with the web digest, the forecasting specialist (an owner of BQ3, IA2 and IA5) and the sector modules; the scoring rules are those of 3.0.0. Methodology version **3.0.0**: the decision is made the way an institutional fund manager makes it (§0): archetype weight profiles fixed in advance, uncertainty never rewarded, non-compensatory must-pass tests, a margin of safety that scales with uncertainty, explicit decision drivers and a conviction measure. 2.4.0 added the scuttlebutt specialist, the independent audit and the document map; 2.3.0 the hurdle-adjusted IA4, the confidence rule and the robustness test; 2.2.0 the quantitative anchor guides. Scorecards without `methodology_version` ≥ 3.0.0 are validated by the 2.x rules (fixed base weights, the 2.x verdict mapping). Bump the version whenever dimensions, weights, anchors, gates or the verdict mapping change.
 
 Owner: CIO. Applies to every company and every run. Machine-checked by `scripts/validate_scorecard.py`, which parses the marked tables in this file.
 
@@ -18,6 +18,16 @@ IA is **not** derived from BQ. A great business can have a low IA, and an imperf
 
 ## 0. How the decision is made (not a formula)
 
+**From methodology 4.0.0 the verdict is a judgment (owner's decision, 2026-10-31).** No rigid rule decides it. The verdict is the CIO's reasoned judgment across all the research, and the reports are deep enough for the owner to apply human judgment alongside it. Passing or failing a test never sets or caps a verdict.
+
+- **The CIO writes the verdict** in `cio/scorecard_inputs.json` with `verdict_reasoning`: `for`, `against` and `judgment`, citing the evidence. A verdict that leaves the computed guide says why in `guide_departure`; that is a reason, not a limit, and no distance from the guide is too far.
+- **Everything below still runs, as a computed guide.** The sequence that follows, the gates (§§2–3), the must-pass tests (§3c), the required margin of safety and conviction (§5) are computed exactly as written and shown beside the verdict in the report's **Computed Guide**, as flags and evidence. `validate_scorecard.py` recomputes the guide, so the guide itself cannot be adjusted.
+- **Scores stay what they are.** Business Quality, Investment Attractiveness and layer fit are measured from the evidence by the anchors below. Never reverse-engineer one to reach a verdict.
+- **The rules about whether the research is true do not change:** no invented sources, figures or quotes; tags, claim IDs and metric keys; arithmetic from scripts; every finding given a recorded fate.
+- **Earlier runs keep their contract:** a scorecard before 4.0.0 is judged by the rule-mapped verdict it was made under.
+
+The rest of this section, §3c and §5 state the guide. Before 4.0.0 they stated the verdict.
+
 A fund manager does not add up analysts' opinions. They ask a sequence of questions, and a "no" to an early one is not rescued by strong answers later. The scorecard follows that sequence; the weighted scores summarize, but **they do not decide alone**.
 
 1. **Is it investable at all?** Gates G1–G6 (§§2–3): unreliable reporting, compromised governance, unpriced distress, no exit, unverifiable valuation inputs. A gate caps the score and, for G1/G3, forces STRONG AVOID.
@@ -27,7 +37,7 @@ A fund manager does not add up analysts' opinions. They ask a sequence of questi
 5. **Is the price right for the uncertainty?** A buy requires a **margin of safety that rises as confidence falls** (§5); at Low confidence the answer is to get more evidence or wait, not to buy (Layer 4 aside, which is sized as speculation).
 6. **What decides the outcome, and do we see it differently from the market?** The 3–5 **decision drivers** (§6): for each, what the price implies, our evidence-based view, how strongly the evidence supports it, and how much value moves with it. With no difference from the market on a driver that matters, there is no edge from that driver.
 7. **How convinced should we be?** **Conviction** (§5) combines the size of the edge (E[IRR] over the hurdle), the payoff asymmetry, the confidence and whether the verdict survives the robustness grid. STRONG BUY needs High conviction.
-8. **Judgment, bounded.** The CIO may still move the mapped verdict one notch with a written reason, when a dominant consideration is not captured by the dimensions.
+8. **Judgment.** Before 4.0.0 the CIO could move the mapped verdict one notch with a written reason. From 4.0.0 the verdict is the judgment, and this sequence is its guide.
 
 **The CIO weighs evidence, not agents.** No specialist's view counts by default. Each dimension is scored from the evidence its owners produced (§3b lists the owners), weighted by that evidence's quality (tier, corroboration, reconciliation, the auditor's sample), and the weight profile reflects what matters for this archetype, not how many specialists contributed.
 

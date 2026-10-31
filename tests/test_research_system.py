@@ -416,6 +416,7 @@ class TestScorecardValidation(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.base = json.loads((ROOT / "templates" / "scorecard.example.json").read_text(encoding="utf-8"))
+        self.base["methodology_version"] = "3.2.0"       # the rule-mapped verdict, which runs before 4.0.0 keep
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)

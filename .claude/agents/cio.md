@@ -94,6 +94,7 @@ Required sections, in order (A–L from the specification, plus the adjudication
 - Final Verdict
 - Change Since Prior Run
 - Evidence Integration Register (since 3.2.0)
+- Computed Guide (since 4.0.0)
 - Depth Disclosure (since 4.0.0)
 - Sources
 <!-- REQUIRED_SECTIONS:END -->

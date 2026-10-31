@@ -1080,6 +1080,48 @@ def followups(run_dir: Path, log=print, write: bool = True) -> dict:
 REGISTER_BLOCK = "INTEGRATION_REGISTER"
 REGISTER_SECTION = "Evidence Integration Register"
 DEPTH_SECTION = "Depth Disclosure"
+GUIDE_SECTION = "Computed Guide"
+GUIDE_DEVIATION = 10           # a price-driven score this far from the tool's is shown, with the CIO's reason beside it
+
+
+def guide_deviations(sc: dict) -> List[dict]:
+    """Where a score the tools can compute was set by hand far from them: the case in which one manual number can decide
+    everything (Bharti: IA4 at 2 where the tool gave 100, with a report saying "no override")."""
+    import valuation_tools as vt
+    pm = sc.get("price_metrics") or {}
+    if pm.get("margin_of_safety") is None:
+        return []
+    tool = {"IA1": vt.ia1(pm["margin_of_safety"]), "IA2": vt.ia2(pm["expected_irr"], pm["hurdle_rate"]),
+            "IA4": vt.ia4(pm["asymmetry_ratio"])}
+    out = []
+    for d in sc["investment_attractiveness"]["dimensions"]:
+        if d["id"] in tool and tool[d["id"]] is not None and abs(d["score"] - tool[d["id"]]) >= GUIDE_DEVIATION:
+            out.append({"id": d["id"], "score": d["score"], "tool": tool[d["id"]], "rationale": d.get("rationale", "")})
+    return out
+
+
+def guide_text(run_dir: Path, sc: dict) -> str:
+    """What the tests and tables say, beside the verdict. They inform the judgment and never decide it."""
+    dec = sc.get("decision") or {}
+    pm = sc.get("price_metrics") or {}
+    failed = ["%s (%s)" % (t["test"], t["kind"]) for t in dec.get("must_pass", []) if not t.get("passed")]
+    gates = sorted(set(sc["business_quality"].get("gates_triggered") or []) | set(sc["investment_attractiveness"].get("gates_triggered") or []))
+    profile = rl.weight_profiles().get((dec.get("layer_codes") or ["Base"])[0]) or rl.weight_profiles()["Base"]
+    gap_weight = sum(profile.get(k, 0) for k in ("IA1", "IA2", "IA4", "IA5"))
+    lines = ["The verdict above is the CIO's judgment across all the research. This is what the tests and tables say on their "
+             "own: they inform that judgment and never decide it.", "",
+             "| | |", "|---|---|", "| Verdict | **%s** |" % sc.get("verdict"), "| Computed guide | %s |" % sc.get("mapped_verdict"),
+             "| Gates flagged | %s |" % (", ".join(gates) or "none"), "| Must-pass tests flagged | %s |" % (", ".join(failed) or "none"),
+             "| Margin of safety against the table's figure | %s against %s |" % (dec.get("margin_of_safety"), dec.get("required_margin_of_safety")),
+             "| Conviction | %s |" % dec.get("conviction"), "| Verdict stable on the robustness grid | %s |" % pm.get("robust"),
+             "| IA weight resting on one gap (IA1, IA2, IA4, IA5) | %d %% |" % gap_weight]
+    if str(sc.get("guide_departure") or "").strip():
+        lines += ["", "**Why the verdict leaves the guide:** %s" % sc["guide_departure"]]
+    devs = guide_deviations(sc)
+    if devs:
+        lines += ["", "**Scores set far from the tools:**", "", "| Dimension | Score | Tool | Why |", "|---|---|---|---|"]
+        lines += ["| %s | %s | %s | %s |" % (d["id"], d["score"], d["tool"], d["rationale"].replace("|", "/")[:200]) for d in devs]
+    return "\n".join(lines) + "\n"
 
 
 def all_dispositions(run_dir: Path) -> Dict[str, dict]:
@@ -1485,6 +1527,10 @@ def assemble(run_dir: Path, log=print) -> List[str]:
             import switches
             blocks.pop(key, None)          # generated from the run's own switches, never written by hand
             out.append("## %s\n\n%s" % (DEPTH_SECTION, switches.disclosure(rl.load_json(run_dir / rl.RUN_MANIFEST))))
+            continue
+        if key == rl.norm_heading(GUIDE_SECTION):
+            blocks.pop(key, None)
+            out.append("## %s\n\n%s" % (GUIDE_SECTION, guide_text(run_dir, sc)))
             continue
         if key == rl.norm_heading(REGISTER_SECTION):
             reg = integration(run_dir, write=True)["register"]

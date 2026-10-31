@@ -28,6 +28,7 @@ from test_research_system import FixtureRun, specialist_report  # noqa: E402
 
 PY = sys.executable
 EXAMPLE = json.loads((ROOT / "templates" / "scorecard.example.json").read_text(encoding="utf-8"))
+EXAMPLE["methodology_version"] = "3.2.0"     # the rule-mapped verdict, which runs before 4.0.0 keep
 
 
 def judgments_only(sc):

@@ -1663,9 +1663,33 @@ def _validate_scenarios_and_vocab(sc: dict, res: Result) -> None:
         res.error("Valuation status %r not canonical" % sc["valuation_status"])
 
 
+REASONING_FIELDS = ("for", "against", "judgment")
+
+
+def check_judgment(sc: dict, mv: str, res: Result) -> None:
+    """From 4.0.0 the verdict is the CIO's judgment across all the evidence: nothing here decides or caps it. It must be
+    reasoned, weigh both sides, rest on cited evidence, and say why when it leaves the computed guide. The rules that
+    keep the research true (the recomputed guide, the price) stay strict."""
+    reasoning = sc.get("verdict_reasoning") or {}
+    missing = [f for f in REASONING_FIELDS if not str(reasoning.get(f) or "").strip()]
+    if missing:
+        res.error("verdict_reasoning is missing %s: the verdict is a judgment, so it states the case for, the case against "
+                  "and how they were weighed" % ", ".join(missing))
+    elif not CLAIM_ID_RE.search(" ".join(str(reasoning[f]) for f in REASONING_FIELDS)):
+        res.error("verdict_reasoning cites no claim: a judgment rests on the evidence")
+    if sc["verdict"] != mv and not str(sc.get("guide_departure") or "").strip():
+        res.error("the verdict %r leaves the computed guide %r: guide_departure must say why (a reason, not a limit)" % (sc["verdict"], mv))
+    if sc.get("research_cutoff"):
+        for e in price_date_errors(sc, sc["research_cutoff"]):
+            res.error(e)
+
+
 def _check_verdict(sc: dict, mv: str, res: Result) -> None:
     if sc.get("mapped_verdict") and sc["mapped_verdict"] != mv:
         res.error("mapped_verdict %r but methodology maps to %r" % (sc["mapped_verdict"], mv))
+    if version_tuple(sc.get("methodology_version") or "0.0.0") >= V40:
+        check_judgment(sc, mv, res)
+        return
     if sc["verdict"] in NOTCH and sc["verdict"] != mv:
         gap = abs(NOTCH[sc["verdict"]] - NOTCH[mv])
         if not (sc.get("override_reason") or "").strip():

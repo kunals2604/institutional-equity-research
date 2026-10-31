@@ -154,6 +154,11 @@ def compute(inp: dict, run_dir: Path = None) -> dict:
     else:
         compute_legacy(sc)
     mapped = sc["mapped_verdict"]
+    if rl.version_tuple(sc["methodology_version"]) >= rl.V40:
+        if sc.get("verdict") not in rl.verdicts():      # the guide is computed; the verdict never is
+            raise ValueError("the CIO writes the verdict: set `verdict`, `verdict_reasoning` and, if it leaves the computed "
+                             "guide (%s), `guide_departure` (methodology/SCORING.md section 0)" % mapped)
+        return sc
     override = sc.pop("override_verdict", None)
     if override:
         if abs(rl.NOTCH.get(override, 99) - rl.NOTCH.get(mapped, -99)) > 1:

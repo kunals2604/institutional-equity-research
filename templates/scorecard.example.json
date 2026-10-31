@@ -304,7 +304,6 @@
   "probability_weighted_value": 980,
   "expected_irr_5y": 0.08,
   "valuation_status": "Fair-to-Full",
-  "override_reason": null,
   "qc_status": "PENDING",
   "model": {
     "requested": "opus",
@@ -381,7 +380,7 @@
     "sizing_basis": "no ceiling: IPS risk limits not set"
   },
   "next_review_due": "2026-07-01",
-  "methodology_version": "3.2.0",
+  "methodology_version": "4.0.0",
   "price_metrics": {
     "margin_of_safety": -0.0526,
     "expected_irr": 0.08,
@@ -488,5 +487,11 @@
     "verdict_path": "IA 45-64"
   },
   "mapped_verdict": "HOLD / NEUTRAL",
-  "verdict": "HOLD / NEUTRAL"
+  "verdict": "HOLD / NEUTRAL",
+  "verdict_reasoning": {
+    "for": "Illustrative: the case for, citing the evidence [FACT: FIN-C031].",
+    "against": "Illustrative: the case against, citing the evidence [CALCULATION: VAL-C044].",
+    "judgment": "Illustrative: how the two were weighed across all the research, and why the verdict follows."
+  },
+  "guide_departure": null
 }
