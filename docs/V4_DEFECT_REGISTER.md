@@ -15,13 +15,18 @@ contract or a pipeline path. **L** is smaller drift.
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| A1 | H | Digest confirmation ignores order of magnitude (**ran**) | `amount_in` strips trailing zeros, so a summary's 2,500 crore gets a page-confirmed mark against 25,000 printed in the filing; `calibrate` recall is inflated too | `digest.py:210` | Open |
-| A2 | H | `NUMBER_NOT_SEEN` has the same blindness, by design | Digits compare without separators, decimal point or leading and trailing zeros (change log v3.1.0 item 16), so a 10x error reads as seen. Needs a unit-normalised magnitude check | `verify.py` | Open |
-| A3 | H | A digest number can become a FACT | Exact-URL match misses `www` or query-string variants; the digest pack counts as seen; unopened sources up to 3 claims or 10 % only downgrade to major | `verify.py:321,167,368` | Open |
-| A4 | H | FACTs with prose sources skip the source checks | `source_url_or_id = "BSE filing, Jan 2024"` skips SOURCE_NOT_OPENED, PAGE_NOT_OPENED and the verifier sample | `verify.py:340,347,599` | Open |
-| A5 | H | A waiver covers a whole check, not a claim | Waiving `financials-NUMBER_NOT_SEEN` for one claim silences every later unseen number from that specialist | `verify.py:556,557` | Open |
-| A6 | H | A specialist can waive its own blocking finding | `verify.py` is not in `CIO_ONLY_SCRIPTS`; waivers record no actor; `qc/` is not fingerprinted | `agent_driver.py:132,661`, `verify.py:931` | Open |
-| A7 | M | Digest IDs collide; `confirm` is optional | Two facts from one quote share an ID and one takes the other's page; skipping `digest.py confirm` still gives status complete | `digest.py:145,416,636` | Open |
+| A1 | H | Digest confirmation ignores order of magnitude (**ran**) | `amount_in` strips trailing zeros, so a summary's 2,500 crore gets a page-confirmed mark against 25,000 printed in the filing; `calibrate` recall is inflated too | `digest.py:210` | Fixed |
+| A2 | H | `NUMBER_NOT_SEEN` has the same blindness, by design | Digits compare without separators, decimal point or leading and trailing zeros (change log v3.1.0 item 16), so a 10x error reads as seen. Needs a unit-normalised magnitude check | `verify.py` | Fixed |
+| A3 | H | A digest number can become a FACT | Exact-URL match misses `www` or query-string variants; the digest pack counts as seen; unopened sources up to 3 claims or 10 % only downgrade to major | `verify.py:321,167,368` | Fixed |
+| A4 | H | FACTs with prose sources skip the source checks | `source_url_or_id = "BSE filing, Jan 2024"` skips SOURCE_NOT_OPENED, PAGE_NOT_OPENED and the verifier sample | `verify.py:340,347,599` | Fixed |
+| A5 | H | A waiver covers a whole check, not a claim | Waiving `financials-NUMBER_NOT_SEEN` for one claim silences every later unseen number from that specialist | `verify.py:556,557` | Fixed |
+| A6 | H | A specialist can waive its own blocking finding | `verify.py` is not in `CIO_ONLY_SCRIPTS`; waivers record no actor; `qc/` is not fingerprinted | `agent_driver.py:132,661`, `verify.py:931` | Fixed |
+| A7 | M | Digest IDs collide; `confirm` is optional | Two facts from one quote share an ID and one takes the other's page; skipping `digest.py confirm` still gives status complete | `digest.py:145,416,636` | Fixed |
+
+Calibrated on the real Bharti sessions (552 FACT and MANAGEMENT STATEMENT claims): the new `SCALE_NOT_SEEN` raises 62,
+mostly crore-to-million conversions, so it is major (one correction round) rather than blocking; `SOURCE_UNCHECKABLE`
+raises 0, so it blocks. A true unit conversion no longer page-confirms a digest item: it stays a lead, flagged
+`scale_differs`, which is the safe direction.
 
 ## B. Evidence lost in Stage 3
 

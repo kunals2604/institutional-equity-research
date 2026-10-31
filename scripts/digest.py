@@ -31,6 +31,7 @@ import random
 import re
 import sys
 from collections import Counter, defaultdict
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -143,7 +144,8 @@ def plan(run_dir: Path, years: int = 10, quarters: int = 24, ppt_quarters: int =
 
 def item_id(doc_key: str, it: dict) -> str:
     raw = "|".join([doc_key, str(it.get("type")), str(it.get("source_url")), str(it.get("snapshot_page")),
-                    reading.norm_space(str(it.get("quote") or ""))[:400]])
+                    reading.norm_space(str(it.get("quote") or ""))[:400],
+                    json.dumps(it.get("fields") or {}, sort_keys=True, ensure_ascii=False)])
     return "D-" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:10]
 
 
@@ -201,13 +203,30 @@ def _digits(s: str) -> str:
     return re.sub(r"[^\d.]", "", str(s).replace(",", ""))
 
 
+def _value(s: str) -> Optional[Decimal]:
+    """A printed number's value (commas ignored), or None when the string is not one number."""
+    try:
+        return Decimal(_digits(s).strip("."))
+    except InvalidOperation:
+        return None
+
+
 def amount_in(text: str, value: str) -> bool:
-    """A recorded amount appears in a text, compared as printed numbers (commas ignored)."""
+    """A recorded amount appears in a text, compared by value: 25,000 matches 25000.00 and never 2,500."""
     v = _digits(value).strip(".")
     if not v or not re.search(r"\d", v):
         return True
     nums = {_digits(n).strip(".") for n in reading.NUMBER_RE.findall(text)}
-    return v in nums or v.rstrip("0").rstrip(".") in {n.rstrip("0").rstrip(".") for n in nums}
+    target = _value(value)
+    return v in nums or (target is not None and target in {x for x in map(_value, nums) if x is not None})
+
+
+def scaled_amount_in(text: str, value: str) -> bool:
+    """The same significant digits at another scale: a unit conversion or a ten-times error, which a script cannot tell
+    apart, so it is reported and never confirmed."""
+    sig = lambda s: re.sub(r"\D", "", _digits(s)).strip("0")  # noqa: E731
+    v = sig(value)
+    return bool(v) and v in {sig(n) for n in reading.NUMBER_RE.findall(text)}
 
 
 def check_errors(run_dir: Path, doc: Optional[str] = None, tdir: Optional[Path] = None,
@@ -350,6 +369,8 @@ def confirm_item(it: dict, spec: dict, pages: Dict[int, List[str]]) -> dict:
                 if not any(amount_in(line, a) for a in amounts):
                     if conflict is None and len(toks) >= 2 and sum(t in low[i] for t in toks) >= 2 and reading.NUMBER_RE.search(line):
                         conflict = {"page": pg, "line": i + 1, "matched": line.strip()[:160]}
+                        if any(scaled_amount_in(line, a) for a in amounts):
+                            conflict["scale_differs"] = True
                     continue
                 window = " ".join(low[max(0, i - 3): i + 4])
                 hits = sum(t in window for t in toks)
@@ -633,8 +654,10 @@ def write_status(run_dir: Path, pl: dict, items: List[dict], tdir: Optional[Path
                                                tot["value_located"], tot["conflict"], tot["not_found"] + tot["no_document"])]
     text = "\n".join(lines) + "\n"
     dpath(run_dir, "COVERAGE.md").write_text(text, encoding="utf-8")
-    st = {"complete": not pending and not errs, "pending": len(pending), "pending_documents": pending,
-          "check_errors": len(errs), "documents": len(pl["documents"]), "items": tot["items"],
+    conf = confirmations(run_dir)
+    unconfirmed = sum(1 for it in items if it["id"] not in conf)
+    st = {"complete": not pending and not errs and not unconfirmed, "pending": len(pending), "pending_documents": pending,
+          "check_errors": len(errs), "documents": len(pl["documents"]), "items": tot["items"], "unconfirmed": unconfirmed,
           "page_confirmed": tot["page_confirmed"], "coverage_sha256": hashlib.sha256(text.encode()).hexdigest(),
           "built_at": reading.now_iso()}
     rl.write_json(run_dir / rl.DIGEST_STATUS, st)

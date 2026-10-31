@@ -55,6 +55,7 @@ import random
 import re
 import sys
 from collections import Counter, defaultdict
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
@@ -72,6 +73,12 @@ CHECKS = {
     "SOURCE_NOT_OPENED": ("blocking", "agent", True,
                           "Open every source you cite for a FACT (the document at the page, the filing, the web page); "
                           "a dossier line is a finding aid, never the source."),
+    "SCALE_NOT_SEEN": ("major", "agent", True,
+                       "A value whose digits you saw only at another scale may be a unit conversion or a ten-times error: "
+                       "record the value as printed, with its unit, and any conversion as a CALCULATION."),
+    "SOURCE_UNCHECKABLE": ("blocking", "agent", True,
+                           "Cite every FACT to something that can be opened: a URL, a file or a document id, never a "
+                           "description or a claim id."),
     "PAGE_NOT_OPENED": ("major", "agent", True, "Open the cited page of a document before you cite a fact from it."),
     "PACK_READ": ("blocking", "agent", True, "Read every must-read dossier of your reading pack in full."),
     "CHECKLIST_EVIDENCE": ("major", "agent", True,
@@ -109,6 +116,7 @@ FACT_TAGS = ("FACT", "MANAGEMENT STATEMENT")
 SOURCE_BLOCK = (3, 0.10)       # SOURCE_NOT_OPENED blocks above 3 claims or 10 % of the checked claims
 DEFAULT_SAMPLE = 8
 NUM_RE = re.compile(r"\d[\d,]*(?:\.\d+)?")
+DIGEST_ID_RE = re.compile(r"\bD-[0-9a-f]{10}\b")
 PDF_PAGE_RE = re.compile(r"\bPDF\s*(?:page|pp?)\.?\s*(\d{1,4})", re.I)
 PRINTED_PAGE_RE = re.compile(r"\bprinted\s*(?:page|pp?)\.?\s*(\d{1,4})", re.I)
 IMAGE_RE = re.compile(r"\.(png|jpe?g|gif|webp)$", re.I)
@@ -130,6 +138,18 @@ def digits(token: str) -> str:
 
 def digit_set(text: str) -> Set[str]:
     return {digits(t) for t in NUM_RE.findall(text or "") if digits(t)}
+
+
+def exact(token: str) -> str:
+    """A number's value as text: 1,234.50 and 1234.5 alike, 2,500 and 25,000 different."""
+    try:
+        return format(Decimal(token.replace(",", "")).normalize(), "f")
+    except InvalidOperation:
+        return ""
+
+
+def exact_set(text: str) -> Set[str]:
+    return {exact(t) for t in NUM_RE.findall(text or "")} - {""}
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -162,7 +182,11 @@ class Seen:
                 c = (d.get("message") or {}).get("content")
                 if d.get("type") == "user" and isinstance(c, str):
                     prompts.append(c)
-        self.digits = digit_set("\n".join(t for _, t in self.events) + "\n" + "\n".join(prompts))
+        # A web-digest pack is a tier-6 lead: a number seen only there is not a number seen in a source.
+        primary = "\n".join(t for u, t in self.events if rl.DIGEST_DIR not in json.dumps(u.get("input") or {}))
+        primary += "\n" + "\n".join(prompts)
+        self.digits = digit_set(primary)
+        self.numbers = exact_set(primary)
         self.inputs = [(u.get("name") or "", json.dumps(u.get("input") or {}, ensure_ascii=False)) for u, _ in self.events]
         self.inputs_low = [(n, s.lower()) for n, s in self.inputs]
 
@@ -289,6 +313,12 @@ def finding(check: str, agent: str, detail: str, fix: str = "", claims: List[str
             "fix": fix, "claims": list(claims)[:60]}
 
 
+def norm_source(source) -> str:
+    """A source as a comparable string: no scheme, `www.`, query, fragment or trailing slash; lower case."""
+    s = re.sub(r"^https?://", "", str(source or "").strip(), flags=re.I)
+    return re.split(r"[?#]", re.sub(r"^www\.", "", s, flags=re.I))[0].rstrip("/").lower()
+
+
 def digest_sources(run_dir: Path) -> Set[str]:
     """Every source the web digest used (methodology 3.2.0, reading off): its pages' URLs and snapshot files."""
     out: Set[str] = set()
@@ -302,9 +332,9 @@ def digest_sources(run_dir: Path) -> Set[str]:
             if not isinstance(it, dict):
                 continue
             for k in ("source_url", "snapshot"):
-                v = str(it.get(k) or "").strip()
+                v = norm_source(it.get(k))
                 if v:
-                    out.add(re.sub(r"^https?://", "", v).rstrip("/").lower())
+                    out.add(v)
     return out
 
 
@@ -315,8 +345,9 @@ def digest_fact_findings(run_dir: Path, rows: List[dict], agent: str) -> List[di
     for r in rows:
         if (r.get("tag") or "").strip().upper() not in FACT_TAGS:
             continue
-        src = re.sub(r"^https?://", "", str(r.get("source_url_or_id") or "").strip()).rstrip("/").lower()
-        if src and ("/_cache/digest/" in "/" + src or src.startswith("_cache/digest/") or src in srcs):
+        src = norm_source(r.get("source_url_or_id"))
+        named = DIGEST_ID_RE.search("%s %s" % (r.get("source_url_or_id") or "", r.get("locator") or ""))
+        if named or (src and ("/_cache/digest/" in "/" + src or rl.DIGEST_DIR in src or src in srcs)):
             bad.append("%s (%s)" % (r.get("claim_id"), str(r.get("source_url_or_id"))[:90]))
     if not bad:
         return []
@@ -329,19 +360,25 @@ def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent:
     """NUMBER_NOT_SEEN, SOURCE_NOT_OPENED and PAGE_NOT_OPENED over a ledger's FACT and MANAGEMENT STATEMENT claims."""
     out = []
     not_seen, unopened, unpaged, checked = [], [], [], 0
-    visual = []
+    visual, scaled, uncheckable = [], [], []
     for r in rows:
         if (r.get("tag") or "").strip().upper() not in FACT_TAGS:
             continue
         cid = r.get("claim_id", "")
         src = r.get("source_url_or_id") or ""
         ck = claim_keys(r, keys) if checkable_source(src) else set()
+        if not checkable_source(src):
+            uncheckable.append("%s (%s)" % (cid, src[:90]))
         v = digits(r.get("value") or "")
         if len(v) >= 3 and v not in seen.digits:
             if ck and seen.viewed(ck):
                 visual.append(cid)                 # read off a page image: the verifier re-checks it first
             else:
                 not_seen.append("%s (value %s)" % (cid, r.get("value")))
+        elif len(re.sub(r"\D", "", r.get("value") or "")) >= 3:   # a round 2,500 has too few significant digits to test above
+            nums = NUM_RE.findall(r.get("value") or "")
+            if len(nums) == 1 and exact(nums[0]) not in seen.numbers:
+                scaled.append("%s (value %s)" % (cid, r.get("value")))
         if not ck:
             continue
         checked += 1
@@ -359,6 +396,13 @@ def claim_checks(rows: List[dict], seen: Seen, keys: Dict[str, Set[str]], agent:
                            "or rounded it, record the printed value (and the conversion as a CALCULATION); if you computed "
                            "it, tag it CALCULATION with formula_or_inputs; if you cannot find it, remove the claim.",
                            not_seen))
+    if scaled:
+        out.append(finding("SCALE_NOT_SEEN", agent, "%d value(s) seen only at another scale" % len(scaled),
+                           "For each: open the source and check the number and its unit. Record the value as printed, and "
+                           "any unit conversion as a CALCULATION with the printed value as its input.", scaled))
+    if uncheckable:
+        out.append(finding("SOURCE_UNCHECKABLE", agent, "%d FACT claim(s) cite a source nobody can open" % len(uncheckable),
+                           "Replace each source with the URL, file or document id it came from.", uncheckable))
     if unopened:
         f = finding("SOURCE_NOT_OPENED", agent, "%d of %d FACT claims cite a source this agent never opened" % (
             len(unopened), checked), "Open each cited source at the cited place, confirm the claim, and correct or "
@@ -545,6 +589,16 @@ def graph_findings(run_dir: Path, name: str, corrected: Iterable[str]) -> List[d
     return out
 
 
+def apply_waiver(f: dict, entry: dict) -> None:
+    """A waiver covers the claims it was given for: a later claim under the same check stays open. A waiver recorded
+    before waivers named their claims covers the whole check, as it did then."""
+    new = [c for c in f.get("claims", []) if c not in (entry.get("claims") or [])]
+    if entry.get("claims") and new:
+        f["claims"] = new
+        return
+    f["waived"] = entry
+
+
 def merge_record(run_dir: Path, name: str, findings: List[dict], n_claims: int, n_sessions: int) -> dict:
     """Write the Tier A result, keeping the Tier B results, the remediation rounds and the waivers already recorded."""
     path = vdir(run_dir) / ("%s.json" % name)
@@ -553,7 +607,7 @@ def merge_record(run_dir: Path, name: str, findings: List[dict], n_claims: int, 
     for i, f in enumerate(findings, 1):
         f["id"] = "%s-%s" % (name, f["check"])
         if f["id"] in waived:
-            f["waived"] = waived[f["id"]]
+            apply_waiver(f, waived[f["id"]])
     rec = {"agent": name, "checked_at": now(), "claims": n_claims, "sessions": n_sessions, "tier_a": findings,
            "tier_b": old.get("tier_b", {}), "rounds": old.get("rounds", []), "waived": waived,
            "corrected": old.get("corrected", [])}
@@ -889,7 +943,7 @@ def run(run_dir: Path, stage: str, tdir: Optional[Path] = None) -> dict:
             f["id"] = "run-%s" % f["check"] if f["agent"] == "cio" and f["check"] not in (
                 "NUMBER_NOT_SEEN", "SOURCE_NOT_OPENED", "PAGE_NOT_OPENED") else "cio-%s" % f["check"]
         if f["id"] in waived:
-            f["waived"] = waived[f["id"]]
+            apply_waiver(f, waived[f["id"]])
     blocking = [f for f in findings if f["severity"] == "blocking" and not f.get("waived")]
     failed = [n for n, r in per.items() if r["status"] != "PASS"]
     out = {"run_id": rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id", run_dir.name), "stage": stage, "checked_at": now(),
@@ -923,10 +977,10 @@ def write_md(run_dir: Path, out: dict) -> None:
     (run_dir / "qc" / "VERIFICATION.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def waive(run_dir: Path, fid: str, reason: str) -> None:
+def waive(run_dir: Path, fid: str, reason: str, by: str = "cio") -> None:
     if not reason.strip():
         raise SystemExit("a waiver needs its reason")
-    entry = {"reason": reason, "at": now()}
+    entry = {"reason": reason, "at": now(), "by": by}
     name = next((s for s in sorted(rl.SPECIALISTS, key=len, reverse=True) if fid.startswith(s + "-")), "")
     if name:
         path = vdir(run_dir) / ("%s.json" % name)
@@ -934,12 +988,17 @@ def waive(run_dir: Path, fid: str, reason: str) -> None:
         rec.setdefault("waived", {})[fid] = entry
         for f in rec.get("tier_a", []) + (rec.get("tier_b") or {}).get("findings", []):
             if f.get("id") == fid:
+                entry["claims"] = list(f.get("claims") or [])
                 f["waived"] = entry
         rec["status"] = status_of(rec)
         rl.write_json(path, rec)
     else:
         path = vdir(run_dir) / "run_waivers.json"
         data = rl.load_json(path) if path.exists() else {}
+        last = run_dir / "qc" / "verification.json"
+        for f in rl.load_json(last).get("run_findings", []) if last.exists() else []:
+            if f.get("id") == fid:
+                entry["claims"] = list(f.get("claims") or [])
         data[fid] = entry
         path.parent.mkdir(parents=True, exist_ok=True)
         rl.write_json(path, data)
@@ -1021,6 +1080,7 @@ def main(argv=None) -> int:
     w.add_argument("run_dir")
     w.add_argument("finding_id")
     w.add_argument("--reason", required=True)
+    w.add_argument("--by", default="cio")
     ls = sub.add_parser("lessons")
     ls.add_argument("--agent", default="")
     a = ap.parse_args(argv)
@@ -1056,7 +1116,7 @@ def main(argv=None) -> int:
         print("events: %s (%d events)" % ("FAIL" if errs else "PASS", len(events_rows(run_dir))))
         return 1 if errs else 0
     if a.cmd == "waive":
-        waive(run_dir, a.finding_id, a.reason)
+        waive(run_dir, a.finding_id, a.reason, a.by)
         print("waived %s" % a.finding_id)
         return 0
     out = run(run_dir, a.stage)

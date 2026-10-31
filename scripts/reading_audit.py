@@ -243,7 +243,7 @@ def independence_patterns(me: str, run_id: str) -> Tuple[re.Pattern, re.Pattern]
     files = (r"specialists/(?:%s)(?:\.md|_ledger|_followup|_workpapers)|calc/(?:%s)_|_cache/scratch/(?:%s)/"
              % (others, others, others))
     calls = re.compile(r"(?:%s)|(?:runs/[\w.-]+|\$\{?\w+\}?|RUN_DIR)/(?:cio|audit|qc|engine|synthesis)/|_cache/engine/|"
-                       r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|research/_archive/|\.claude/projects/|"
+                       r"COMPANY_SCOREBOARD|latest_run\.txt|(?<![\w.])archive/|research/_archive/|\.claude/projects/|verify\.py\s+waive|"
                        r"runs/(?!%s\b)\d{8}T\d{6}Z" % (files, re.escape(run_id)))
     content = re.compile(r"(?:%s)[^\s:]*:" % files)
     return calls, content

@@ -356,7 +356,7 @@ NET_DENY = ("curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync
 
 def shell_denies() -> List[str]:
     return (["Bash(git:*)"] + ["Bash(python3 scripts/%s:*)" % s for s in CIO_ONLY_SCRIPTS]
-            + ["Bash(%s:*)" % c for c in NET_DENY])
+            + ["Bash(python3 scripts/verify.py waive:*)"] + ["Bash(%s:*)" % c for c in NET_DENY])
 
 
 def run_command(cmd: List[str]) -> Tuple[int, str]:
