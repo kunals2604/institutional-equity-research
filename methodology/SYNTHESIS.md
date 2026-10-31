@@ -73,15 +73,24 @@ dispositions it; the other themes it bears on see it as context.
 <!-- SYNTHESIS_MATERIALITY:BEGIN -->
 ```json
 {
- "gating_patterns": ["liquidity", "refinanc", "going concern", "emphasis of matter", "qualified opinion", "adverse opinion",
-                     "disclaimer", "fraud", "penalt", "show cause", "regulatory action", "enforcement", "embargo",
-                     "restriction", "restatement", "restated", "default", "covenant breach", "auditor resign",
-                     "related-party", "related party", "pledge", "integrity", "whistle", "investigation", "insolven",
-                     "downgrade", "material weakness", "diversion", "write-off", "promoter-related", "minorit"],
+ "gating_patterns": ["\\bgoing concern\\b", "\\bemphasis of matter\\b", "\\beoms?\\b", "\\bqualified (audit )?opinion\\b",
+                     "\\badverse opinion\\b", "\\bdisclaimer of opinion\\b", "\\bmaterial (weakness|uncertainty)\\b",
+                     "\\bfraud(ulent)?\\b", "\\bpenalt(y|ies)\\b", "\\bshow[- ]cause\\b", "\\benforcement (action|directorate)\\b",
+                     "\\bregulatory action\\b", "\\bembargo\\b", "\\b(payment|loan|debt|bond|covenant|technical) default\\b",
+                     "\\bdefaulted on\\b", "\\bcovenant breach\\b", "\\bauditor (resign|resigned|resignation)\\b",
+                     "\\bwhistle-?blow", "\\binvestigation (by|into)\\b", "\\binsolven", "\\bdiversion of\\b", "\\bsiphon",
+                     "\\b(integrity|conduct) (lapse|concern|issue)", "\\bmisstatement\\b", "\\bprior[- ]period error\\b",
+                     "\\brestate(d|ment)\\b.{0,40}\\b(error|misstatement|fraud)\\b", "\\bnon-?operating (credit|gain)s?\\b",
+                     "\\blabels? \\W?exceptional\\b", "\\bflatter(s|ed|ing)?\\b", "\\bcontingent[- ]liabilit",
+                     "\\brelated[- ]party (transaction|swap|deal)", "\\bpromoter[- ](group|related) (transaction|share swap|deal)",
+                     "\\bpromoter-related\\b", "\\b(pledged|encumbered) shares\\b", "\\bshare pledge", "\\bdividend dependence\\b",
+                     "\\bliquidity\\b.{0,60}\\b(tight|shortfall|gap|crunch|strain)", "\\bmaturity wall\\b",
+                     "\\brefinanc\\w* risk\\b", "\\bdowngraded?\\b", "\\bpermanent[- ](capital )?loss\\b"],
+ "gating_negation": "\\b(no|not|nothing|none|never|without|nil)\\b",
+ "gating_kinds": ["key_finding", "conclusion", "followup_finding", "missing_evidence", "checklist_gap", "verification"],
  "gating_corpus_types": ["emphasis_of_matter", "material_uncertainty_going_concern", "fraud_reported", "default_or_breach",
                          "penalty_or_noncompliance", "restatement", "auditor_change", "legal_or_regulatory_matter",
                          "ifc_opinion", "secretarial_observation"],
- "gating_dimensions": ["BQ7", "IA3"],
  "material_kinds": ["key_finding", "conclusion", "cio_question", "numeric_conflict", "internal_conflict", "checklist_gap",
                     "missing_evidence", "assumption", "verification", "forecast_reconciliation", "followup_finding",
                     "unparsed"],
@@ -90,11 +99,15 @@ dispositions it; the other themes it bears on see it as context.
 ```
 <!-- SYNTHESIS_MATERIALITY:END -->
 
-- **Gating:** an item of a material kind whose text matches a gating pattern or bears on a gating dimension (a gate or a
-  must-pass test), and every corpus item of a gating type. A gating item can **never** be dispositioned `immaterial`,
-  and unless it is `superseded` or an `unverified_lead` it must reach the report's body through **every one of its
-  distinctive claims** (its claims other than the CIO's and other than claims three or more report items cite, such as
-  the price or the revenue line): citing a shared claim of the same finding does not carry the gating fact.
+- **Gating:** a red flag the reader must see. A finding of a gating kind with a sentence that states one (a gating
+  pattern, in a sentence that does not negate it), and every corpus item of a gating type. Read by sentence and by
+  phrase, so that "searches found nothing on fraud" or a "default-spread adjustment" is not a red flag; authorship or
+  the dimension a finding bears on never makes it gating. Calibrated on the Bharti reports against the owner-confirmed
+  labels in `tests/golden/gating_labels.csv`: 21 of 1,407 items, with every labelled red flag kept. A gating item can
+  **never** be dispositioned `immaterial`, and unless it is `superseded` (pointing at a real item or claim, with a reason)
+  or an `unverified_lead` (only a digest or historian lead can be one) it must reach the report's body through **every one
+  of its distinctive claims** (its claims other than the CIO's and other than claims three or more report items cite,
+  such as the price or the revenue line): citing a shared claim of the same finding does not carry the gating fact.
 - **Material:** the material kinds above; crosswalk rows whose plausibility effect raises or lowers a layer; historian
   events not found in the documents; corpus items of a type the reading schema marks material.
 - **Standard:** other crosswalk rows; ledger claims a Key Finding or Domain Conclusion cites.
@@ -115,10 +128,10 @@ dispositions it; the other themes it bears on see it as context.
 |---|---|---|
 | integrated | an Integrated Finding `F#` of the brief | the finding cites the item's claim IDs or quotes it |
 | contested | a Contradiction Candidate `CC-…` | both sides stated; the CIO adjudicates it in the contradiction log |
-| superseded | the R-id or claim ID that replaces it | a later or better source says otherwise (state which) |
+| superseded | the R-id, cluster or claim ID that replaces it (it must exist) | a later or better source says otherwise (state which; at least ten words for a gating item) |
 | immaterial | a reason of at least ten words | never for a gating item |
 | needs_follow_up | a Follow-up Request `FU-…` | closed (another disposition) before the final stage |
-| unverified_lead | the check attempted | a digest or historian lead no primary source confirmed |
+| unverified_lead | the check attempted | a digest or historian lead no primary source confirmed; never a specialist's finding |
 
 ## Consistency rules
 

@@ -299,7 +299,10 @@ def main(argv=None) -> int:
         log_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
         for c in found:
             ids_in_conflict = [x.strip() for x in c["claim_ids"].split(";")]
-            if not any(cid in log_text for cid in ids_in_conflict):
+            import synthesis
+            resolved = synthesis.conflict_adjudicated(log_text, ids_in_conflict) if version >= rl.V32 else any(
+                cid in log_text for cid in ids_in_conflict)
+            if not resolved:
                 cres2.error("unadjudicated numeric conflict: %s %s %s..%s (%s) — cite these claim IDs in cio/contradiction_log.md"
                             % (c["metric"], c["period"], c["min"], c["max"], c["claim_ids"]))
         results.append(cres2)

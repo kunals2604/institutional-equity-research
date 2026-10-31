@@ -118,7 +118,10 @@ class V32Run(FixtureRun):
             (tdir / ("%s.md" % tid)).write_text("# %s\n\n" % tid + "\n\n".join("## %s\n%s" % kv for kv in secs.items())
                                                 + "\n", encoding="utf-8")
         log = "# Contradiction log\n\n" + "".join(
-            "## %s — Liquidity cover\n- Resolution: the cover is 0.86x [FACT: FIN-C003]; checked [FACT: CIO-C001].\n" % c
+            "## %s — Liquidity cover\n- **Specialist positions:** financials 0.86x [FACT: FIN-C003]\n- **Evidence for each:** the maturity note\n"
+            "- **Contrary evidence:** none\n- **Assumptions required:** none\n- **Independent check (CIO):** recomputed [FACT: CIO-C001]\n"
+            "- **Resolution:** the cover is 0.86x [FACT: FIN-C003]\n- **Confidence:** High — primary source\n"
+            "- **Investment impact:** BQ4\n" % c
             for c in (ccs if log_candidates else []))
         (self.dir / "cio" / "contradiction_log.md").write_text(log, encoding="utf-8")
         synthesis.layer_inputs(self.dir, log=lambda m: None)

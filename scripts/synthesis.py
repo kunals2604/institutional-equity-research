@@ -255,16 +255,23 @@ def conflict_items(run_dir: Path) -> List[dict]:
     return out
 
 
+def open_verification(v: dict) -> List[dict]:
+    """Every finding of qc/verification.json still open, the run's own and each specialist's. Information-only lines
+    (a value read off a page image, say) and waived findings are not open."""
+    found = list(v.get("run_findings") or [])
+    for name, rec in sorted((v.get("specialists") or {}).items()):
+        found += [dict(f, agent=f.get("agent") or name) for f in rec.get("findings") or []]
+    return [{k: f.get(k) for k in ("check", "agent", "detail", "claims")} for f in found
+            if not f.get("waived") and f.get("severity") != "info"]
+
+
 def verification_items(run_dir: Path) -> List[dict]:
     p = run_dir / "qc" / "verification.json"
     if not p.exists():
         return []
-    v = rl.load_json(p)
     out = []
-    for f in v.get("open", v.get("findings", [])) or []:
-        if f.get("waived"):
-            continue
-        txt = "%s %s: %s %s" % (f.get("check"), f.get("agent"), f.get("detail"), "; ".join(f.get("claims", [])[:8]))
+    for f in open_verification(rl.load_json(p)):
+        txt = "%s %s: %s %s" % (f.get("check"), f.get("agent"), f.get("detail"), "; ".join((f.get("claims") or [])[:8]))
         it = item("verification", f.get("agent") or "scripts", "qc/verification.json", f.get("check", ""), 0, txt)
         it["provenance"] = "script"
         out.append(it)
@@ -359,8 +366,6 @@ def dimension_index() -> Dict[str, List[str]]:
 def classify(items: List[dict], run_dir: Path) -> None:
     th = active_themes(run_dir)
     rules = materiality_rules()
-    pats = [p.lower() for p in rules["gating_patterns"]]
-    gating_dims = set(rules["gating_dimensions"])
     dims_of = dimension_index()
     by_author = {}
     for tid, t in th.items():
@@ -410,19 +415,32 @@ def classify(items: List[dict], run_dir: Path) -> None:
         elif k == "ledger_claim":
             mat = "standard" if set(it["claim_ids"]) & cited_by_findings else "reference"
         elif k in rules["material_kinds"]:
-            mat = "material"
-            if any(p in low for p in pats) or (set(dims) & gating_dims and k in ("key_finding", "conclusion")):
-                mat = "gating"
+            mat = "gating" if k in rules["gating_kinds"] and red_flag(it["text"], rules) else "material"
         else:
             mat = "standard"
         it["materiality"] = mat
         if mat == "reference":
             if k == "ledger_claim":
-                it["cluster"] = "C-%s-%s" % (it["author"], (it.get("metrics") or ["qualitative"])[0].replace(":", "_"))
+                it["cluster"] = "C-%s-%s" % (it["author"], cluster_slug((it.get("metrics") or ["qualitative"])[0]))
             elif k == "corpus_item":
                 it["cluster"] = "C-%s-%s" % (it.get("topic"), it.get("type"))
             else:
                 it["cluster"] = "C-%s-%s" % (k, it.get("status") or "other")
+
+
+def red_flag(text: str, rules: dict) -> bool:
+    """Does the text state a red flag? Read sentence by sentence, so a negated sentence ("searches found nothing on fraud")
+    is not one and a clear sentence after it still counts."""
+    for sentence in re.split(r"(?<=[.;:])\s+|\n+", text):
+        low = sentence.lower().replace("with or without", " ")
+        if any(re.search(p, low) for p in rules["gating_patterns"]) and not re.search(rules["gating_negation"], low):
+            return True
+    return False
+
+
+def cluster_slug(key: str) -> str:
+    """A metric key as part of a cluster id: only characters a register row can carry."""
+    return re.sub(r"[^\w-]+", "_", key).strip("_")
 
 
 def assign_ids(items: List[dict]) -> None:
@@ -491,7 +509,7 @@ def build_registry(run_dir: Path, log=print) -> dict:
     lines.append("| layer (crosswalk rows) | %d | - | - | - |" % by_theme.get("layer", 0))
     (out_dir / "REGISTRY.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     status = {"built_at": now(), "reading_mode": rl.reading_mode(run_dir), "items": len(items),
-              "inputs": {str(p.relative_to(run_dir)): sha_file(p) for p in inputs_of(run_dir)},
+              "inputs": {str(p.relative_to(run_dir)): input_hash(p) for p in inputs_of(run_dir)},
               "themes": {tid: {"parts": [p["file"] for p in s["parts"]], "items": s["n_items"], "clusters": len(s["clusters"])}
                          for tid, s in slices.items()}}
     rl.write_json(out_dir / "status.json", status)
@@ -513,13 +531,21 @@ def load_registry(run_dir: Path) -> List[dict]:
     return [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
+def input_hash(p: Path) -> str:
+    """What the registry depends on in an input file. verify.py stamps qc/verification.json on every run: only its open
+    findings matter, so re-running verification with nothing new does not make the registry stale."""
+    if p.name == "verification.json" and p.exists():
+        return hashlib.sha256(json.dumps(open_verification(rl.load_json(p)), sort_keys=True).encode()).hexdigest()
+    return sha_file(p)
+
+
 def stale(run_dir: Path) -> List[str]:
     """Inputs changed (or added) since the registry was built."""
     st_p = syn(run_dir, "status.json")
     if not st_p.exists():
         return ["the registry has not been built"]
     old = rl.load_json(st_p).get("inputs", {})
-    cur = {str(p.relative_to(run_dir)): sha_file(p) for p in inputs_of(run_dir)}
+    cur = {str(p.relative_to(run_dir)): input_hash(p) for p in inputs_of(run_dir)}
     return sorted([k for k in cur if old.get(k) != cur[k]] + [k for k in old if k not in cur])
 
 
@@ -594,6 +620,36 @@ def theme_scope(run_dir: Path, tid: str) -> Set[str]:
 
 DISP_ROW_RE = re.compile(r"^\|\s*`?((?:R|C)-[\w-]+)`?\s*\|\s*`?([a-z_]+)`?\s*\|([^|]*)\|(.*)\|\s*$")
 F_RE = re.compile(r"^\s*(?:[-*]\s*)?(?:#{3,4}\s*)?\**\s*(F\d+)\b")
+
+
+def pointer_errors(rid: str, disp: str, ptr: str, reason: str, reg: Dict[str, dict], known: Set[str],
+                   clusters: Set[str]) -> List[str]:
+    """The two dispositions that take an item out of the report. superseded must name what replaced it, and that must
+    exist; unverified_lead is for leads, never for a specialist's finding."""
+    it = reg.get(rid, {})
+    words = len(re.findall(r"\w+", reason))
+    if disp == "superseded":
+        if not (ptr in reg or ptr in known or ptr in clusters):
+            return ["superseded must point to the R-id, cluster or claim ID that replaces it, and %r does not exist" % ptr]
+        if it.get("materiality") == "gating" and words < 10:
+            return ["a gating item superseded needs a reason of at least ten words saying what replaced it and why"]
+    elif disp == "unverified_lead":
+        if not (it.get("kind") == "event" or str(it.get("provenance", "")).startswith("digest")):
+            return ["only a digest or historian lead can be an unverified lead; integrate, contest or follow up this item"]
+        if words < 5:
+            return ["unverified_lead must say what was checked"]
+    return []
+
+
+def cluster_ids(run_dir: Path) -> Set[str]:
+    sl = rl.load_json(syn(run_dir, "slices.json")) if syn(run_dir, "slices.json").exists() else {}
+    return {i for t in sl.values() for p in t.get("parts", []) for i in p["ids"] if i.startswith("C-")}
+
+
+def theme_briefs(run_dir: Path) -> List[Path]:
+    """Every theme brief, parts of a split theme included."""
+    d = syn(run_dir, "themes")
+    return sorted(d.glob("T[0-9].md")) + sorted(d.glob("T[0-9].p*.md"))
 
 
 def known_claim_ids(run_dir: Path) -> Set[str]:
@@ -732,15 +788,13 @@ def check_theme(run_dir: Path, tid: str, part: Optional[int] = None) -> List[str
                 errs.append("%s: contested must point to a Contradiction Candidate of this brief (got %r)" % (where, ptr))
             elif disp == "needs_follow_up" and ptr not in fus:
                 errs.append("%s: needs_follow_up must point to a Follow-up Request of this brief (got %r)" % (where, ptr))
-            elif disp == "superseded" and not (re.match(r"(?:R|C)-", ptr) or rl.CLAIM_ID_RE.fullmatch(ptr)):
-                errs.append("%s: superseded must point to the R-id or claim ID that replaces it" % where)
+            elif disp in ("superseded", "unverified_lead"):
+                errs += ["%s: %s" % (where, e) for e in pointer_errors(rid, disp, ptr, reason, reg, known, cluster_ids(run_dir))]
             elif disp == "immaterial":
                 if gating:
                     errs.append("%s: a gating item cannot be immaterial (integrate it, contest it or ask for a follow-up)" % where)
                 elif len(re.findall(r"\w+", reason)) < 10:
                     errs.append("%s: immaterial needs a reason of at least ten words" % where)
-            elif disp == "unverified_lead" and len(re.findall(r"\w+", reason)) < 5:
-                errs.append("%s: unverified_lead must say what was checked" % where)
         common_checks(run_dir, f, errs, known)
         for cells in numbers_of_record(text):
             cid = next(iter(rl.CLAIM_ID_RE.findall(" ".join(cells))), None)
@@ -838,6 +892,8 @@ def check_layer(run_dir: Path, layer: str) -> List[str]:
     rows = register_rows(text, "Crosswalk Disposition Register")
     got = {r[0] for r in rows}
     vocab = set(dispositions())
+    reg_by_id = {i["id"]: i for i in load_registry(run_dir)}
+    known, clusters = known_claim_ids(run_dir), cluster_ids(run_dir)
     for rid, disp, ptr, reason in rows:
         if rid not in scope:
             errs.append("%s: not a crosswalk row of %s" % (rid, layer))
@@ -845,11 +901,45 @@ def check_layer(run_dir: Path, layer: str) -> List[str]:
             errs.append("%s: disposition %r is not one of %s" % (rid, disp, ", ".join(sorted(vocab))))
         if disp == "immaterial" and len(re.findall(r"\w+", reason)) < 10:
             errs.append("%s: immaterial needs a reason of at least ten words" % rid)
+        if disp in ("superseded", "unverified_lead"):
+            errs += ["%s: %s" % (rid, e) for e in pointer_errors(rid, disp, ptr, reason, reg_by_id, known, clusters)]
+    newest = max((b.stat().st_mtime for b in theme_briefs(run_dir)), default=0)
+    if draft.stat().st_mtime < newest:
+        errs.append("a theme brief changed after this draft was written: re-run the layers step")
     missing = sorted(scope - got)
     if missing:
         errs.append("%d crosswalk row(s) without a disposition: %s" % (len(missing), ", ".join(missing[:20])))
     common_checks(run_dir, draft, errs)
     return errs[:120]
+
+
+def layers_blocked(run_dir: Path) -> List[str]:
+    """What must be true before the layer analysts start (cio.md Stage 3: evidence, contradictions and follow-ups first)."""
+    if stale(run_dir):
+        return ["the registry is stale: run the themes step"]
+    out = ["theme %s: %s" % (t, e) for t in active_themes(run_dir) for e in check_theme(run_dir, t)[:2]]
+    out += ["contradiction candidate %s is not adjudicated" % c
+            for c in followups(run_dir, log=lambda m: None, write=False)["open_candidates"]]
+    out += ["%s still needs a follow-up" % rid for rid, d in all_dispositions(run_dir).items()
+            if d["disposition"] == "needs_follow_up"]
+    return out
+
+
+def writers_blocked(run_dir: Path) -> List[str]:
+    """What must be true before the section writers start: every layer draft current, and the CIO's scorecard."""
+    out = ["layer %s: %s" % (L, e) for L in LAYERS for e in check_layer(run_dir, L)[:2]]
+    if not (run_dir / "cio" / "scorecard.json").exists():
+        out.append("the CIO's scorecard does not exist yet")
+    return out
+
+
+def answer_waiting(run_dir: Path, subject: str) -> bool:
+    """A theme whose brief passes its own check must still run again when one of its follow-ups has been answered, or a
+    needs_follow_up disposition can never close (the answer may be routed to another theme by its author)."""
+    b = syn(run_dir, "themes", "%s.md" % subject)
+    if not b.exists() or "needs_follow_up" not in b.read_text(encoding="utf-8"):
+        return False
+    return any(p.stat().st_mtime > b.stat().st_mtime for p in (run_dir / "specialists").glob("*_followup_*.md"))
 
 
 def group_findings(run_dir: Path, group: dict) -> Dict[str, Set[str]]:
@@ -889,21 +979,61 @@ def check_section(run_dir: Path, wid: str) -> List[str]:
     return errs[:120]
 
 
+LOG_FIELDS = ("Specialist positions", "Independent check", "Resolution", "Confidence", "Investment impact")
+
+
+def log_block(log_text: str, needle: str) -> str:
+    """The contradiction-log entry holding this id: from the heading above it to the next heading."""
+    lines = log_text.splitlines()
+    at = next((n for n, l in enumerate(lines) if needle in l), None)
+    if at is None:
+        return ""
+    head = next((n for n in range(at, -1, -1) if re.match(r"#{2,4}\s", lines[n])), None)
+    if head is None:
+        return lines[at]
+    end = next((n for n in range(head + 1, len(lines)) if re.match(r"#{2,4}\s", lines[n])), len(lines))
+    return "\n".join(lines[head:end])
+
+
+def filled(block: str, field: str) -> str:
+    """A labelled field's text, or "" when it is absent or still the template's placeholder."""
+    m = re.search(r"\*\*%s[^*]*:?\*\*:?\s*(.*)" % re.escape(field), block)
+    value = (m.group(1) if m else "").strip()
+    return "" if not value or set(value) <= set("…. ") else value
+
+
+def adjudication_gaps(log_text: str, cid: str) -> List[str]:
+    """What the log's entry for a contradiction candidate still lacks (cio.md Stage 3): empty means adjudicated."""
+    block = log_block(log_text, cid)
+    if not block:
+        return ["no entry"]
+    gaps = [f for f in LOG_FIELDS if not filled(block, f)]
+    check = filled(block, "Independent check")
+    if check and not re.search(r"\bCIO-C\d+", check):
+        gaps.append("the independent check cites no CIO claim")
+    return gaps
+
+
+def conflict_adjudicated(log_text: str, claim_ids: List[str]) -> bool:
+    """A numeric conflict is adjudicated by a log entry holding one of its claims and stating a resolution."""
+    return any(filled(log_block(log_text, c), "Resolution") for c in claim_ids)
+
+
 def followups(run_dir: Path, log=print, write: bool = True) -> dict:
     """Open follow-up requests and the contradiction candidates the CIO's log does not yet address."""
     log_text = (run_dir / "cio" / "contradiction_log.md").read_text(encoding="utf-8") if (run_dir / "cio" / "contradiction_log.md").exists() else ""
     fus, ccs = [], []
-    for b in sorted(syn(run_dir, "themes").glob("T[0-9].md")):
+    for b in theme_briefs(run_dir):
         text = b.read_text(encoding="utf-8")
         for line in (rl.section(text, "Gaps and Follow-up Requests") or "").splitlines():
             m = re.search(r"\b(FU-T\d-\d+)\b", line)
-            if m:
+            if m and m.group(1) not in {f["id"] for f in fus}:
                 fus.append({"id": m.group(1), "theme": b.stem, "text": norm(line)[:400]})
         for line in (rl.section(text, "Contradiction Candidates") or "").splitlines():
             m = re.search(r"\b(CC-T\d-\d+)\b", line)
             if m and m.group(1) not in {c["id"] for c in ccs}:
                 ccs.append({"id": m.group(1), "theme": b.stem, "text": norm(line)[:400],
-                            "in_log": m.group(1) in log_text})
+                            "in_log": not adjudication_gaps(log_text, m.group(1))})
     out = {"followups": fus, "contradiction_candidates": ccs,
            "open_candidates": [c["id"] for c in ccs if not c["in_log"]]}
     lines = ["# Follow-ups and contradiction candidates", "",
@@ -971,11 +1101,13 @@ def gating_missing(it: dict, cited: Set[str], common: Set[str] = frozenset()) ->
     return set() if own & cited else own
 
 
-def reached(it: dict, disp: dict, cited: Set[str], common: Set[str] = frozenset()) -> bool:
+def reached(it: dict, disp: dict, cited: Set[str], common: Set[str] = frozenset(), body: str = "") -> bool:
     """Did the item reach the report's body? A gating item with claims of its own reaches it only through them, all of
     its distinctive ones (gating_missing); any other item through one of its claims or the claims of the finding it was
-    integrated into."""
+    integrated into. An item with no claims contested in a candidate reaches it through that candidate."""
     own = set(it.get("claim_ids") or [])
+    if not own and disp.get("disposition") == "contested" and disp.get("pointer") and disp["pointer"] in body:
+        return True
     if it.get("materiality") == "gating" and own:
         return not gating_missing(it, cited, common)
     if own & cited:
@@ -983,22 +1115,32 @@ def reached(it: dict, disp: dict, cited: Set[str], common: Set[str] = frozenset(
     return bool(set(disp.get("f_claims") or []) & cited)
 
 
+def quantity(token: str) -> str:
+    """A printed number as its value: 1,000.00 and 1000 are the same quantity."""
+    v = token.replace(",", "")
+    return v.rstrip("0").rstrip(".") if "." in v else v
+
+
 def key_quantity_errors(text: str, kq: List[dict]) -> List[str]:
     """Every line that names a key quantity (label or alias) and prints numbers must print its recorded value."""
     errs = []
     lines = text.splitlines()
+    start = 0
+    if lines and lines[0].strip() == "---":        # the front matter is built from the scorecard, not written
+        start = next((n + 1 for n, l in enumerate(lines[1:], 1) if l.strip() == "---"), 0)
     for q in kq or []:
         names = [q.get("label", "")] + list(q.get("aliases") or [])
         names = [n.lower() for n in names if n and len(n) >= 4]
-        want = {re.sub(r"[^\d.]", "", x).strip(".") for x in re.findall(r"\d[\d,]*(?:\.\d+)?", str(q.get("value", "")))}
+        want = set(map(quantity, re.findall(r"\d[\d,]*(?:\.\d+)?", str(q.get("value", "")))))
         if not names or not want:
             continue
-        for n, line in enumerate(lines, 1):
+        pats = [re.compile(r"(?<![\w-])%s(?![\w-])" % re.escape(nm)) for nm in names]
+        for n, line in enumerate(lines[start:], start + 1):
             low = line.lower()
-            if not any(nm in low for nm in names):
+            if not any(p.search(low) for p in pats):
                 continue
-            nums = {re.sub(r"[^\d.]", "", x).strip(".") for x in re.findall(r"\d[\d,]*(?:\.\d+)?", rl.CLAIM_ID_RE.sub(" ", line))}
-            nums = {x for x in nums if x and not re.fullmatch(r"(19|20)\d\d", x)}
+            found = re.findall(r"\d[\d,]*(?:\.\d+)?", rl.CLAIM_ID_RE.sub(" ", line))
+            nums = {quantity(x) for x in found if not re.fullmatch(r"(19|20)\d\d", x)}
             if nums and not want <= nums:
                 errs.append("line %d states %r with %s, not its recorded value %r (key_quantities)" % (
                     n, q.get("label"), ", ".join(sorted(nums)[:6]), q.get("value")))
@@ -1106,7 +1248,7 @@ def integration(run_dir: Path, write: bool = True) -> dict:
         if i["materiality"] not in ("gating", "material") and i["kind"] != "key_finding":
             continue
         d = disp.get(i["id"], {})
-        if reached(i, d, cited, common):
+        if reached(i, d, cited, common, body):
             continue
         unreached.append(i)
         if i["materiality"] == "gating" and d.get("disposition") not in ("superseded", "unverified_lead"):
@@ -1192,8 +1334,9 @@ def packet(run_dir: Path, log=print) -> Path:
     disp = all_dispositions(run_dir)
     by_id = {i["id"]: i for i in reg}
     out = ["# CIO packet — run %s" % rl.load_json(run_dir / rl.RUN_MANIFEST).get("run_id"), "",
-           "Built by `scripts/synthesis.py packet`. Decide from this, open the briefs and reports for detail. Every item of "
-           "the registry has a disposition; the immaterial ones are listed below so that none hides a finding.", ""]
+           "Built by `scripts/synthesis.py packet`. Decide from this, open the briefs and reports for detail. %d of %d "
+           "registry items have a disposition; the immaterial ones are listed below so that none hides a finding." % (
+               sum(i["id"] in disp or i.get("cluster") in disp for i in reg), len(reg)), ""]
     for b in sorted(syn(run_dir, "themes").glob("T[0-9].md")):
         text = b.read_text(encoding="utf-8")
         out += ["## Theme %s" % b.stem, ""]
@@ -1201,7 +1344,16 @@ def packet(run_dir: Path, log=print) -> Path:
                     "Gaps and Follow-up Requests"):
             s = (rl.section(text, sec) or "").strip()
             out += ["### %s" % sec, "", s or "(none)", ""]
+    main_text = "\n".join(b.read_text(encoding="utf-8") for b in sorted(syn(run_dir, "themes").glob("T[0-9].md")))
+    only_parts = [c for c in followups(run_dir, log=lambda m: None, write=False)["contradiction_candidates"]
+                  if c["id"] not in main_text]
+    if only_parts:
+        out += ["## Contradiction candidates raised only in part briefs (%d)" % len(only_parts), ""]
+        out += ["- %s (%s) %s" % (c["id"], c["theme"], c["text"]) for c in only_parts] + [""]
+    layers_done = [L for L in LAYERS if syn(run_dir, "layers", "%s_draft.md" % L).exists()]
     out += ["## Layer analysts' proposals", ""]
+    if len(layers_done) < len(LAYERS):
+        out += ["Not all four drafts exist yet: run `synthesis.py packet` again after the layers step.", ""]
     for L in LAYERS:
         dp = syn(run_dir, "layers", "%s_draft.md" % L)
         if dp.exists():
@@ -1278,6 +1430,8 @@ def assemble(run_dir: Path, log=print) -> List[str]:
                 errs.append("section %r is written twice (%s and %s)" % (head, blocks[key][0], f.name))
             blocks[key] = (f.name, body)
     required = rl.final_sections_for(run_version(run_dir))
+    if str(rl.load_json(run_dir / rl.RUN_MANIFEST).get("segment", "")).lower() == "sme":
+        required = required + [rl.SME_SECTION]
     out = [front_matter(run_dir, sc)]
     for s in required:
         key = rl.norm_heading(s)

@@ -779,7 +779,7 @@ def synthesis_assignment(run_dir: Path, role: str, subject: str, prompt: str) ->
     syn_ = run_dir / "synthesis"
     if role == "theme-analyst":
         own = [syn_ / "themes" / ("%s.md" % subject)] if "." in subject else [syn_ / "themes" / ("%s.md" % base)]
-        own_dirs = [syn_ / "workpapers" / base]
+        own_dirs = [syn_ / "workpapers" / base] + ([syn_ / "workpapers" / subject.replace(".", "_")] if "." in subject else [])
         own_files = own + [syn_ / "ledgers" / ("%s_ledger.csv" % base)]
         others = [t_ for t_ in synthesis.active_themes(run_dir) if t_ != base]
         denied = ([abs_rule("Read", run_dir / "cio" / f) for f in CIO_DECISION_FILES]
@@ -892,11 +892,16 @@ def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> i
             subjects.append(t_)
         role = "theme-analyst"
     elif step == "layers":
+        blocked = synthesis.layers_blocked(run_dir)
+        if blocked:
+            eng.log("layers cannot start yet (cio.md Stage 3): %s" % "; ".join(blocked[:6]))
+            return 2
         synthesis.layer_inputs(run_dir, log=eng.log)
         subjects, role = [L for L in synthesis.LAYERS if not only or L in only], "layer-analyst"
     elif step == "writers":
-        if not (run_dir / "cio" / "scorecard.json").exists():
-            eng.log("writers: the CIO's scorecard does not exist yet (cio.md Stage 3: the writers come after the decision)")
+        blocked = synthesis.writers_blocked(run_dir)
+        if blocked:
+            eng.log("writers cannot start yet (cio.md Stage 3: the writers come after the decision): %s" % "; ".join(blocked[:6]))
             return 2
         subjects, role = [w for w in synthesis.writer_groups() if not only or w in only], "section-writer"
     else:
@@ -906,7 +911,7 @@ def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> i
     for sub_ in subjects:
         a = synthesis_assignment(run_dir, role, sub_, synthesis_prompt(run_dir, role, sub_))
         job = open_job(eng, role, "synthesis", sub_)
-        if not job and not a.check():
+        if not job and not a.check() and not (role == "theme-analyst" and synthesis.answer_waiting(run_dir, sub_)):
             eng.log("%s %s: its check already passes; not run again" % (role, sub_))
             continue
         items.append((a, job))

@@ -32,20 +32,25 @@ raises 0, so it blocks. A true unit conversion no longer page-confirms a digest 
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| B1 | H | Open verification findings never reach the registry | Reads `open` or `findings`; `verify.py` writes `run_findings` and `specialists`. The `verification` kind is always empty | `synthesis.py:264`, `verify.py:897` | Open |
-| B2 | H | Contradictions in split themes bypass adjudication | `T[0-9].md` skips `T1.p2.md`, so a candidate raised only in a part brief is invisible to `followups`, `packet` and integration | `synthesis.py:896,1197,715,731` | Open |
-| B3 | H | Gating items have two unchecked exits | `unverified_lead` is not checked for provenance and a `superseded` pointer need not exist; `check_layer` validates no pointers | `synthesis.py:1112,735,742,841` | Open |
-| B4 | H | "Adjudicated" means mentioned | A bare ID in the log passes; positions, the independent check and the resolution are never checked | `synthesis.py:906`, `validate_run.py:302` | Open |
-| B5 | H | Stage 3 order not enforced | Layers run with no check of themes, staleness or the log; writers test only that a scorecard exists; `check_layer` records no input hash | `agent_driver.py:893,897`, `synthesis.py:787` | Open (Step 4 completes it) |
-| B6 | M | Documented Stage 4 order always fails first time | `qc/verification.json` is a registry input and carries `checked_at`, so `verify.py run` makes the registry stale | `synthesis.py:450`, `verify.py:897` | Open |
-| B7 | M | Dead ends with no tool path | `needs_follow_up` passes `check_theme` but fails integration, and a theme whose answer went elsewhere never re-runs; a gating `contested` item with no claims can never count as reached (**ran**) | `agent_driver.py:908`, `synthesis.py:733,938,392` | Open |
-| B8 | M | SME runs cannot be assembled | The SME section is dropped as "not a section of the final report" | `synthesis.py:1280,1299`, `research_lib.py:978` | Open |
-| B9 | M | The CIO packet misses its contract | Layer proposals are empty; it is not rebuilt after follow-ups; "every item has a disposition" is hard-coded; over budget only logs | `synthesis.py:1195,1228`, `cio.md:326` | Open |
-| B10 | M | Material findings are listed, not blocked | `cio.md` says an unreached material item is an error; only gating items are | `synthesis.py:1112`, `cio.md:439` | Open |
-| B11 | M | Key-quantity check gives false failures (**ran**) | Label "Price" fails on `price_timestamp` and "Price-to-book"; `1000` against `1000.0` fails | `synthesis.py:1002` | Open |
-| B12 | M | Cluster IDs truncate (**ran**) | `other:cost/income` stops the ID at the slash, so it reads as undispositioned | `synthesis.py:578,595`, `research_lib.py:231` | Open |
-| B13 | M | Split-theme checkpoints are unwritable | `T1.p2` is told to write to `workpapers/T1_p2/`, outside its allowed directory | `agent_driver.py:815,781` | Open |
-| B14 | M | **Gating over-fires on real data** (**ran** on the Bharti replay) | 112 of 1,407 items are gating, 59 only by dimension; a spot-check of 14 found 4 or 5 real red flags; "default" matched "default-spread". Only 22 of 112 have all their claims in the real report, so the rule forces about 90 errors. Fix by content, not author or substring; hand-label the 112; owner confirms | `synthesis.py:414` | Open |
+| B1 | H | Open verification findings never reach the registry | Reads `open` or `findings`; `verify.py` writes `run_findings` and `specialists`. The `verification` kind is always empty | `synthesis.py:264`, `verify.py:897` | Fixed |
+| B2 | H | Contradictions in split themes bypass adjudication | `T[0-9].md` skips `T1.p2.md`, so a candidate raised only in a part brief is invisible to `followups`, `packet` and integration | `synthesis.py:896,1197,715,731` | Fixed |
+| B3 | H | Gating items have two unchecked exits | `unverified_lead` is not checked for provenance and a `superseded` pointer need not exist; `check_layer` validates no pointers | `synthesis.py:1112,735,742,841` | Fixed |
+| B4 | H | "Adjudicated" means mentioned | A bare ID in the log passes; positions, the independent check and the resolution are never checked | `synthesis.py:906`, `validate_run.py:302` | Fixed |
+| B5 | H | Stage 3 order not enforced | Layers run with no check of themes, staleness or the log; writers test only that a scorecard exists; `check_layer` records no input hash | `agent_driver.py:893,897`, `synthesis.py:787` | Fixed (the engine refuses to skip; Step 4 makes it the pipeline) |
+| B6 | M | Documented Stage 4 order always fails first time | `qc/verification.json` is a registry input and carries `checked_at`, so `verify.py run` makes the registry stale | `synthesis.py:450`, `verify.py:897` | Fixed |
+| B7 | M | Dead ends with no tool path | `needs_follow_up` passes `check_theme` but fails integration, and a theme whose answer went elsewhere never re-runs; a gating `contested` item with no claims can never count as reached (**ran**) | `agent_driver.py:908`, `synthesis.py:733,938,392` | Fixed |
+| B8 | M | SME runs cannot be assembled | The SME section is dropped as "not a section of the final report" | `synthesis.py:1280,1299`, `research_lib.py:978` | Fixed |
+| B9 | M | The CIO packet misses its contract | Layer proposals are empty; it is not rebuilt after follow-ups; "every item has a disposition" is hard-coded; over budget only logs | `synthesis.py:1195,1228`, `cio.md:326` | Fixed |
+| B10 | M | Material findings are listed, not blocked | `cio.md` says an unreached material item is an error; only gating items are | `synthesis.py:1112`, `cio.md:439` | Fixed |
+| B11 | M | Key-quantity check gives false failures (**ran**) | Label "Price" fails on `price_timestamp` and "Price-to-book"; `1000` against `1000.0` fails | `synthesis.py:1002` | Fixed |
+| B12 | M | Cluster IDs truncate (**ran**) | `other:cost/income` stops the ID at the slash, so it reads as undispositioned | `synthesis.py:578,595`, `research_lib.py:231` | Fixed |
+| B13 | M | Split-theme checkpoints are unwritable | `T1.p2` is told to write to `workpapers/T1_p2/`, outside its allowed directory | `agent_driver.py:815,781` | Fixed |
+| B14 | M | **Gating over-fires on real data** (**ran** on the Bharti replay) | 112 of 1,407 items are gating, 59 only by dimension; a spot-check of 14 found 4 or 5 real red flags; "default" matched "default-spread". Only 22 of 112 have all their claims in the real report, so the rule forces about 90 errors. Fix by content, not author or substring; hand-label the 112; owner confirms | `synthesis.py:414` | Fixed |
+
+B14 result: 21 gating items of 1,407, against 112 before, with all 11 labelled red flags kept and 2 labelled noise items
+remaining (both mention a historic rating downgrade). The labels in `tests/golden/gating_labels.csv` are mine and await
+the owner's confirmation. B10 was resolved by correcting `cio.md`: requiring all 348 material items in the report's
+body would bloat it, and the register is the designed place for them.
 
 ## C. Engine
 

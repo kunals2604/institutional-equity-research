@@ -1,0 +1,113 @@
+text_sha1,label,kind,author,text
+f17e367edeb1,required,key_finding,financials,"Liquidity is the one tight spot. Liquid resources of ₹30,871 crore cover the ₹35,936 crore of gross borrowings due within 24 months only 0.86× [CALCULATION: FIN-C041; FAC"
+bb9e2c21fc54,either,conclusion,financials,"Worst years and resilience: in FY2019–FY2020 revenue fell 16 %, EBITDA 24 %, net debt/EBITDA reached 4.3× and interest cover 0.4×. Survival needed ₹39,181 crore of new eq"
+7c3e847bf9db,either,conclusion,financials,"Balance-sheet resilience: Adequate. Low financial leverage, but large government quasi-debt, a 24-month maturity wall above on-hand liquidity, and Africa FX."
+d56c37ccf7cb,noise,internal_conflict,financials,"FY2020 revenue | AR FY2020 ₹87,539 crore [FACT: FIN-C014] | AR FY2021 continuing-ops restatement ₹84,677 crore | 3.3 % | Infratel discontinued operation | As reported (sc"
+5ba44b5d19ee,noise,assumption,financials,4 | Owners' share of profit (0.789) proxies minority leakage of cash | Attributable owner earnings | FIN-C003 | Cash leakage differs from profit share | ±5 % on owner ear
+6642edcaf997,noise,assumption,financials,7 | Rights bonus factors (1.07223; 1.00487) apply to all prior years | Per-share comparability | Company EPS restatements | — | Small | H
+c5ec46117353,required,key_finding,filings,"Reported profit has been heavily shaped by items the company labels ""exceptional"". - Over FY2017-FY2026, the cumulative net exceptional charge was INR 578,571 mn, which e"
+57a5c1be2006,required,key_finding,filings,"The last two years of headline profit contain large non-operating credits. - FY2025 attributable PAT of INR 335,561 mn included an INR 107,025 mn fair-value gain on the I"
+2aa9206ce3f3,required,key_finding,filings,"The audit record is clean on opinion, but judgment areas recur. - Deloitte Haskins & Sells LLP gave unmodified opinions in every year from FY2018 to FY2026, and S.R. Batl"
+307ab7955d83,required,key_finding,filings,"Government-dues exposure is large and only partly visible in the contingent-liability total. - The contingent-liability table shows INR 191,842 mn (12.9% of owners' equit"
+8adac4b6d3a2,required,key_finding,filings,"Cash-flow classification flatters reported CFO. - Lease payments (INR 67,197 mn), interest (INR 148,876 mn) and AGR principal (INR 54,272 mn) all sit in financing. Togeth"
+401770025f52,required,key_finding,filings,"A large promoter-group transaction followed the year-end. - In Q1FY2027 Airtel issued 146,761,335 shares (INR 282,222 mn) to Indian Continent Investment Ltd, a promoter-g"
+02eace34b28e,noise,key_finding,filings,"The credit trajectory is clearly improving. - Airtel was cut to AA (CRISIL) and Ba1 (Moody's, below investment grade) after the 2016-2019 price war [FACT: FIL-C046]. - It"
+ed6278fb2b0e,required,key_finding,filings,"The promoter holding structure creates a dividend dependence. - Bharti Telecom and its parents carry about INR 39,975 crore of gross debt, serviced from Airtel dividends."
+4469f32435e4,noise,conclusion,filings,Policies and estimates. These are broadly neutral to conservative. Useful-life changes net-increased depreciation. Spectrum borrowing-cost capitalisation was material in 
+2612fed67222,either,conclusion,filings,Related parties. No evidence of systematic value transfer. Recurring flows are operational. The ICIL swap appears minority-favourable on reported market terms but is unve
+a93342019f5e,either,conclusion,filings,"Contingencies. The table shows INR 191.8 bn (12.9% of equity), with up to about 20.6% including OTSC and ISP. The large AGR and OTSC amounts are already provided. Further"
+17c070161153,either,conclusion,filings,Auditor. Unmodified opinions with rotation observed. Recurring EOMs and KAMs centre on regulatory judgments and Indus's customer [FACT: FIL-C042; FIL-C043].
+4ab774e37846,either,conclusion,filings,"Consolidation. Material: about half of profit comes from subsidiaries with large NCI, plus Africa FX and hyperinflation [FACT: FIL-C055; FIL-C056]."
+d2b469ecba1f,noise,conclusion,filings,"Ratings. Stressed in 2018-2020, upgraded to the strongest levels in the decade by 2025-2026 [FACT: FIL-C044; FIL-C046]."
+794d86ed68ea,either,conclusion,filings,"Overall. The reported figures are reliable as accounting, but ""headline"" and ""underlying"" profit need adjustment for recurring exceptional items and one-off credits [JUDG"
+ba600f6dc600,noise,conclusion,filings,Reporting reliability: Generally reliable
+64cee50aa73d,noise,conclusion,filings,Disclosure quality: Adequate
+b511f7441baa,noise,conclusion,filings,Credit trajectory: Improving
+b454f8fa1351,noise,internal_conflict,filings,"FY2019 consolidated CFO | 197,880 (FY2019 AR) vs 200,702 (FY2020 AR comparative) | Reclassification or restatement | FY2019 AR value used in cfo_history.csv; difference 1"
+91f9a00a5435,either,internal_conflict,filings,"ICIL status | Promoter-group entity (company press release) vs ""not related party under Ind AS 24"" (FY2026 note) | Different definitions (SEBI vs Ind AS 24) | Treated as "
+e172f2479d86,noise,internal_conflict,filings,"AGR waiver amount sought vs AGR provision | INR 34,745 crore sought (LiveLaw) vs AGR provision INR 34,704 crore (Mar-2026) | Different dates and scope (Airtel and Hexacom"
+a9279e321861,either,assumption,filings,2 | ICIL swap terms per news reports are accurate | Benchmarking the related-party deal | Consistent across several reports; company press release [FACT: FIL-C066] | Term
+d17fbc79efd4,either,key_finding,management,"Promoter control is stable and unencumbered, but the promoters have been net sellers. The promoter group held 68.29% in Mar-2011 [FACT: MGT-C022] and 67.14% in Mar-2019 ["
+e1fd887b48be,required,key_finding,management,"The most important governance event in the window is the June-2026 related-party swap. Airtel issued 146,761,335 new shares (2.35% of post-issue capital) to ICIL, a promo"
+57de6e0123b8,either,key_finding,management,"Capital allocation from FY2016 to FY2026 created a large aggregate value but diluted per-share holders by 56%. The share count rose from 3,997.4 million to 6,240.5 millio"
+676343769c58,noise,key_finding,management,The CEO transition was planned and executed in an orderly way. The Board approved a succession plan in Oct-2024. Gopal Vittal (with the company since Apr-2012 [FACT: MGT-
+3d8ec10d6ba9,either,key_finding,management,The founder Chairman is being re-appointed to Sep-2031 at about ₹30 crore from Airtel plus up to GBP 2.2 million from a UK subsidiary. This is a two-company pay structure
+8eadb4f222f4,noise,key_finding,management,"The board's key committees are fully independent and attendance is high. The Audit Committee and the HR & Nomination Committee consist only of independent directors, and "
+d5ea59f86f14,required,key_finding,management,"One proven integrity lapse sits in a subsidiary: Airtel Payments Bank, 2017–18. RBI imposed a ₹5 crore penalty for KYC breaches after complaints that accounts were opened"
+3879a077a91b,noise,conclusion,management,"Competence (Operational competence: High): leadership navigated the 2016–2019 price war and the AGR shock without loss of control, raised capital at the trough, and execu"
+e66a1da13ea2,either,conclusion,management,"Integrity: no evidence of dishonesty by leadership. One substantiated subsidiary conduct lapse (APB KYC/consent, 2017–18) [FACT: MGT-C054]. Disclosures are consistent and"
+63dcc049ff9d,either,conclusion,management,"Governance (Governance: Clean / Standard, with one item of ""some concerns""): independent key committees, auditor rotation and rights-based capital raises are protective. "
+6fb3c912ef0b,noise,conclusion,management,"Capital allocation (Capital allocation: Good): large aggregate value creation and value-preserving survival capital, offset by 56% dilution, 3.9% annual book-value-per-sh"
+088ad2c0336f,noise,conclusion,management,"Alignment: strong. About 50% promoter ownership, zero pledges in 39 quarters, BTL buying while the financial partners sold, and CEO pay dominated by equity [FACT: MGT-C00"
+0bf23160e2f0,either,conclusion,management,"Continuity: professional succession is institutionalized. Founder succession is unaddressed, with the Chairman re-appointed to 2031 [FACT: MGT-C030]."
+c81d51a8680d,noise,cio_question,management,Special-situations: the Airtel Africa stake at about 79% after the swap (MGT-C006) changes the SOTP and minority-leakage math. Please verify the post-swap effective stake
+df40be35464f,noise,internal_conflict,management,EPS FY2022–FY2024 | FY2024 AR: 7.67 / 14.80 / 13.09; FY2026 AR: 4.8 / 14.6 / 13.6 [FACT: MGT-C061] | FY2026 AR restated for Indus consolidation | Use the as-reported seri
+66a01699a30f,noise,internal_conflict,management,"Shareholding ""encumbered"" column, Jun-2026 | 202,729,127 shares shown in a column next to the pledge columns | Lock-in column (XII), not encumbrance; declaration says no "
+8400f9306a1a,either,assumption,management,"4 | No pledges at BTL or ICIL of Airtel shares | SHP disclosure | 39 quarters [FACT: MGT-C025] | Non-share-backed BTL debt | Dividend-pressure risk, not forced-sale risk "
+614ea051ebb9,either,missing_evidence,management,2026 AGM voting results (Airtel_STX_AGM_Voting_Results-12082026.pdf). The download failed repeatedly with an SSL error (logged). Matters for minority dissent on the Chair
+e79b33abf952,noise,internal_conflict,industry,"Q4FY2022 Airtel mobile revenue | Rs 176,168 mn (FY2022 pack) vs Rs 175,261 mn (FY2023 pack comparative) | Restatement/reclassification | FY2022 annual figure from FY2022 "
+71fcf4f5a8c0,noise,cio_question,moat,Financials (owner of canonical ROCE/ROIC): reconcile the company-defined ROCE series [FACT: MOAT-C001; MOAT-C004] with the METRIC_DEFINITIONS ROIC including leases. Confi
+557a292d804b,noise,internal_conflict,moat,"Consolidated ROCE FY2019 | 5.06% (FY2019 AR), 5.23% (FY2020 AR), 2.53% (FY2021+ ARs) [FACT: MOAT-C004] | Restatement (Ind AS 116 comparatives; treatment of items) | Use t"
+767d27e5791c,noise,internal_conflict,moat,"Consolidated ROCE FY2017, FY2018 | 6.45/6.57/9.42% and 4.64/4.81/6.26% across vintages [FACT: MOAT-C005] | Restatements | Use the FY2020 AR vintage; at the high-end vinta"
+40bf8b3f5c0d,noise,internal_conflict,moat,ROCE FY2022-FY2024 | 10.31/12.32/12.47% originally vs 12.8/13.0/14.8% restated for Indus [FACT: MOAT-C002] | Full Indus consolidation restatement | Use restated; FY2024 s
+1fa7f5fa1d3e,noise,internal_conflict,moat,"Mobile India segment result FY2019 | -57,507 (FY2019 AR) vs -56,762 (FY2020 AR) INR Mn [FACT: MOAT-C011] | Restatement | Use restated; immaterial | H"
+93fe18f20110,noise,key_finding,valuation,"The price needs bull-case operations or a much lower discount rate. - At the run's 11.0% WACC, the base consolidated DCF gives about INR 1,215 per share, within a range o"
+e40b61ab2f53,noise,key_finding,valuation,Reverse DCF: market expectations are Demanding. - The price requires 14.4% consolidated revenue growth every year for 10 years [CALCULATION: VAL-C042]. That compares with
+afb1407d2f48,noise,key_finding,valuation,"Expected return is below the hurdle. - E[IRR] over 5 years is 4.7%, against an 11.7% hurdle (cost of equity) [CALCULATION: VAL-C049; CALCULATION: VAL-C026]. - The return "
+96b4b8bbcf97,noise,key_finding,valuation,"The multiples are full, not extreme. - Trailing EV/EBITDA is 10.0x on the company's own basis and 10.9x with minorities at market [CALCULATION: VAL-C031]. - The 17-year r"
+45b52ece6b0f,noise,key_finding,valuation,The market prices India at a premium and Africa at a discount. - Airtel Africa's market value implies about 6.0x TTM EBITDA [CALCULATION: VAL-C053; CALCULATION: VAL-C034]
+2804c0c3d70e,noise,key_finding,valuation,"Per-share history is weaker than aggregate history. - The share count rose 56% between FY2016 and June 2026 (rights issues, QIP, preferential issues; most recently 146.8 "
+4a4ae7eb3238,noise,key_finding,valuation,"Strong 10-year shareholder returns, with deep drawdowns in the cycle. - TSR was 20.9% a year over 10 years and 21.8% over 5 years, against 11.2% and 7.1% price CAGR for t"
+a3707004f64d,noise,key_finding,valuation,"Liquidity is not a constraint. 90-day ADTV is about INR 1,209 crore, so the INR 50 lakh reference position exits in a fraction of one day at 20% participation [CALCULATIO"
+ad28c5b16734,noise,conclusion,valuation,"Snapshot. - Price INR 1,778.70 (12-Oct-2026 close) [FACT: VAL-C001]. - 6,240.5 mn fully paid shares plus 0.65 mn partly paid, with negligible dilution [FACT: VAL-C002; FA"
+1a6eb6aa391e,noise,conclusion,valuation,"Liquidity and ownership. Liquid: 90-day ADTV about INR 1,209 crore [CALCULATION: VAL-C013]. Free float about 50% [CALCULATION: VAL-C016]. FII ownership peaked at 28.75% i"
+44addf9cbe28,noise,conclusion,valuation,"History. - 10-year TSR 20.9% vs Nifty 500 price 11.2%; 15- and 20-year TSR roughly in line with the market [CALCULATION: VAL-C018]. - Maximum drawdown −57%, with 12 years"
+82da17d8cd8d,noise,conclusion,valuation,"Methods. Consolidated DCF primary, with reverse DCF, segment-implied multiples and a holdco SOTP as cross-checks."
+bbae88181f45,noise,conclusion,valuation,"Implied expectations. Expectations are Demanding: 14.4% revenue growth for 10 years, a 52% margin, or a 9.5% WACC [CALCULATION: VAL-C042; CALCULATION: VAL-C052]."
+237fe68e6ca2,noise,conclusion,valuation,"Values and returns. - Bear INR 627–787, base INR 1,145–1,342, bull INR 1,690–2,123 [CALCULATION: VAL-C045; CALCULATION: VAL-C044; CALCULATION: VAL-C046]. - E[IRR] 4.7% vs"
+063a8771bef3,noise,conclusion,valuation,"Drivers and price triggers. The decisive drivers are the discount rate, the growth and tariff path, and the steady-state margin and reinvestment. E[IRR] reaches the hurdl"
+86542b4b5292,noise,conclusion,valuation,"Valuation status: Expensive [JUDGMENT: VAL-C049; VAL-C031]. ""Extremely Expensive"" is not warranted, because the bull case brackets the price and multiples sit inside the "
+b73049781a81,noise,conclusion,valuation,Market-implied expectations: Demanding [JUDGMENT: VAL-C042].
+8f920ef95e08,noise,conclusion,valuation,"Base-case intrinsic value per share: INR 1,145–1,342 (point estimate about INR 1,215) [CALCULATION: VAL-C044]."
+eba00d342a1c,noise,conclusion,valuation,"Probability-weighted 5-year horizon value: about INR 2,046 plus about INR 180 of cumulative dividends [CALCULATION: VAL-C049]."
+7426bb42625e,noise,conclusion,valuation,E[IRR] (5-year): 4.7% [CALCULATION: VAL-C049].
+fff43c248b38,noise,conclusion,valuation,Asymmetry: 4.8 by the tool's definition; 0.06 hurdle-adjusted [CALCULATION: VAL-C049; CALCULATION: VAL-C050].
+9e391362ea05,noise,conclusion,valuation,Liquidity: Liquid. Days to exit the reference position: about 0.002 [CALCULATION: VAL-C014].
+eaf504c8b5f2,noise,cio_question,valuation,"Cost of capital adjudication. Confirm the 11.7% cost of equity (hurdle) with the default-spread adjustment, versus 13.5% without it [CALCULATION: VAL-C026]. The conclusio"
+92e2ca6764c1,either,cio_question,valuation,"Financials. Verify: - the composition and liquidity of ""Investments & Receivables"" (INR 35,222 crore) inside net debt [FACT: VAL-C006]; - the Indus purchase-price-allocat"
+aea367c7d4ad,either,cio_question,valuation,"Filings and management. Confirm: - the ICIL share-swap valuation (INR 1,923 per share for 16.31% of Airtel Africa), which is a related-party transaction that issued 2.4% "
+8774a0771bb8,noise,internal_conflict,valuation,Company EV/EBITDA vs economic EV/EBITDA | Company: 9.77x on Q1FY27 annualised EBITDA (EV = market cap + net debt) [FACT: VAL-C028] | This report: 10.9x TTM incl. minoriti
+a49e5e12fdcb,noise,internal_conflict,valuation,FY2019 EV/EBITDA | 9.36x (Q4FY19 pack) | 10.77x (Q4FY21 pack restatement) [FACT: VAL-C028] | Restated FY2019 base (Africa / discontinued items) | Original 9.36x kept in t
+00ef44f8d74a,noise,assumption,valuation,"1 | Cost of equity 11.7% (G-Sec − default spread + β × ERP) | Hurdle and discounting | VAL-C023, VAL-C024, VAL-C022 | 9.9% (market-implied) or 13.5% (no spread adjustment"
+e0f07b5c321a,noise,assumption,valuation,"4 | Minorities at market (about INR 1.09 lakh crore) | Bridge from EV to equity | VAL-C032 | At book (INR 38,832 crore) | +INR 113 per share if at book | M"
+b3ba80f8c254,noise,key_finding,bear-case,The bear case does not rest on balance-sheet failure. It rests on whether earnings can grow as fast as the price and consensus assume without another tariff round. - Mana
+90f728f0263a,noise,key_finding,bear-case,"Pricing is stalled, not just slowing. - India mobile ARPU went 245 → 250 → 256 → 259 → 257 over the five quarters to Q4FY2026: it fell quarter on quarter in Q4 and rose 5"
+75a120481bff,noise,key_finding,bear-case,The trailing P/E is high; the enterprise multiple is not. - Pro-forma trailing P/E is about 36.8x [CALCULATION: BEAR-C053]. - EV/EBITDA on the company's convention is abo
+6b5bdb74e851,required,key_finding,bear-case,"The route to a ≥30 % permanent loss is a competitive reset in India mobile, with or without an Africa currency shock. - A 10 % ARPU reset on top of B1 gives about −42 % ("
+fde1fe93794f,noise,key_finding,bear-case,"The structure is moving towards more competitive capital, not consolidation. - Vodafone Idea got a five-year freeze on INR 87,695 crore of AGR dues [FACT: BEAR-C034] and "
+0db101784398,noise,key_finding,bear-case,"Capital intensity and diversification are rising just as pricing stalls. - FY2026 capex was INR 47,522 crore, and Q4 was the highest quarter shown [FACT: BEAR-C008]. - Ma"
+52da0a886ad1,either,key_finding,bear-case,Per-share dilution has been the release valve in past stress. - Shares outstanding rose about 56 % from FY2019 to July 2026 [CALCULATION: BEAR-C052]. Sources: the 2019 ri
+eeb1ff205760,noise,key_finding,bear-case,"The searches found no thesis-breaking forensic, governance or legal item. - Short-seller, SEBI and fraud searches found nothing material against the company [FACT: BEAR-C"
+3f2edcb5b8d4,noise,conclusion,bear-case,"Bull case: a rational three-player market plus premium positioning, deleveraging and Africa compounding. It rests on A1 (tariff repair), A2 (structure stays rational), A3"
+c4ca251dd198,noise,conclusion,bear-case,"Assumption audit: - A1 fails with moderate probability, but it is mostly an opportunity-cost risk. - A2 is the most damaging, with a low probability of failure and a once"
+f1e2b4992635,noise,conclusion,bear-case,"Pre-mortem: no tariff round, then a post-IPO share war, plus capex staying high. That combination delivers −40 to −58 % (B2/B3) [ESTIMATE: BEAR-C058; ESTIMATE: BEAR-C059]"
+00d86efeac41,either,conclusion,bear-case,Permanent-loss mechanisms: - (a) A structural ARPU reset that lowers the earnings level. - (b) Equity issuance at depressed prices in a downturn [FACT: BEAR-C021; CALCULA
+5863c9cf6892,noise,conclusion,bear-case,"Correlation: the share war, the capex response, fixed DoT instalments and Africa FX reinforce each other (section 8)."
+78158d61ab9a,noise,conclusion,bear-case,Value trap: no. The risk is a quality premium paid for growth that is partly one-off (section 10).
+2d38cc7e67f9,noise,conclusion,bear-case,Indicators: section 12.
+cfcdbc06cb64,noise,conclusion,bear-case,"The franchise, balance sheet and accounting do not present a high or severe risk of permanent loss."
+65cb90720453,noise,conclusion,bear-case,The risk lies in the price paid relative to earnings growth that depends on industry pricing behaviour Airtel does not control.
+4219cef42129,noise,conclusion,bear-case,"The base rate for that behaviour turning hostile is about one break per decade, with −44 % to −50 % share-price outcomes [CALCULATION: BEAR-C023] [JUDGMENT]."
+223c767674ea,either,conclusion,bear-case,"Reasoning: a ≥30 % loss needs the competitive-reset branch (B2/B3, or a 2016–2019 replay [CALCULATION: BEAR-C060]). Its reference-class frequency is about two breaks in a"
+661c9fa7f4da,noise,conclusion,bear-case,"That is moderated by today's materially stronger balance sheet [FACT: BEAR-C009] and by Jio's current incentive to raise, not cut, prices [ESTIMATE: BEAR-C043]."
+8f6f58182bed,noise,conclusion,bear-case,"The more likely bad outcome, no tariff round plus a de-rating, produces returns well below a normal equity hurdle (B1, about −12 % over three years [ESTIMATE: BEAR-C057])"
+0f1b9f2d6604,either,cio_question,bear-case,Management / filings: review the NBFC co-investment with Bharti Enterprises (related-party terms) [MANAGEMENT STATEMENT: BEAR-C012]; Singtel's selling pattern [FACT: BEAR
+e1b5cfad611b,noise,internal_conflict,bear-case,"FY2018 revenue | FY2018 AR INR 836,879 million [FACT: BEAR-C018] | FY2019 AR restated INR 826,388 million | Reclassification | Noted; immaterial to the trough analysis | "
+d92c9117ddef,either,missing_evidence,bear-case,The current status of the DoT interconnection (POI) penalty: not verified [FACT: BEAR-C066].
+4028f0d8a471,noise,key_finding,special-situations,"Airtel Money's London IPO (priced at GBP 1.96, about USD 7.0bn; admission expected 14-Oct-2026) is a Hard, dated event, but its value-realization mechanism for Airtel sha"
+a2d043c84f1b,either,key_finding,special-situations,"The largest recent corporate action is a promoter-related share swap: ICIL received 146.76m new Airtel shares (INR 28,222 crore) for 16.31% of Airtel Africa. It raised Ai"
+689b638fd452,either,key_finding,special-situations,"Capital is still being raised and recycled at the edges, with recurring minority and promoter co-investment. Nxtra raised USD 1bn at about USD 3.1bn post-money; Airtel's "
+9d0d6c4e1f7b,either,cio_question,special-situations,"Management/governance: review the ICIL related-party swap (valuation report, independent directors' process, promoter concentration) and the 30% promoter stake in the NBF"
+72b528321dc1,noise,followup_finding,bear-case,The draft omits the owner's lens. - E[IRR] of 4.7 % assumes the price converges to an 8.1x-EBITDA DCF value within five years [CALCULATION: BEAR-C093]. - An owner who exp
+5b979b36acf1,noise,followup_finding,bear-case,"The return depends on the multiple path, not the DCF. - The base DCF EV is about 8.1x TTM EBITDA [CALCULATION: BEAR-C093], against 10.9x at the price with minorities at m"
+cbb2cc4c58b2,noise,followup_finding,bear-case,Smaller omitted items. - Net tax assets of about INR 23 a share; FY2026 cash tax was only 55 % of the P&L charge [FACT: BEAR-C099]. The draft DCF taxes NOPAT at 27 % agai
