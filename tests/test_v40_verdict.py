@@ -123,5 +123,36 @@ class BuildTests(VerdictBase):
             bs.compute(sc)
 
 
+class ReportTests(unittest.TestCase):
+    """The report carries the judgment, with the guide and the depth beside it."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "tests"))
+        import test_v32_end_to_end as e2e
+        cls.fx = e2e.V32Run()
+        cls.fx.build_report()
+        cls.text = (cls.fx.dir / "cio" / "final_report.md").read_text(encoding="utf-8")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.fx.cleanup()
+
+    def test_the_guide_stands_in_the_report_as_a_guide(self):
+        self.assertIn("## Computed Guide", self.text)
+        self.assertIn("inform that judgment and never decide it", self.text)
+
+    def test_the_depth_is_disclosed(self):
+        self.assertIn("## Depth Disclosure", self.text)
+
+    def test_a_score_far_from_the_tool_is_shown(self):
+        import synthesis
+        sc = {"investment_attractiveness": {"dimensions": [{"id": "IA4", "score": 2, "rationale": "hurdle-adjusted"}]},
+              "price_metrics": {"margin_of_safety": 0.1, "expected_irr": 0.15, "hurdle_rate": 0.12, "asymmetry_ratio": 9.0}}
+        got = synthesis.guide_deviations(sc)
+        self.assertEqual(got[0]["id"], "IA4")
+        self.assertGreaterEqual(got[0]["tool"], 90)
+
+
 if __name__ == "__main__":
     unittest.main()

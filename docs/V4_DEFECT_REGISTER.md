@@ -85,8 +85,8 @@ battery, and a run still needs mains power and an open lid.
 
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
-| E1 | H | Report says "no override" while one manual score decided the verdict | Bharti: IA4 set to 2 where the tool gave 100; with 100, IA is about 48, HOLD. Show every departure from a computed guide (disclosure, not a block) | `research_lib.py:1640` | Moved to Step 6 (the verdict rewrite) |
-| E2 | M | The ladder leaves price bands undefined | Bharti: 1,175–1,200 and 1,575–1,600 carry no decision | `valuation_tools.py:343` | Moved to Step 6 (the verdict rewrite) |
+| E1 | H | Report says "no override" while one manual score decided the verdict | Bharti: IA4 set to 2 where the tool gave 100; with 100, IA is about 48, HOLD. Show every departure from a computed guide (disclosure, not a block) | `research_lib.py:1640` | Fixed: the Computed Guide shows every such score beside the tool's |
+| E2 | M | The ladder leaves price bands undefined | Bharti: 1,175–1,200 and 1,575–1,600 carry no decision | `valuation_tools.py:343` | Closed: the CIO sets the levels by judgment, and the ladder is an input |
 | E3 | M | Hurdle documentation conflicts | The skill says default 0.12; policy says null. Nothing compares `hurdle_rate` with the computed cost of equity; `outcomes.py:334` treats a missing hurdle as 0 | `SKILL.md:21`, `new_run.py:65` | Fixed |
 
 ## F. Contracts and enforcement
@@ -128,7 +128,7 @@ Planted errors in real Bharti material (`tests/test_v40_mutation.py`) found what
 | ID | Sev | Defect | Failure | Where | Status |
 |---|---|---|---|---|---|
 | M1 | H | A fabricated source passes on its file name | `https://made.up.example/report.pdf` counted as opened if any file named `report.pdf` was. No new false alarm on the 9 real specialists | `verify.py claim_keys` | Fixed |
-| M2 | H | A stale price is never noticed | Nothing tied the price's date to the cutoff, so every return would be wrong while tying to its source | `research_lib.py` | Fixed (`price_date_errors`; wired into the scorecard from Step 6) |
+| M2 | H | A stale price is never noticed | Nothing tied the price's date to the cutoff, so every return would be wrong while tying to its source | `research_lib.py` | Fixed (`price_date_errors`; wired into the scorecard check) |
 | M3 | M | A second wrong number on a line passes the tie-out | "Match" means one number ties. Rows now list `unsupported` numbers for the auditor, compared exactly: 50 of 176 real rows, 65 numbers | `audit_tools.py` | Fixed |
 
 **What was measured about the tie-out.** Within its 0.6 % tolerance and across unit shifts, a random number matches one of
