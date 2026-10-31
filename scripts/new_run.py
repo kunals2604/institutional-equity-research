@@ -13,6 +13,7 @@ overwrites an existing run. --dry-run prints the paths and plan and writes nothi
 import argparse
 import csv
 import datetime as dt
+import hashlib
 import re
 import subprocess
 import sys
@@ -196,8 +197,14 @@ def main(argv=None) -> int:
     }
     rl.write_json(run_dir / rl.RUN_MANIFEST, manifest)
     rl.write_json(run_dir / "contract.json", run_contract(resolved))
+    (run_dir / "engine").mkdir(exist_ok=True)
+    rl.write_json(run_dir / "engine" / "templates.json", {rel: hashlib.sha256((run_dir / rel).read_bytes()).hexdigest()
+                                                          for rel in TEMPLATED if (run_dir / rel).exists()})
     print(rel)
     return 0
+
+
+TEMPLATED = ("research_brief.md", "cio/gap_register.md", "cio/cio_analysis.md", "cio/contradiction_log.md", rl.QC_RECORD)
 
 
 def run_contract(resolved: dict) -> dict:

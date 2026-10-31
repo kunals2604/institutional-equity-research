@@ -64,8 +64,14 @@ def consistency_rules() -> List[dict]:
     return rl.read_json_block(SYNTHESIS_MD, "SYNTHESIS_CONSISTENCY_RULES")
 
 
-def writer_groups() -> Dict[str, dict]:
-    return rl.read_json_block(SYNTHESIS_MD, "SECTION_WRITER_GROUPS")
+def writer_groups(run_dir: Optional[Path] = None) -> Dict[str, dict]:
+    """The section groups. With the `synthesis` switch at compact, one writer takes every evidence section and W7 the
+    layers, on the compact themes."""
+    groups = rl.read_json_block(SYNTHESIS_MD, "SECTION_WRITER_GROUPS")
+    if run_dir is None or rl.run_switch(run_dir, "synthesis") != "compact":
+        return groups
+    evidence = [s for k, g in groups.items() if k != "W7" for s in g["sections"]]
+    return {"W1": {"sections": evidence, "themes": sorted(active_themes(run_dir))}, "W7": groups["W7"]}
 
 
 def est_tokens(chars: int) -> int:
@@ -87,7 +93,21 @@ def syn(run_dir: Path, *parts: str) -> Path:
 def active_themes(run_dir: Path) -> Dict[str, dict]:
     """The run's themes: T6 only when its sector modules include a listed-subsidiary or holding-company module."""
     mods = set(rl.run_sector_modules(run_dir) or [])
-    return {k: v for k, v in themes().items() if not v.get("when_modules") or mods & set(v["when_modules"])}
+    active = {k: v for k, v in themes().items() if not v.get("when_modules") or mods & set(v["when_modules"])}
+    return compact_themes(active) if rl.run_switch(run_dir, "synthesis") == "compact" else active
+
+
+def compact_themes(active: Dict[str, dict]) -> Dict[str, dict]:
+    """Two sessions in place of five or six: every item still gets a recorded fate, from fewer independent eyes."""
+    groups = {"T1": ("The accounts, the people and the structure", ("T1", "T3", "T6")),
+              "T2": ("The business, its value and its risks", ("T2", "T4", "T5"))}
+    out = {}
+    for tid, (title, members) in groups.items():
+        parts = [active[m] for m in members if m in active]
+        out[tid] = {"title": title, "authors": [a for p in parts for a in p.get("authors", [])],
+                    "topics": sorted({t for p in parts for t in p.get("topics", [])}),
+                    "dimensions": [d for p in parts for d in p.get("dimensions", [])]}
+    return out
 
 
 def run_version(run_dir: Path) -> tuple:
@@ -961,7 +981,7 @@ def group_findings(run_dir: Path, group: dict) -> Dict[str, Set[str]]:
 
 
 def check_section(run_dir: Path, wid: str) -> List[str]:
-    groups = writer_groups()
+    groups = writer_groups(run_dir)
     if wid not in groups:
         return ["%s is not a section group (%s)" % (wid, ", ".join(groups))]
     g = groups[wid]
@@ -1253,7 +1273,7 @@ def integration(run_dir: Path, write: bool = True) -> dict:
         errs += ["theme %s: %s" % (tid, e) for e in check_theme(run_dir, tid)]
     for L in LAYERS:
         errs += ["layer %s: %s" % (L, e) for e in check_layer(run_dir, L)]
-    for w in writer_groups():
+    for w in writer_groups(run_dir):
         errs += ["section %s: %s" % (w, e) for e in check_section(run_dir, w)]
     disp = all_dispositions(run_dir)
     for rid, d in disp.items():

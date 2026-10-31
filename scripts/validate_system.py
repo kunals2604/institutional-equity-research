@@ -118,6 +118,19 @@ def check_switches(rep):
     rep.add("docs/SWITCHES.md matches the registry", current, "" if current else "run python3 scripts/switches.py docs")
 
 
+def check_pipeline(rep):
+    """The step list is the process: each step has a check, a judgment step has its skill, a condition names a real switch."""
+    import orchestrate as oc
+    import switches
+    steps = oc.pipeline()
+    rep.add("every pipeline step has a done check", all(s["done_when"] in oc.CHECKS for s in steps),
+            str([s["id"] for s in steps if s["done_when"] not in oc.CHECKS]))
+    rep.add("every judgment step's stage has a skill", all((ROOT / ".claude" / "skills" / oc.STAGE_SKILLS[s["stage"]] / "SKILL.md").exists()
+                                                            for s in steps if s["type"] == "cio"))
+    reg = switches.registry()["switches"]
+    rep.add("every pipeline condition names a real switch", all(set(s.get("when") or {}) <= set(reg) for s in steps))
+
+
 def check_sector_modules(rep):
     """Methodology 3.2.0: the sector-module catalogue parses, covers every playbook, and every step is owned by a
     specialist, has a unique id and names canonical metric keys."""
@@ -515,7 +528,7 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
     rep = Report()
     for fn in (check_agents, check_skills, check_taxonomy_and_docs, check_methodology, check_contracts, check_run_preservation,
-               check_isolation_and_connectors, check_sector_modules, check_switches):
+               check_isolation_and_connectors, check_sector_modules, check_switches, check_pipeline):
         try:
             fn(rep)
         except Exception as exc:  # a crashing check is a failing check

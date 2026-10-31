@@ -875,7 +875,7 @@ def synthesis_prompt(run_dir: Path, role: str, subject: str) -> str:
         return head + ("You are the LAYER ANALYST for %s (%s). Your input: synthesis/layers/%s_input.md. Per your "
                        "definition, write synthesis/layers/%s_draft.md and check it with python3 scripts/synthesis.py "
                        "check-layer %s %s until it prints PASS." % (subject, name, subject, subject, rr, subject))
-    g = synthesis.writer_groups()[subject]
+    g = synthesis.writer_groups(run_dir)[subject]
     return head + ("You are the SECTION WRITER for group %s. Write these sections of the final report, exact headings: %s. "
                    "Feeding theme briefs: %s. Per your definition, write synthesis/sections/%s.md (ending with ## Not Carried) "
                    "and check it with python3 scripts/synthesis.py check-section %s %s until it prints PASS." % (
@@ -926,7 +926,7 @@ def cmd_synthesis(eng: "Engine", step: str, only: List[str], parallel: int) -> i
         if blocked:
             eng.log("writers cannot start yet (cio.md Stage 3: the writers come after the decision): %s" % "; ".join(blocked[:6]))
             return 2
-        subjects, role = [w for w in synthesis.writer_groups() if not only or w in only], "section-writer"
+        subjects, role = [w for w in synthesis.writer_groups(run_dir) if not only or w in only], "section-writer"
     else:
         eng.log("unknown step %r" % step)
         return 2

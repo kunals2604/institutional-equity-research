@@ -90,8 +90,8 @@
    "acts_in": "Stage 3",
    "frozen_after": "synthesis",
    "flags": [],
-   "buys": "Independent theme analysts, layer analysts and section writers.",
-   "loses": "Fewer independent sessions; all four layers are still assessed, and every item still gets a recorded fate.",
+   "buys": "Independent theme analysts and section writers, five or six and seven sessions.",
+   "loses": "compact uses two theme sessions and two writers. All four layer analysts still run, and every item still gets a recorded fate.",
    "confidence": "Fewer independent eyes on how the evidence connects."
   },
   "audit": {
@@ -372,7 +372,6 @@
   "--weekly-ceiling"
  ],
  "not_yet_wired": {
-  "synthesis": "compact has no effect until Step 4",
   "canaries": "Step 5",
   "early_stop": "Step 6",
   "reading_transport": "batch, Step 10",

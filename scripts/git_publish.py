@@ -80,6 +80,7 @@ def main(argv=None) -> int:
     git(root, "commit", "--quiet", "-m", msg, "--", *paths)
     sha = git(root, "rev-parse", "--short", "HEAD").stdout.strip()
     print("Committed %s on %s: %s (%d files)" % (sha, branch, msg, len(staged)))
+    rl.update_json(run_dir / rl.RUN_MANIFEST, lambda d: d.setdefault("git", {}).update({a.batch: sha}))
 
     rc = 0
     if a.push:

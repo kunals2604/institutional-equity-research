@@ -94,8 +94,8 @@ The default is **standard**.
 ### `synthesis`
 
 - **Acts in:** Stage 3. **Values:** compact, full.
-- **Buys:** Independent theme analysts, layer analysts and section writers.
-- **Turning it down loses:** Fewer independent sessions; all four layers are still assessed, and every item still gets a recorded fate.
+- **Buys:** Independent theme analysts and section writers, five or six and seven sessions.
+- **Turning it down loses:** compact uses two theme sessions and two writers. All four layer analysts still run, and every item still gets a recorded fate.
 - **May cost in confidence:** Fewer independent eyes on how the evidence connects.
 - **Can change:** until synthesis.
 
@@ -159,7 +159,6 @@ The default is **standard**.
 
 These do nothing yet. The release gate refuses v4.0.0 while any is listed.
 
-- `synthesis`: compact has no effect until Step 4
 - `canaries`: Step 5
 - `early_stop`: Step 6
 - `reading_transport`: batch, Step 10

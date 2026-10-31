@@ -1,0 +1,297 @@
+{
+ "_about": "The research pipeline as data: an ordered list, not a graph, because gap closure, theme deltas and re-audit all repeat. A step is offered until its done_when check passes, so a loop is simply a step offered again. `next` is a function of the manifest and the disk alone, so it survives any crash or lost session. type: script (the orchestrator runs it), agent (the engine runs it), cio (a judgment step in the main session). {run} is the run directory.",
+ "steps": [
+  {
+   "id": "identity",
+   "stage": "0",
+   "type": "cio",
+   "title": "Validate the company's identity and the price, write the brief and the source register",
+   "output": "research_brief.md, cio/cio_ledger.csv",
+   "done_when": "identity_done"
+  },
+  {
+   "id": "acquire",
+   "stage": "0",
+   "type": "cio",
+   "title": "Index the exchanges and the IR site, build the document map, fetch the structured filings (needs the symbols and IR pages)",
+   "output": "corpus/DOCUMENT_MAP.md",
+   "done_when": "document_map_built"
+  },
+  {
+   "id": "librarian",
+   "stage": "0",
+   "type": "agent",
+   "title": "Find the documents the map lacks",
+   "run": "python3 scripts/agent_driver.py librarian {run} --message-file {run}/engine/librarian_request.md",
+   "done_when": "no_document_gaps"
+  },
+  {
+   "id": "events",
+   "stage": "0",
+   "type": "agent",
+   "title": "Build the ten-year timeline of major events",
+   "run": "python3 scripts/agent_driver.py events {run}",
+   "done_when": "events_done"
+  },
+  {
+   "id": "sector_modules",
+   "stage": "0",
+   "type": "cio",
+   "title": "Select the sector modules that apply",
+   "output": "run_manifest.json sector_modules",
+   "done_when": "sector_modules_set"
+  },
+  {
+   "id": "reading_plan",
+   "stage": "0b",
+   "type": "script",
+   "title": "Plan the reading stage",
+   "run": "python3 scripts/reading.py plan {run} --years 5 --core-years 5 --quarters 24 --ppt-quarters 12",
+   "done_when": "reading_planned",
+   "when": {
+    "reading": "on"
+   }
+  },
+  {
+   "id": "reading",
+   "stage": "0b",
+   "type": "agent",
+   "title": "Read every in-scope page and build the dossiers and the coverage record",
+   "run": "python3 scripts/agent_driver.py reading {run} && python3 scripts/reading.py dossiers {run} && python3 scripts/reading.py status {run} --strict",
+   "done_when": "reading_complete",
+   "when": {
+    "reading": "on"
+   }
+  },
+  {
+   "id": "digest_plan",
+   "stage": "0c",
+   "type": "script",
+   "title": "Plan the web digest",
+   "run": "python3 scripts/digest.py plan {run}",
+   "done_when": "digest_planned",
+   "when": {
+    "digest": "on"
+   }
+  },
+  {
+   "id": "digest",
+   "stage": "0c",
+   "type": "agent",
+   "title": "Record what web summaries say about each document",
+   "run": "python3 scripts/agent_driver.py digest {run}",
+   "done_when": "digest_items_done",
+   "when": {
+    "digest": "on"
+   }
+  },
+  {
+   "id": "digest_build",
+   "stage": "0c",
+   "type": "script",
+   "title": "Page-confirm the digest and build the packs",
+   "run": "python3 scripts/digest.py confirm {run} && python3 scripts/digest.py build {run} && python3 scripts/digest.py status {run} --strict",
+   "done_when": "digest_complete",
+   "when": {
+    "digest": "on"
+   }
+  },
+  {
+   "id": "identity_block",
+   "stage": "1",
+   "type": "cio",
+   "title": "Write the identity block every specialist receives",
+   "output": "engine/identity.md",
+   "done_when": "identity_block_done"
+  },
+  {
+   "id": "specialists",
+   "stage": "1",
+   "type": "agent",
+   "title": "Run the specialists, each verified as it finishes",
+   "run": "python3 scripts/agent_driver.py specialists {run}",
+   "done_when": "specialists_pass"
+  },
+  {
+   "id": "verify_specialists",
+   "stage": "2",
+   "type": "script",
+   "title": "Verify the research",
+   "run": "python3 scripts/verify.py run {run} --stage specialists",
+   "done_when": "verified_specialists"
+  },
+  {
+   "id": "gap_loop",
+   "stage": "2",
+   "type": "cio",
+   "title": "Collect every gap, close the closable ones, record the rest",
+   "output": "cio/gap_register.md",
+   "done_when": "gaps_recorded",
+   "loop": true
+  },
+  {
+   "id": "barrier",
+   "stage": "2",
+   "type": "script",
+   "title": "The completion barrier",
+   "run": "python3 scripts/validate_run.py {run} --stage specialists",
+   "done_when": "barrier_passed"
+  },
+  {
+   "id": "git_specialists",
+   "stage": "2",
+   "type": "script",
+   "title": "Commit the specialists' work",
+   "run": "python3 scripts/git_publish.py {run} --batch specialists --push",
+   "done_when": "git_specialists_done"
+  },
+  {
+   "id": "numeric_base",
+   "stage": "3",
+   "type": "script",
+   "title": "Merge the ledgers and reconcile the numbers",
+   "run": "python3 scripts/merge_ledgers.py {run} && python3 scripts/reconcile_numbers.py {run} && python3 scripts/evidence_stats.py {run} && python3 scripts/claim_graph.py build {run}",
+   "done_when": "numeric_base_done"
+  },
+  {
+   "id": "themes",
+   "stage": "3",
+   "type": "agent",
+   "title": "Build the registry and run the theme analysts",
+   "run": "python3 scripts/agent_driver.py synthesis {run} --step themes",
+   "done_when": "themes_pass",
+   "loop": true
+  },
+  {
+   "id": "contradictions",
+   "stage": "3",
+   "type": "cio",
+   "title": "Audit the claims and adjudicate every contradiction candidate",
+   "output": "cio/contradiction_log.md",
+   "done_when": "contradictions_adjudicated",
+   "loop": true
+  },
+  {
+   "id": "handoff",
+   "stage": "3",
+   "type": "cio",
+   "title": "Value the company on the forecast and answer every follow-up request",
+   "output": "specialists/valuation_followup_<n>.md, calc/forecasting_reconcile.json",
+   "done_when": "followups_closed",
+   "loop": true
+  },
+  {
+   "id": "cio_analysis",
+   "stage": "3",
+   "type": "cio",
+   "title": "The CIO's own independent analysis",
+   "output": "cio/cio_analysis.md",
+   "done_when": "cio_analysis_done"
+  },
+  {
+   "id": "layers",
+   "stage": "3",
+   "type": "agent",
+   "title": "Run the four layer analysts",
+   "run": "python3 scripts/agent_driver.py synthesis {run} --step layers && python3 scripts/synthesis.py packet {run}",
+   "done_when": "layers_pass"
+  },
+  {
+   "id": "decide",
+   "stage": "3",
+   "type": "cio",
+   "title": "Classify, score, reach the reasoned verdict, set the decision outputs",
+   "output": "cio/scorecard_inputs.json, cio/scorecard.json, cio/sections/",
+   "done_when": "decision_done"
+  },
+  {
+   "id": "writers",
+   "stage": "3",
+   "type": "agent",
+   "title": "Run the section writers",
+   "run": "python3 scripts/agent_driver.py synthesis {run} --step writers",
+   "done_when": "writers_pass"
+  },
+  {
+   "id": "assemble",
+   "stage": "3",
+   "type": "script",
+   "title": "Assemble the report and run the integration checks",
+   "run": "python3 scripts/synthesis.py assemble {run} && python3 scripts/synthesis.py integration {run}",
+   "done_when": "report_assembled"
+  },
+  {
+   "id": "reading_audit",
+   "stage": "4",
+   "type": "script",
+   "title": "Audit who read what, on which model",
+   "run": "python3 scripts/reading_audit.py run {run}",
+   "done_when": "reading_audited"
+  },
+  {
+   "id": "audit",
+   "stage": "4",
+   "type": "agent",
+   "title": "The independent audit",
+   "run": "python3 scripts/agent_driver.py audit {run} --message-file {run}/engine/audit_request.md",
+   "done_when": "audit_done"
+  },
+  {
+   "id": "resolve_audit",
+   "stage": "4",
+   "type": "cio",
+   "title": "Resolve every audit finding, re-audit any Critical",
+   "output": "cio/audit_resolutions.md",
+   "done_when": "audit_resolved",
+   "loop": true
+  },
+  {
+   "id": "verify_final",
+   "stage": "4",
+   "type": "script",
+   "title": "Verify everything, the CIO's ledger included",
+   "run": "python3 scripts/merge_ledgers.py {run} && python3 scripts/verify.py run {run} --stage final",
+   "done_when": "verified_final"
+  },
+  {
+   "id": "validate_final",
+   "stage": "4",
+   "type": "script",
+   "title": "The final automated checks",
+   "run": "python3 scripts/validate_run.py {run} --stage final",
+   "done_when": "final_validated"
+  },
+  {
+   "id": "qc",
+   "stage": "4",
+   "type": "cio",
+   "title": "Complete the quality-control record",
+   "output": "cio/quality_control.md",
+   "done_when": "qc_done"
+  },
+  {
+   "id": "finalize",
+   "stage": "4",
+   "type": "script",
+   "title": "Finalize: scoreboard, pointer, decision record",
+   "run": "python3 scripts/finalize_run.py {run}",
+   "done_when": "finalized"
+  },
+  {
+   "id": "archive",
+   "stage": "4",
+   "type": "script",
+   "title": "Keep the run's transcripts",
+   "run": "python3 scripts/archive_transcripts.py archive {run}",
+   "done_when": "archived"
+  },
+  {
+   "id": "git_final",
+   "stage": "4",
+   "type": "script",
+   "title": "Commit the final batch",
+   "run": "python3 scripts/git_publish.py {run} --batch final --push",
+   "done_when": "git_final_done"
+  }
+ ]
+}
