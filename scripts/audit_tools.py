@@ -83,6 +83,17 @@ def matches(token: str, value: float, unit: str) -> bool:
     return False
 
 
+def same_number(token: str, value: float, unit: str) -> bool:
+    """Equal within the token's own rounding. `matches` also allows 0.6 % and is the right test against the claims a line
+    cites, but across a whole run it says little: a random number falls within it of one of Bharti's 635 values 60-80 % of
+    the time, against 0 % here."""
+    n = to_float(token)
+    if n is None:
+        return False
+    tol = 0.5 * 10 ** (-decimals(token)) if decimals(token) else 0.5
+    return any(abs(n - c) <= tol for c in candidates(value, unit))
+
+
 RANGE_RE = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:–|-|to)\s*(\d[\d,]*(?:\.\d+)?)")
 
 
@@ -115,7 +126,7 @@ def tieout(run_dir: Path, report: Path, out: Path) -> int:
     n_mis = sum(1 for r in rows if r["status"] == "mismatch")
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["line", "section", "status", "cited", "numbers", "uncited_matches", "excerpt"])
+        w = csv.DictWriter(f, fieldnames=["line", "section", "status", "cited", "numbers", "uncited_matches", "unsupported", "excerpt"])
         w.writeheader()
         w.writerows(sorted(rows, key=lambda r: ({"mismatch": 0, "other_claim": 1}.get(r["status"], 2), r["line"])))
     n_other = sum(1 for r in rows if r["status"] == "other_claim")
@@ -163,9 +174,12 @@ def tieout_rows(run_dir: Path, report: Path) -> List[dict]:
             for t in tokens:
                 other += [c for c, v, u in all_values if c not in ids and matches(t, v, u) and abs(v) >= 1][:3]
         status = "match" if ok else ("other_claim" if other else "mismatch")
+        # "match" means one number of the line ties, so a second number on it can still be wrong: every number no claim of
+        # the run holds is listed for the auditor. A screen, not a verdict: derived numbers are legitimate.
+        unsupported = [t for t in tokens if not any(same_number(t, v, u) for _, v, u in all_values)]
         rows.append({"line": line_no, "section": section, "status": status,
                      "cited": "; ".join("%s=%s %s" % (c, v, u) for c, v, u in numeric), "numbers": " ".join(tokens[:12]),
-                     "uncited_matches": " ".join(sorted(set(other))[:6]),
+                     "uncited_matches": " ".join(sorted(set(other))[:6]), "unsupported": " ".join(unsupported[:12]),
                      "excerpt": re.sub(r"\s+", " ", seg.strip())[:240]})
     return rows
 

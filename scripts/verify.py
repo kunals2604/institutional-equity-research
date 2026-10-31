@@ -291,11 +291,14 @@ def claim_keys(row: dict, keys: Dict[str, Set[str]]) -> Set[str]:
         return set()
     src = re.sub(r"^FilingForge:", "", src)
     base = {src, re.sub(r"^https?://", "", src).rstrip("/")}
-    if "/" in src:
-        base.add(src.rstrip("/").rsplit("/", 1)[-1])
+    name = src.rstrip("/").rsplit("/", 1)[-1] if "/" in src else ""
     out = set(base)
-    for b in base:
+    for b in base | {name}:
         out |= keys.get(b, set())
+    # A URL's bare file name proves nothing: any session may have opened some other report.pdf. It counts for a local path,
+    # or when the run holds a document of that name.
+    if name and (not re.match(r"https?://", src) or name in keys):
+        out.add(name)
     return {x for x in out if len(x) >= 6}
 
 

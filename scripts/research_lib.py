@@ -1732,6 +1732,25 @@ def fy_end_month(manifest: dict) -> int:
     return int(m.group(1)) if m else 3
 
 
+PRICE_DATE_RES = ((re.compile(r"\b(\d{4}-\d{2}-\d{2})\b"), "%Y-%m-%d"), (re.compile(r"\b(\d{1,2}-[A-Za-z]{3}-\d{4})\b"), "%d-%b-%Y"))
+PRICE_MAX_AGE_DAYS = 7
+
+
+def price_date_errors(sc: dict, cutoff: str) -> List[str]:
+    """The decision's price must be the close at the cutoff, or the last trading day before it: a stale price makes every
+    return and margin of safety in the report wrong while each still ties to its source."""
+    stamp = str((sc.get("price") or {}).get("timestamp") or "")
+    for pat, fmt in PRICE_DATE_RES:
+        m = pat.search(stamp)
+        if m:
+            day = dt.datetime.strptime(m.group(1), fmt).date()
+            age = (dt.date.fromisoformat(cutoff) - day).days
+            if age < 0:
+                return ["the price is dated %s, after the cutoff %s" % (day, cutoff)]
+            return ["the price is dated %s, %d days before the cutoff %s" % (day, age, cutoff)] if age > PRICE_MAX_AGE_DAYS else []
+    return ["the price timestamp %r carries no date" % stamp]
+
+
 def write_json(path: Path, data: dict) -> None:
     """Atomic: a kill or a full disk leaves the old file whole, never a truncated one the next engine start cannot read."""
     tmp = path.with_name("%s.tmp%d" % (path.name, os.getpid()))

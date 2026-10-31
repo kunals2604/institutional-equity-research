@@ -47,7 +47,7 @@ raises 0, so it blocks. A true unit conversion no longer page-confirms a digest 
 | B13 | M | Split-theme checkpoints are unwritable | `T1.p2` is told to write to `workpapers/T1_p2/`, outside its allowed directory | `agent_driver.py:815,781` | Fixed |
 | B14 | M | **Gating over-fires on real data** (**ran** on the Bharti replay) | 112 of 1,407 items are gating, 59 only by dimension; a spot-check of 14 found 4 or 5 real red flags; "default" matched "default-spread". Only 22 of 112 have all their claims in the real report, so the rule forces about 90 errors. Fix by content, not author or substring; hand-label the 112; owner confirms | `synthesis.py:414` | Fixed |
 
-B14 result: 21 gating items of 1,407, against 112 before, with all 11 labelled red flags kept and 2 labelled noise items
+B14 result: 22 gating items of 1,407, against 112 before, with all 11 labelled red flags kept and 2 labelled noise items
 remaining (both mention a historic rating downgrade). The labels in `tests/golden/gating_labels.csv` are mine and await
 the owner's confirmation. B10 was resolved by correcting `cio.md`: requiring all 348 material items in the report's
 body would bloat it, and the register is the designed place for them.
@@ -120,6 +120,23 @@ problem cannot arise.
 | Never overwrite a previous run | Partial: `new_run.py:113`, `validate_run.py:39`; not `synthesis.py:1301`, `verify.py:904`, `finalize_run.py:108` |
 | CIO-only scoreboard and git | Partial: prefix denies; `python3 ./scripts/…` bypasses them |
 | Quantitative claims carry a metric key | Partial: MANAGEMENT STATEMENT and empty `value` exempt; any `other:` accepted |
+
+## Found by the mutation suite (Step 2)
+
+Planted errors in real Bharti material (`tests/test_v40_mutation.py`) found what no audit had:
+
+| ID | Sev | Defect | Failure | Where | Status |
+|---|---|---|---|---|---|
+| M1 | H | A fabricated source passes on its file name | `https://made.up.example/report.pdf` counted as opened if any file named `report.pdf` was. No new false alarm on the 9 real specialists | `verify.py claim_keys` | Fixed |
+| M2 | H | A stale price is never noticed | Nothing tied the price's date to the cutoff, so every return would be wrong while tying to its source | `research_lib.py` | Fixed (`price_date_errors`; wired into the scorecard from Step 6) |
+| M3 | M | A second wrong number on a line passes the tie-out | "Match" means one number ties. Rows now list `unsupported` numbers for the auditor, compared exactly: 50 of 176 real rows, 65 numbers | `audit_tools.py` | Fixed |
+
+**What was measured about the tie-out.** Within its 0.6 % tolerance and across unit shifts, a random number matches one of
+Bharti's 635 numeric claims 60–80 % of the time, so a whole-run comparison on that basis says little, and the change log's
+"71 mis-citations" came from such a comparison: treat that figure as a screen, not a count of errors. Against the claims a
+line itself cites the test stays strong. Compared exactly, random numbers coincide 0 % of the time, which is what
+`unsupported` uses. A wrong number that equals a real value of the run still passes every script: only the verifier and
+the auditor, reading the sources, can catch it.
 
 ## Warnings where the documents imply a block
 

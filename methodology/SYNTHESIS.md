@@ -103,7 +103,7 @@ dispositions it; the other themes it bears on see it as context.
   pattern, in a sentence that does not negate it), and every corpus item of a gating type. Read by sentence and by
   phrase, so that "searches found nothing on fraud" or a "default-spread adjustment" is not a red flag; authorship or
   the dimension a finding bears on never makes it gating. Calibrated on the Bharti reports against the owner-confirmed
-  labels in `tests/golden/gating_labels.csv`: 21 of 1,407 items, with every labelled red flag kept. A gating item can
+  labels in `tests/golden/gating_labels.csv`: 22 of 1,407 items, with every labelled red flag kept. A gating item can
   **never** be dispositioned `immaterial`, and unless it is `superseded` (pointing at a real item or claim, with a reason)
   or an `unverified_lead` (only a digest or historian lead can be one) it must reach the report's body through **every one
   of its distinctive claims** (its claims other than the CIO's and other than claims three or more report items cite,
