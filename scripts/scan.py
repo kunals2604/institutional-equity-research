@@ -2,7 +2,7 @@
 """Scan: every company in the warehouse on one table, by script, as known on a date. A lead list for triage, never a
 decision.
 
-  python3 scripts/scan.py run --date YYYY-MM-DD [--exchange NSE] [--top 50] [--min-traded-inr 10000000]
+  python3 scripts/scan.py run --date YYYY-MM-DD [--exchange NSE|BSE|US] [--top 50] [--min-traded-inr 10000000]
 
 Writes research/funnel/scan/<date>_<exchange>.csv (every company and every measure) and SCAN_<date>_<exchange>.md (the
 ranked table, the flags, and what the numbers can and cannot say). Outside runs/; it never touches the scoreboard.
@@ -38,9 +38,11 @@ import research_lib as rl  # noqa: E402
 import warehouse as wh  # noqa: E402
 
 OUT = rl.ROOT / "research" / "funnel" / "scan"
+UNIT_DIVISOR = {"IN": 1e7, "US": 1e6}                 # the facts' unit: INR crore, USD million
+UNIT_NAME = {"IN": "INR crore", "US": "USD million"}
 METRICS = ("revenue", "interest_income", "pat", "pat_attributable", "total_equity", "cfo", "trade_receivables",
            "total_debt", "shares_outstanding", "advances")
-COLUMNS = ["symbol", "close", "market_cap_cr", "earnings_yield", "book_to_price", "roe", "growth_3y", "return_1y",
+COLUMNS = ["symbol", "close", "market_cap", "earnings_yield", "book_to_price", "roe", "growth_3y", "return_1y",
            "max_drawdown_1y", "median_traded_inr_60d", "latest_fy", "lender", "rank_score", "flags"]
 
 
@@ -103,7 +105,7 @@ def latest_known(con, ticker: str, metric: str, day: str) -> Optional[tuple]:
     return row
 
 
-def issuance(con, sym: str, y: int, day: str, years: int = 3) -> Optional[float]:
+def issuance(con, sym: str, y: int, day: str, price_symbol: str = "", years: int = 3) -> Optional[float]:
     """Growth in the share count over `years`, net of splits and bonuses, which issue nothing. None when the daily prices
     do not cover the span, so a bonus is never mistaken for dilution."""
     def at(fy):
@@ -113,9 +115,10 @@ def issuance(con, sym: str, y: int, day: str, years: int = 3) -> Optional[float]
     end, start = at(y), at(y - years)
     if not end or not start or not start[0]:
         return None
+    ps = price_symbol or sym
     series = con.execute("""SELECT date, close, prev_close, value_inr FROM prices WHERE symbol = ? AND date >= ? AND date <= ?
-                            ORDER BY date""", (sym, start[1], end[1])).fetchall()
-    first = con.execute("SELECT MIN(date) FROM prices WHERE symbol = ?", (sym,)).fetchone()[0]
+                            ORDER BY date""", (ps, start[1], end[1])).fetchall()
+    first = con.execute("SELECT MIN(date) FROM prices WHERE symbol = ?", (ps,)).fetchone()[0]
     if not series or not first or first > start[1]:
         return None
     return end[0] / (start[0] * action_factor(series, start[1])) - 1
@@ -126,8 +129,10 @@ def cagr(s: Dict[int, float], y: int, n: int) -> Optional[float]:
     return (b / a) ** (1.0 / n) - 1 if a and b and a > 0 and b > 0 else None
 
 
-def company(con, sym: str, day: str, data: Dict[str, Dict[str, Dict[int, float]]], series: List[tuple], rejected: set) -> dict:
-    s = {m: data[m].get(sym, {}) for m in METRICS}
+def company(con, sym: str, day: str, data: Dict[str, Dict[str, Dict[int, float]]], series: List[tuple], rejected: set,
+            juris: str = "IN") -> dict:
+    fk = wh.key(sym, juris)                       # the warehouse's name for its facts (AAPL.US)
+    s = {m: data[m].get(fk, {}) for m in METRICS}
     owners = s["pat_attributable"] or s["pat"]
     row = {"symbol": sym, "flags": []}
     row.update(price_measures(series, day))
@@ -136,10 +141,10 @@ def company(con, sym: str, day: str, data: Dict[str, Dict[str, Dict[int, float]]
     y = max(owners)
     lender = bool(s["advances"] or s["interest_income"])
     row.update(latest_fy="FY%d" % y, lender=lender)
-    sh = latest_known(con, sym, "shares_outstanding", day)
-    if sh and row.get("close"):
-        row["market_cap_cr"] = sh[0] * action_factor(series, sh[1]) * row["close"] / 1e7
-    mc = row.get("market_cap_cr")
+    sh = latest_known(con, fk, "shares_outstanding", day)
+    if sh and row.get("close"):                   # in the unit of the facts: INR crore, or USD million
+        row["market_cap"] = sh[0] * action_factor(series, sh[1]) * row["close"] / UNIT_DIVISOR[juris]
+    mc = row.get("market_cap")
     if mc:
         row["earnings_yield"] = owners[y] / mc
         if s["total_equity"].get(y):
@@ -150,7 +155,7 @@ def company(con, sym: str, day: str, data: Dict[str, Dict[str, Dict[int, float]]
     row["growth_3y"] = cagr(s["interest_income"] if lender else s["revenue"], y, 3)
     if owners[y] < 0:
         row["flags"].append("loss")
-    growth = issuance(con, sym, y, day)
+    growth = issuance(con, fk, y, day, sym)
     if growth is not None and growth > 0.3:
         row["flags"].append("shares +%d%% in 3 years, after splits and bonuses" % round(growth * 100))
     if not lender:
@@ -163,7 +168,7 @@ def company(con, sym: str, day: str, data: Dict[str, Dict[str, Dict[int, float]]
             row["flags"].append("receivables outgrowing revenue")
         if s["total_debt"].get(y) and eq.get(y) and eq[y] > 0 and s["total_debt"][y] > 2 * eq[y]:
             row["flags"].append("debt above twice equity")
-    if sym in rejected:
+    if fk in rejected:
         row["flags"].append("values rejected as filed")
     return row
 
@@ -179,7 +184,8 @@ def scan(con, day: str, exchange: str = "NSE", min_traded: float = 0.0) -> List[
     data = {m: br.series(con, m, day) for m in METRICS}
     px = prices(con, exchange, day)
     rejected = {t for (t,) in con.execute("SELECT DISTINCT ticker FROM rejected")}
-    rows = [company(con, sym, day, data, px.get(sym, []), rejected) for sym in universe]
+    juris = "US" if exchange == "US" else "IN"
+    rows = [company(con, sym, day, data, px.get(sym, []), rejected, juris) for sym in universe]
     if min_traded:
         rows = [r for r in rows if (r.get("median_traded_inr_60d") or 0) >= min_traded]
     ranks = [percentile({r["symbol"]: r[k] for r in rows if r.get(k) is not None}) for k in ("earnings_yield", "roe", "growth_3y")]
@@ -218,12 +224,13 @@ def write(rows: List[dict], day: str, exchange: str, top: int, out: Path = None)
     lines = ["# Scan — %s, %s" % (exchange, day), "",
              "%d companies traded; %d have results in the warehouse; %d have enough to rank. A lead list for triage "
              "(`python3 scripts/triage.py prepare SYMBOL --date %s`), never a decision." % (len(rows), len(with_facts), len(ranked), day),
-             "", "| # | Symbol | Rank | Earnings yield | ROE | Growth 3y | Book/price | Market cap (cr) | 1y return | Worst fall 1y | Flags |",
+             "", "| # | Symbol | Rank | Earnings yield | ROE | Growth 3y | Book/price | Market cap (%s) | 1y return | Worst fall 1y | Flags |" % (
+                 UNIT_NAME["US" if exchange == "US" else "IN"]),
              "|---|---|---|---|---|---|---|---|---|---|---|"]
     for i, r in enumerate(ranked[:top], 1):
         lines.append("| %d | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
             i, r["symbol"], fmt(r["rank_score"]), fmt(r.get("earnings_yield"), "pct"), fmt(r.get("roe"), "pct"),
-            fmt(r.get("growth_3y"), "pct"), fmt(r.get("book_to_price")), fmt(r.get("market_cap_cr")),
+            fmt(r.get("growth_3y"), "pct"), fmt(r.get("book_to_price")), fmt(r.get("market_cap")),
             fmt(r.get("return_1y"), "pct"), fmt(r.get("max_drawdown_1y"), "pct"), "; ".join(r.get("flags") or [])))
     lines += ["", "**Flags across the universe:** %s." % (", ".join("%s %d" % kv for kv in sorted(flags.items())) or "none"), "",
               "**What these numbers can and cannot say.** %s Facts are as filed, from exchange XBRL; a lender's growth is its "

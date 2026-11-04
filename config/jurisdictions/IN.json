@@ -1,0 +1,30 @@
+{
+ "_about": "India: what a run's sources, units and words are. Read by scripts/jurisdiction.py; the methodology's words (promoter, SEBI, Ind AS) are India's, so this file maps nothing away from them.",
+ "code": "IN",
+ "name": "India",
+ "exchanges": ["NSE", "BSE", "NSE-SME", "BSE-SME"],
+ "currency": "INR",
+ "unit": "INR crore",
+ "unit_words": ["crore", "lakh"],
+ "fiscal_year_end": "03-31",
+ "accounting": "Ind AS (Indian Accounting Standards; banks under RBI formats)",
+ "filings": {
+  "annual_report": "Annual report (with the Board's report, MD&A, BRSR, auditor's report, CARO)",
+  "results": "Quarterly and annual results (Regulation 33), XBRL on NSE and BSE",
+  "events": "Exchange announcements (Regulation 30)",
+  "governance": "Corporate governance report; voting results; Integrated Filing (governance)",
+  "ownership": "Shareholding pattern (quarterly); SAST and insider-trading (PIT) disclosures; pledges",
+  "related_parties": "Related-party disclosures (Regulation 23(9)); AOC-2"
+ },
+ "sources": {
+  "index": "scripts/exchange_index.py (NSE and BSE APIs, the IR site, the Internet Archive)",
+  "facts": "scripts/xbrl_facts.py (NSE results XBRL and Integrated Filings)",
+  "prices": "NSE and BSE daily bhavcopies (scripts/market_data.py, scripts/warehouse.py)",
+  "structured": "scripts/structured_filings.py (BRSR XBRL, voting results, audit opinions)"
+ },
+ "risk_free": {"series": "India 10-year government bond yield", "source": "RBI / CCIL (cite the dated source)"},
+ "benchmark": {"name": "Nifty 500 TRI", "kind": "total return", "source": "niftyindices.com (scripts/connectors.py index TRI)"},
+ "regulators": {"securities": "SEBI", "audit": "NFRA", "banking": "RBI", "insurance": "IRDAI", "courts": "NCLT, High Courts, Supreme Court"},
+ "vocabulary": {"controlling_holder": "promoter", "promoter_group": "promoter group", "related_party_approval": "audit committee and shareholder approval (Regulation 23)"},
+ "status": "the framework's home jurisdiction: every run so far"
+}

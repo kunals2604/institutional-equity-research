@@ -47,7 +47,8 @@ def prepare(con, symbol: str, day: str, exchange: str = "NSE", company: str = ""
     tid = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     d = (home or HOME) / symbol / tid
     d.mkdir(parents=True)
-    rl.write_json(d / rl.RUN_MANIFEST, {"run_id": tid, "kind": "triage", "ticker": symbol, "exchange": exchange,
+    juris = "US" if exchange == "US" else "IN"
+    rl.write_json(d / rl.RUN_MANIFEST, {"run_id": tid, "kind": "triage", "ticker": symbol, "exchange": exchange, "jurisdiction": juris,
                                         "company": company, "isin": sec[1] if sec and sec[1] else "unknown",
                                         "research_cutoff": day, "status": "triage", "replay": False,
                                         "methodology_version": rl.methodology_version(), "model": {"effort_override": None}})
@@ -61,12 +62,13 @@ def pack_text(con, symbol: str, day: str, exchange: str, company: str) -> str:
              "Built by `scripts/triage.py prepare` from the warehouse: exchange results as filed and the verified facts of "
              "earlier finished runs. Cite a figure from here as `PACK`; anything else needs the URL you opened.", ""]
     years = set()
-    data = {m: br.series(con, m, day).get(symbol, {}) for m in PACK_METRICS}
+    data = {m: br.series(con, m, day).get(wh.key(symbol, "US" if exchange == "US" else "IN"), {}) for m in PACK_METRICS}
     for s in data.values():
         years |= set(s)
     years = sorted(years)[-5:]
     if years:
-        lines += ["## The last five fiscal years (INR crore unless stated; consolidated where filed)", "",
+        lines += ["## The last five fiscal years (%s unless stated; consolidated where filed)" % (
+                      "USD million" if exchange == "US" else "INR crore"), "",
                   "| Metric | %s |" % " | ".join("FY%d" % y for y in years), "|---|%s" % ("---|" * len(years))]
         for m in PACK_METRICS:
             if data[m]:
@@ -96,7 +98,8 @@ def pack_text(con, symbol: str, day: str, exchange: str, company: str) -> str:
               "- Return on equity across %d companies: %s." % (r["companies"], ", ".join(
                   "%s %s" % (k, _pct(v)) for k, v in r["distribution"].items() if k != "n") or "too few to say"),
               "- %s" % br.CAVEAT, ""]
-    rejected = con.execute("SELECT metric, period, value, reason FROM rejected WHERE ticker = ?", (symbol,)).fetchall()
+    rejected = con.execute("SELECT metric, period, value, reason FROM rejected WHERE ticker = ?",
+                           (wh.key(symbol, "US" if exchange == "US" else "IN"),)).fetchall()
     if rejected:
         lines += ["## Values the warehouse rejected as filed", ""] + ["- %s %s: %s (%s)" % r for r in rejected] + [""]
     return "\n".join(lines)

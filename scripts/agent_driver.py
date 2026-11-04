@@ -635,6 +635,7 @@ def specialist_prompt(run_dir: Path, name: str) -> str:
             .replace("{{READING_NOTE}}", READING_NOTE_ON if rl.reading_on(run_dir) else READING_NOTE_OFF)
             .replace("{{SECTOR_MODULES}}", sector_modules_text(run_dir, name))
             .replace("{{KEY_QUESTIONS}}", key_questions_text(run_dir))
+            .replace("{{JURISDICTION}}", jurisdiction_text(run_dir))
             .replace("{{LESSONS}}", lessons(name)))
 
 
@@ -778,6 +779,11 @@ def historian_assignment(run_dir: Path, prompt: str, years: int = 10) -> Assignm
                       fix_msg=("The timeline check still fails:\n%s\nFix every error, re-run python3 scripts/verify.py "
                                "events RUN_DIR until it passes, then give your one-line result."),
                       stage="0", purpose="the company's ten-year event timeline")
+
+
+def jurisdiction_text(run_dir: Path) -> str:
+    import jurisdiction
+    return jurisdiction.brief_text(jurisdiction.of_manifest(rl.load_json(run_dir / rl.RUN_MANIFEST)))
 
 
 def triage_assignment(tdir: Path, prompt: str) -> Assignment:

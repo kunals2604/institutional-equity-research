@@ -425,6 +425,53 @@ def flagged_claims(run_dir: Path) -> set:
     return out
 
 
+def key(ticker: str, juris: str = "IN") -> str:
+    """The warehouse's name for a company: an Indian symbol as it is, any other with its jurisdiction (AAPL.US), so a
+    US ticker never collides with an NSE symbol."""
+    return ticker if (juris or "IN").upper() == "IN" else "%s.%s" % (ticker, juris.upper())
+
+
+def ingest_edgar(con: sqlite3.Connection, ticker: str, facts: dict, fy_end_month: int) -> int:
+    """A US company's annual facts from its EDGAR company facts, every filing's version with the date it was filed,
+    and its share count from each filing's cover page (current at filing, so a later split is caught by the next one)."""
+    import edgar
+    k = key(ticker, "US")
+    n = 0
+    for r in edgar.annual_values(facts, fy_end_month):
+        if r["item"] == "shares_outstanding":
+            continue
+        add_fact(con, k, r["item"], r["period"], r["basis"], r["value"], r["unit"], r["filed"], r["source_url_or_id"],
+                 r["locator"], "1", "xbrl")
+        n += 1
+    cik = int(facts.get("cik") or 0)
+    for unit_rows in ((facts.get("facts") or {}).get("dei", {}).get("EntityCommonStockSharesOutstanding", {}).get("units") or {}).values():
+        for r in unit_rows:
+            if r.get("form") in edgar.ANNUAL_FORMS + ("10-Q", "10-Q/A"):
+                period = "FY%d" % edgar.fiscal_year(dt.date.fromisoformat(r["end"]), fy_end_month)
+                add_fact(con, k, "shares_outstanding", period, "consolidated", r["val"], "shares", r["filed"],
+                         edgar.FILING_INDEX % (cik, r["accn"].replace("-", "")), "dei:EntityCommonStockSharesOutstanding (cover, %s, %s)" % (
+                             r["end"], r["form"]), "1", "xbrl")
+                n += 1
+    con.commit()
+    return n
+
+
+def ingest_us_prices(con: sqlite3.Connection, ticker: str, rows: List[dict], source: str) -> int:
+    """Daily closes of a US company under exchange `US`. The series is split-adjusted already, so no ex-date shows in it."""
+    prev = None
+    for r in rows:
+        con.execute("INSERT OR REPLACE INTO prices VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ("US", ticker, r["date"], "", r["open"], r["high"], r["low"], r["close"], prev if prev else r["close"],
+                     r["volume"], (r["volume"] or 0) * (r["close"] or 0), None, None, source, ""))
+        prev = r["close"]
+    if rows:
+        con.execute("""INSERT INTO securities VALUES ('US',?,NULL,NULL,'',?,?,?,'equity') ON CONFLICT(exchange, symbol) DO UPDATE SET
+                       first_seen = MIN(securities.first_seen, excluded.first_seen), last_seen = MAX(securities.last_seen, excluded.last_seen)""",
+                    (ticker, "US", rows[0]["date"], rows[-1]["date"]))
+    con.commit()
+    return len(rows)
+
+
 def promotable(run_dir: Path) -> List[dict]:
     """The facts of a finished run that may serve later runs: FACT claims of tier 1 to 3 with a metric, a number and a
     period, in a run that is complete, not a replay, and whose verification passed, and named in no verification finding.
@@ -455,7 +502,7 @@ def promote(con: sqlite3.Connection, run_dir: Path) -> int:
         # known_at: the source's own date when it is a date and not after the cutoff, else the run's cutoff, the
         # latest day the run could have known it.
         known = r["_known"] if r["_known"] and r["_known"] <= m["research_cutoff"] else m["research_cutoff"]
-        add_fact(con, m["ticker"], r["metric"].strip(), r["period"].strip(), (r.get("basis") or "").strip() or "unstated",
+        add_fact(con, key(m["ticker"], m.get("jurisdiction") or "IN"), r["metric"].strip(), r["period"].strip(), (r.get("basis") or "").strip() or "unstated",
                  r["_value"], r.get("unit", ""), known, r.get("source_url_or_id", ""), r.get("locator", ""),
                  str(r.get("source_tier")).strip(), "%s:%s" % (m["run_id"], r["claim_id"]))
     con.commit()
@@ -474,14 +521,15 @@ def materialise(con: sqlite3.Connection, run_dir: Path) -> Path:
     """corpus/facts/: the facts this run may read, as known at its cutoff, and its prices. Shared facts, not conclusions;
     each keeps its own source, which is what a specialist cites, after opening it."""
     m = rl.load_json(run_dir / rl.RUN_MANIFEST)
-    ticker, cutoff = m["ticker"], m["research_cutoff"]
+    juris = (m.get("jurisdiction") or "IN").upper()
+    ticker, cutoff = key(m["ticker"], juris), m["research_cutoff"]
     out = run_dir / "corpus" / "facts"
     out.mkdir(parents=True, exist_ok=True)
     facts = con.execute("""SELECT metric, period, basis, value, unit, known_at, source, locator, tier, origin FROM facts
                            WHERE ticker = ? AND known_at <= ? ORDER BY metric, period, known_at""", (ticker, cutoff)).fetchall()
-    exchange = str(m.get("exchange") or "NSE").upper()
+    exchange = "US" if juris == "US" else str(m.get("exchange") or "NSE").upper()
     prices = con.execute("""SELECT date, close, volume, value_inr FROM prices WHERE exchange = ? AND symbol = ? AND date <= ?
-                            ORDER BY date""", (exchange, ticker, cutoff)).fetchall()
+                            ORDER BY date""", (exchange, m["ticker"], cutoff)).fetchall()
     rejected = con.execute("SELECT metric, period, basis, value, source, reason FROM rejected WHERE ticker = ?", (ticker,)).fetchall()
     with (out / "facts.csv").open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
@@ -574,6 +622,13 @@ def main(argv=None) -> int:
     c = sub.add_parser("crawl-xbrl")
     c.add_argument("--symbols", required=True, help="a file of NSE symbols, or 'universe:YYYY-MM-DD' for every symbol that traded that day")
     c.add_argument("--sleep", type=float, default=1.0)
+    e = sub.add_parser("crawl-edgar", help="US companies: a file of lines 'TICKER CIK [FY_END_MONTH]'")
+    e.add_argument("--companies", required=True)
+    e.add_argument("--sleep", type=float, default=0.5)
+    up = sub.add_parser("ingest-us-prices", help="US daily closes (Nasdaq quote API, unofficial): a file of tickers")
+    up.add_argument("--symbols", required=True)
+    up.add_argument("--years", type=int, default=10)
+    up.add_argument("--sleep", type=float, default=1.0)
     for name in ("promote", "facts", "archive-cache"):
         sub.add_parser(name).add_argument("run_dir")
     u = sub.add_parser("universe")
@@ -589,6 +644,21 @@ def main(argv=None) -> int:
         syms = (universe(con, a.symbols.split(":", 1)[1]) if a.symbols.startswith("universe:")
                 else [s.strip() for s in Path(a.symbols).read_text(encoding="utf-8").split() if s.strip()])
         crawl(con, syms, a.sleep)
+    elif a.cmd == "crawl-edgar":
+        import edgar
+        for line in Path(a.companies).read_text(encoding="utf-8").splitlines():
+            parts = line.split()
+            if len(parts) < 2 or line.startswith("#"):
+                continue
+            facts = edgar.get_json(edgar.FACTS % int(parts[1]), HOME / "_cache" / "edgar" / ("companyfacts_%010d.json" % int(parts[1])))
+            print("%s: %d facts" % (parts[0], ingest_edgar(con, parts[0].upper(), facts, int(parts[2]) if len(parts) > 2 else 12)))
+            time.sleep(a.sleep)
+    elif a.cmd == "ingest-us-prices":
+        import edgar
+        for sym in Path(a.symbols).read_text(encoding="utf-8").split():
+            rows = edgar.prices(sym, HOME / "_cache" / "edgar", a.years)
+            print("%s: %d closes" % (sym.upper(), ingest_us_prices(con, sym.upper(), rows, "api.nasdaq.com (unofficial)")))
+            time.sleep(a.sleep)
     elif a.cmd == "promote":
         print("%d facts promoted" % promote(con, Path(a.run_dir)))
     elif a.cmd == "facts":

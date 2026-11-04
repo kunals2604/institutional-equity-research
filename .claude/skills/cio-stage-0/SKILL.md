@@ -41,6 +41,15 @@ description: The CIO's Stage 0: preflight, acquisition, the reading stage or the
       registers what it finds (`document_map.py add`); re-run `reading.py fetch-filings` if it added filings. Put every remaining gap, with
       the librarian's attempt log, into the brief and the gap register; put every cross-check flag into the brief (which
       copy to use) and list suspected local-library defects for the owner.
+   **A US run** (`jurisdiction` US in the manifest, from a NYSE or NASDAQ listing; `config/jurisdictions/US.json`):
+   set `EQUITY_RESEARCH_USER_AGENT` to the owner's name and contact first (www.sec.gov refuses clients that do not
+   say who they are). Steps 1 and 3 become `python3 scripts/edgar.py index --run RUN_DIR --cik <CIK>` (the filings,
+   merged into the same exchange index) and `python3 scripts/edgar.py facts --run RUN_DIR --cik <CIK>` (XBRL company
+   facts into `calc/xbrl_facts.csv`, USD million); find the CIK with `edgar.py cik TICKER`. Step 2 runs as written: the
+   10-Ks are the annual reports. There are no structured exchange filings (voting results come from 8-K Item 5.07),
+   and earnings-call transcripts are not filed with the SEC, so the librarian looks for them on the IR site. The
+   risk-free rate is `edgar.py treasury --date <cutoff>`; daily prices `edgar.py prices TICKER --run RUN_DIR`.
+   Select `us_filings` among the sector modules, and `us_banks` or `us_reits` where they apply.
 9b. **The outside view of the company's history:** `python3 scripts/agent_driver.py events RUN_DIR` (Bash, in the
    background). The `historian` (Sonnet) builds a dated timeline of the company's major events over ten years from news,
    the web, the exchanges' indexes, rating agencies and regulators, each with the source it opened

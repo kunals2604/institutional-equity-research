@@ -1,0 +1,31 @@
+{
+ "_about": "United States: what a run's sources, units and words are. Read by scripts/jurisdiction.py. Measured 2026-11-04: data.sec.gov serves submissions and XBRL company facts (HTTP 200); www.sec.gov (the ticker list, filing documents) answers 403 without a declared user agent; Stooq now sits behind a JavaScript bot check and is not used; Nasdaq's quote API serves ten years of daily split-adjusted closes (unofficial); home.treasury.gov serves the daily par yield curve; no free S&P 500 total-return series was found.",
+ "code": "US",
+ "name": "United States",
+ "exchanges": ["NYSE", "NASDAQ", "NYSE-AMERICAN"],
+ "currency": "USD",
+ "unit": "USD million",
+ "unit_words": ["million", "billion", "thousand"],
+ "fiscal_year_end": "12-31",
+ "accounting": "US GAAP (foreign private issuers: IFRS on Form 20-F)",
+ "filings": {
+  "annual_report": "Form 10-K (Item 1 business, 1A risk factors, 7 MD&A, 8 financial statements, 9A controls); 20-F for foreign private issuers",
+  "results": "Form 10-Q (quarterly); earnings releases on Form 8-K, Item 2.02",
+  "events": "Form 8-K (current reports, by item)",
+  "governance": "Proxy statement, DEF 14A (board, executive pay, related-person transactions, auditor)",
+  "ownership": "Schedules 13D and 13G; Forms 3, 4 and 5 (insiders); 13F (institutions)",
+  "related_parties": "Related-person transactions (Regulation S-K Item 404, in the proxy and the 10-K)"
+ },
+ "sources": {
+  "index": "scripts/edgar.py index (EDGAR submissions, data.sec.gov)",
+  "facts": "scripts/edgar.py facts (XBRL company facts, us-gaap, data.sec.gov)",
+  "prices": "scripts/edgar.py prices (Nasdaq quote API: unofficial, split-adjusted, not dividend-adjusted)",
+  "structured": "none yet: proxy voting results come from 8-K Item 5.07"
+ },
+ "risk_free": {"series": "US 10-year Treasury par yield", "source": "home.treasury.gov daily par yield curve (scripts/edgar.py treasury)"},
+ "benchmark": {"name": "S&P 500 (SPY price return)", "kind": "price return", "source": "Nasdaq quote API; no free total-return series was found, so dividends (about 1.5 % a year) are left out and outcome comparisons say so"},
+ "regulators": {"securities": "SEC", "audit": "PCAOB", "banking": "Federal Reserve, OCC, FDIC", "insurance": "state regulators, NAIC", "courts": "federal and state courts; SEC enforcement releases"},
+ "vocabulary": {"controlling_holder": "controlling shareholder (or a dual-class founder)", "promoter_group": "affiliates and 13D filers", "related_party_approval": "audit committee review of related-person transactions (Item 404)"},
+ "user_agent": "SEC asks every automated client to declare who it is: set EQUITY_RESEARCH_USER_AGENT to a name and contact address before a US run (netfetch.py sends it to sec.gov only)",
+ "status": "built and tested on stored real EDGAR data; no US run has been made"
+}

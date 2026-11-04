@@ -169,7 +169,8 @@ def git_batch_done(run: Path, batch: str) -> bool:
 
 CHECKS: Dict[str, Callable[[Path], bool]] = {
     "identity_done": lambda r: bool((manifest(r).get("price") or {}).get("value")) and filled(r, "research_brief.md"),
-    "document_map_built": lambda r: exists(r, "corpus/DOCUMENT_MAP.md", "corpus/STRUCTURED.md"),
+    "document_map_built": lambda r: exists(r, "corpus/DOCUMENT_MAP.md") and (
+        exists(r, "corpus/STRUCTURED.md") or (manifest(r).get("jurisdiction") or "IN") != "IN"),
     "no_document_gaps": lambda r: not missing_documents(r) or invoked(r, "librarian"),
     "events_done": lambda r: exists(r, "corpus/events.csv", "corpus/EVENTS.md"),
     "facts_materialised": lambda r: exists(r, "corpus/facts/FACTS.md"),

@@ -189,6 +189,16 @@ Structure of each playbook: economics, KPIs, accounting and forensic traps, cycl
 - **Ground truth:** The listed subsidiaries' own ground-truth series; market values of listed holdings on the same date (exchange data); the record of dividends actually upstreamed to the holding company.
 
 
+## 19. United States: what changes for a US company (v4.0)
+
+- **Economics:** the same method; the filings, the regulators and the market structure differ. `config/jurisdictions/US.json` maps the methodology's Indian words (promoter, SEBI, Ind AS) to their US meaning, and every specialist brief of a US run carries that mapping.
+- **KPIs:** GAAP against non-GAAP in every earnings release (8-K Item 2.02); stock-based compensation as a real cost, and the share count after buybacks; for banks, uninsured deposits, unrealised losses on held-to-maturity securities and CET1 under US Basel III; for REITs, FFO and AFFO on the NAREIT definition.
+- **Traps:** adjusted metrics that exclude recurring costs; buybacks that only offset stock compensation; dual-class control that the proxy discloses but the 10-K does not stress; a 10b5-1 plan that times insider selling; going-concern and material-weakness language in Item 9A.
+- **Valuation:** the risk-free rate is the 10-year Treasury par yield on the cutoff date (`edgar.py treasury`); the benchmark available free is SPY's price return, stated as such (no free total-return series was found).
+- **Layer questions to test:** L1: is per-share value compounding after stock compensation and dilution? L3: activist 13D filings, spin-offs (Form 10), and index changes as catalysts.
+- **Sources:** EDGAR (10-K, 10-Q, 8-K, DEF 14A, Forms 3/4/5, 13D/G, comment letters), PCAOB inspection reports, FFIEC call reports for banks, SEC enforcement releases, PACER for litigation.
+- **Ground truth:** call reports and regulator data for banks; industry associations and government statistics (BLS, Census, EIA) for operating series.
+
 ## Sector modules (methodology 3.2.0)
 
 Required method steps the CIO switches on per run (`sector_modules` in the run manifest, set in Stage 0; `[]` with a note when none applies). Each step is owned by one specialist, appears in that specialist's brief, needs its own row (naming the step id) in its Method Coverage Checklist, and, where `metrics` are named, a Done row needs ledger claims with those metric keys covering at least `min_periods` periods each (`verify.py`: `SECTOR_MODULE_EVIDENCE`).
@@ -827,6 +837,86 @@ Required method steps the CIO switches on per run (`sector_modules` in the run m
      "owner": "valuation",
      "step": "Segment SOTP",
      "require": "each unlisted segment's cash generation and value by its own method, reconciled to the consolidated value",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "us_filings": {
+   "playbook": "§19",
+   "title": "US filings and disclosure",
+   "steps": [
+    {
+     "id": "USF-1",
+     "owner": "filings",
+     "step": "Controls, auditor and restatements",
+     "require": "10-K Item 9A (material weaknesses), the auditor's report with critical audit matters, PCAOB inspection findings on the auditor, 8-K Item 4.01/4.02 (auditor changes, non-reliance), and SEC comment letters (CORRESP, UPLOAD) for 10 years",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "USF-2",
+     "owner": "management",
+     "step": "Proxy, control and insiders",
+     "require": "DEF 14A for 10 years: pay versus performance, related-person transactions (Item 404), dual-class or other control, board independence; Forms 3/4/5 and 10b5-1 plans; Schedules 13D and 13G",
+     "metrics": [],
+     "min_periods": 0
+    },
+    {
+     "id": "USF-3",
+     "owner": "financials",
+     "step": "GAAP, non-GAAP and stock compensation",
+     "require": "the GAAP to non-GAAP reconciliation in every 8-K Item 2.02 release for 12 quarters; stock-based compensation as a cost; diluted shares net of buybacks for 10 years",
+     "metrics": [
+      "shares_diluted"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "USF-4",
+     "owner": "valuation",
+     "step": "US risk-free rate and benchmark",
+     "require": "the 10-year Treasury par yield on the cutoff date (scripts/edgar.py treasury) and the benchmark stated as price return where no total-return series is available",
+     "metrics": [
+      "risk_free_rate"
+     ],
+     "min_periods": 1
+    }
+   ]
+  },
+  "us_banks": {
+   "playbook": "§19",
+   "title": "US banks",
+   "steps": [
+    {
+     "id": "USB-1",
+     "owner": "financials",
+     "step": "Call reports and the deposit base",
+     "require": "FFIEC call reports for 10 years: deposits, the uninsured share, unrealised losses on held-to-maturity and available-for-sale securities against equity, CET1 under US Basel III",
+     "metrics": [
+      "deposits"
+     ],
+     "min_periods": 10
+    },
+    {
+     "id": "USB-2",
+     "owner": "bear-case",
+     "step": "A 2023-style deposit run",
+     "require": "the bank's equity after marking held-to-maturity securities to market with the uninsured deposits withdrawn, as at the 2023 regional-bank failures",
+     "metrics": [],
+     "min_periods": 0
+    }
+   ]
+  },
+  "us_reits": {
+   "playbook": "§19",
+   "title": "US REITs",
+   "steps": [
+    {
+     "id": "USR-1",
+     "owner": "financials",
+     "step": "FFO and AFFO",
+     "require": "FFO on the NAREIT definition and AFFO (after recurring capex and straight-line rent) reconciled to GAAP net income for 10 years; occupancy and the lease-expiry schedule",
      "metrics": [],
      "min_periods": 0
     }

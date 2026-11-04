@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import jurisdiction  # noqa: E402
 import lineage  # noqa: E402
 import research_lib as rl  # noqa: E402
 import switches  # noqa: E402
@@ -54,8 +55,8 @@ def main(argv=None) -> int:
     p.add_argument("--company")
     p.add_argument("--exchange", help="one of %s (others allowed with a warning)" % ", ".join(EXCHANGES))
     p.add_argument("--segment", choices=["main", "sme"])
-    p.add_argument("--currency", default="INR")
-    p.add_argument("--fy-end", default="03-31", help="MM-DD fiscal year end")
+    p.add_argument("--currency", default=None, help="default: the jurisdiction's (config/jurisdictions/)")
+    p.add_argument("--fy-end", default=None, help="MM-DD fiscal year end (default: the jurisdiction's usual one)")
     p.add_argument("--isin", default="unknown")
     p.add_argument("--cutoff", default=None, help="YYYY-MM-DD (default: today, UTC)")
     p.add_argument("--replay", action="store_true", help="a historical replay: it never touches the scoreboard, the latest-run "
@@ -116,6 +117,14 @@ def main(argv=None) -> int:
         p.error("company name is required")
     if exchange not in EXCHANGES:
         print("WARNING: exchange %r not in %s" % (exchange, EXCHANGES), file=sys.stderr)
+    try:
+        juris = jurisdiction.for_exchange(exchange)
+    except ValueError:
+        juris = jurisdiction.DEFAULT
+        print("WARNING: exchange %r is in no jurisdiction file; the run is treated as Indian" % exchange, file=sys.stderr)
+    jdef = jurisdiction.load(juris)
+    a.currency = a.currency or jdef["currency"]
+    a.fy_end = a.fy_end or jdef["fiscal_year_end"]
     if exchange.endswith("-SME") and a.segment != "sme":
         p.error("exchange %s implies --segment sme" % exchange)
     try:
@@ -191,6 +200,7 @@ def main(argv=None) -> int:
         "ticker": ticker,
         "company": company,
         "exchange": exchange,
+        "jurisdiction": juris,
         "listing_segment": a.segment,
         "isin": a.isin,
         "currency": a.currency,

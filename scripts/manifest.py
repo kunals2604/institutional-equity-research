@@ -26,7 +26,7 @@ STATUSES = ("preflight", "specialists_running", "specialists_complete", "special
             "synthesis", "qc_auto_passed", "qc_auto_failed", "complete", "insufficient_evidence",
             "qc_failed", "failed", "interrupted", "stopped_gate")
 PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay", "profile", "switches",
-             "parent_run"}
+             "parent_run", "jurisdiction"}
 FROZEN_AT_START = {"research_cutoff", "sector_modules", "fiscal_year_end"}
 
 

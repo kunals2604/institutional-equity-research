@@ -101,8 +101,8 @@ class ScanTests(Tmp):
 
     def test_market_value_follows_a_bonus_after_the_filing(self):
         g = self.rows["GOOD"]
-        self.assertAlmostEqual(g["market_cap_cr"], 2e8 * g["close"] / 1e7, places=6, msg="1e8 shares filed, doubled by the bonus")
-        self.assertAlmostEqual(g["earnings_yield"], 150 / g["market_cap_cr"])
+        self.assertAlmostEqual(g["market_cap"], 2e8 * g["close"] / 1e7, places=6, msg="INR crore; 1e8 shares filed, doubled by the bonus")
+        self.assertAlmostEqual(g["earnings_yield"], 150 / g["market_cap"])
 
     def test_a_bonus_is_not_a_crash_or_a_dilution(self):
         g = self.rows["GOOD"]

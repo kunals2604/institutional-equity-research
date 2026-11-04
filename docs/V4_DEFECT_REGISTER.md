@@ -154,6 +154,13 @@ extraction of every non-lender filing on disk is unchanged except for W4.
 | W6 | L | Values wrong as filed pass through | Bajaj Finance's FY2026 NCI in rupees inside a table in lakhs (larger than total assets): the warehouse rejects that class and records it. HDFC Bank's FY2019 consolidated profit (39,689 crore against 21,078 standalone) is implausible but passes as filed | `warehouse.implausible` | Partly fixed: screens use XBRL as leads |
 | O1 | H | No free source for BSE-only companies' results | BSE prices ingest through the NSE parser, but no BSE results index was found (the run's BSE indexer reads annual reports and announcements; no documented endpoint). About 1,200 of BSE's 4,275 equities are not on NSE | `warehouse.py` | **Open, release item**: measure the endpoint bseindia.com's results pages call (browser network log) before building |
 
+## Open items for the release (Steps 9 onward)
+
+| ID | Sev | Item | What is known | Status |
+|---|---|---|---|---|
+| O2 | M | Verdicts are not yet judged against a benchmark | `outcomes.py` scores predictions (Brier) and price triggers; no verdict is compared with the index over its holding period. India: Nifty 500 TRI (`connectors.py` index TRI). US: SPY price return only, because no free total-return series was found (measured 2026-11-04) | **Open, release item** |
+| O3 | M | The US path has never met a live run | EDGAR index and facts, Nasdaq prices and the Treasury rate are tested on stored real data (Apple). `document_map.py build` on EDGAR rows, downloads from www.sec.gov (they need `EQUITY_RESEARCH_USER_AGENT`) and a US specialist brief have not run live | Open: the first US run is its test |
+
 ## Warnings where the documents imply a block
 
 Layer-fit deviation over 10 points (`synthesis.py:1145`); over-budget packet (`:1228`); placeholder contradiction log, empty
