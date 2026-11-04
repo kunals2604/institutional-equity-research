@@ -158,7 +158,7 @@ extraction of every non-lender filing on disk is unchanged except for W4.
 
 | ID | Sev | Item | What is known | Status |
 |---|---|---|---|---|
-| O2 | M | Verdicts are not yet judged against a benchmark | `outcomes.py` scores predictions (Brier) and price triggers; no verdict is compared with the index over its holding period. India: Nifty 500 TRI (`connectors.py` index TRI). US: SPY price return only, because no free total-return series was found (measured 2026-11-04) | **Open, release item** |
+| O2 | M | Verdicts were not judged against a benchmark | `outcomes.py` scored predictions (Brier) and set verdicts against the hurdle only. Each judged verdict now also carries the market's return over the same months and the excess: Nifty 500 TRI (India), SPY price return (US; no free total-return series was found, measured 2026-11-04). The company's return excludes dividends, which the log states | Fixed (`outcomes.benchmark_return`) |
 | O3 | M | The US path has never met a live run | EDGAR index and facts, Nasdaq prices and the Treasury rate are tested on stored real data (Apple). `document_map.py build` on EDGAR rows, downloads from www.sec.gov (they need `EQUITY_RESEARCH_USER_AGENT`) and a US specialist brief have not run live | Open: the first US run is its test |
 
 ## Warnings where the documents imply a block

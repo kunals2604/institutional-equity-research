@@ -1345,6 +1345,8 @@ class Engine:
     def __init__(self, run_dir: Path, claude: str, opts, log=print):
         self.run_dir = run_dir
         self.claude = claude
+        # One-shot reads go through the CLI (plan) or the Message Batches API (batch; scripts/batch_transport.py).
+        self.transport = rl.run_switch(run_dir, "reading_transport") if (run_dir / rl.RUN_MANIFEST).exists() else "plan"
         self.o = opts
         self._log = log
         self.lock = threading.RLock()
@@ -1633,7 +1635,17 @@ class Engine:
                 sess["pid"] = pid
                 self.update_record(a, runner="headless", sessions=sessions)
             out = logs / ("%s-%s-%d.jsonl" % (a.label, sess["session_id"][:8], len(sess["attempts"]) + 1))
-            got = self.run_process(cmd, out, a.label, on_start, a.message(kind, message) if a.oneshot else None, transcript)
+            if a.oneshot and self.transport == "batch":
+                import batch_transport
+                try:
+                    got = batch_transport.call(self.run_dir, a.model, a.effort, a.system_file, kind, a.message(kind, message),
+                                               sess, log=lambda m: self.log("%s: %s" % (a.label, m)))
+                except batch_transport.BatchError as exc:
+                    self.stop = self.stop or str(exc)
+                    self.log("%s: %s" % (a.label, exc))
+                    return self.pause(a, sessions, sess)
+            else:
+                got = self.run_process(cmd, out, a.label, on_start, a.message(kind, message) if a.oneshot else None, transcript)
             sess["pid"] = None
             res = got["result"] or {}
             total = res.get("total_cost_usd")            # the CLI reports a session's cost cumulatively across resumes
@@ -1809,7 +1821,10 @@ class Engine:
 
     def new_session(self, a: Assignment, sessions: List[dict], tdir: Path) -> dict:
         sid = str(uuid.uuid4())
-        sess = {"session_id": sid, "runner": "headless", "transcript": str(tdir / ("%s.jsonl" % sid)),
+        if a.oneshot and self.transport == "batch":   # its transcript is written by batch_transport, in the run
+            tdir = self.run_dir / "_cache" / "engine" / "batch"
+        sess = {"session_id": sid, "runner": "batch" if a.oneshot and self.transport == "batch" else "headless",
+                "transcript": str(tdir / ("%s.jsonl" % sid)),
                 "started_at": reading.now_iso(), "model": a.model, "effort": a.effort, "claude": self.version,
                 "attempts": []}
         sessions.append(sess)

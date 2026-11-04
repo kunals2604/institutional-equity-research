@@ -405,7 +405,8 @@ def check_methodology(rep):
 def check_contracts(rep):
     rep.add("example scorecard satisfies schema", rl.validate_scorecard(ROOT / "templates" / "scorecard.example.json").ok)
     header, _ = rl.read_csv(rl.SCOREBOARD) if rl.SCOREBOARD.exists() else ([], [])
-    rep.add("scoreboard has exactly the required columns", header == sb.COLUMNS, "header=%s" % header)
+    rep.add("scoreboard has exactly the required columns (or the pre-4.0 ones, until the next finalization)",
+            header in (sb.COLUMNS, sb.LEGACY_COLUMNS), "header=%s" % header)
     rep.add("scoreboard has both score columns",
             {"business_quality_score", "investment_attractiveness_score"} <= set(header))
     errs = sb.validate_file(rl.SCOREBOARD, check_runs=True)

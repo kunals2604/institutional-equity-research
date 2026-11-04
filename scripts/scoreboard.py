@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """COMPANY_SCOREBOARD.csv: compact screening index, one row per company.
 
-Schema is deliberately minimal: identification + the run metadata needed to
-interpret the two scores + the two scores. No commentary, layers or verdicts
-(those live in the run directory referenced by latest_run_id).
+Identification, the run metadata needed to interpret the scores, the two scores, and (from methodology 4.0.0) six short
+fields that let the owner sort and compare without opening each run: the depth preset, the verdict, the primary layer,
+the sector modules, the scores' confidence and the five-year expected return. No commentary: the reasoning lives in the
+run directory referenced by latest_run_id. A row from before 4.0.0 carries `n/a` in the six; a file with the older
+header is read as such and written with the new one at the next finalization.
 
 Writes are serialized with an exclusive file lock, re-read inside the lock,
 written to a temp file, fsynced, atomically replaced, then re-verified.
@@ -27,11 +29,15 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import research_lib as rl  # noqa: E402
 
-COLUMNS = [
+LEGACY_COLUMNS = [
     "company", "ticker", "exchange", "assessment_date", "latest_run_id",
     "price", "currency", "price_timestamp", "methodology_version",
     "business_quality_score", "investment_attractiveness_score",
 ]
+V4_COLUMNS = ["preset", "verdict", "primary_layer", "sector", "confidence", "expected_irr_5y"]
+COLUMNS = LEGACY_COLUMNS + V4_COLUMNS
+NOT_RECORDED = "n/a"
+CONFIDENCE = ("Low", "Medium", "High")
 
 
 class ScoreboardError(Exception):
@@ -53,6 +59,8 @@ def read_rows(board: Path) -> List[Dict[str, str]]:
     if not board.exists() or board.stat().st_size == 0:
         return []
     header, rows = rl.read_csv(board)
+    if header == LEGACY_COLUMNS:                   # before 4.0.0: the six fields were not recorded
+        return [dict(r, **{c: NOT_RECORDED for c in V4_COLUMNS}) for r in rows]
     if header != COLUMNS:
         raise ScoreboardError("scoreboard header %s != expected %s" % (header, COLUMNS))
     return rows
@@ -68,6 +76,16 @@ def validate_rows(rows: List[Dict[str, str]]) -> List[str]:
         for col in COLUMNS:
             if not (r.get(col) or "").strip():
                 errors.append("row %d: empty %s" % (i, col))
+        v4 = rl.version_tuple(r.get("methodology_version") or "0") >= rl.V40
+        for col in V4_COLUMNS:
+            if v4 and (r.get(col) or "").strip() == NOT_RECORDED and col != "sector":
+                errors.append("row %d: %s is required from methodology 4.0.0" % (i, col))
+        conf = (r.get("confidence") or "").strip()
+        if conf != NOT_RECORDED and not all(x in CONFIDENCE for x in conf.split("/")):
+            errors.append("row %d: confidence %r is not Low, Medium or High (business quality/attractiveness)" % (i, conf))
+        irr = (r.get("expected_irr_5y") or "").strip()
+        if irr != NOT_RECORDED and not re.fullmatch(r"-?\d+(\.\d+)?", irr):
+            errors.append("row %d: expected_irr_5y %r is not a number" % (i, irr))
         for col in ("business_quality_score", "investment_attractiveness_score"):
             v = (r.get(col) or "").strip()
             if not re.fullmatch(r"\d{1,3}", v) or not 0 <= int(v) <= 100:
@@ -87,7 +105,12 @@ def write_header_if_missing(board: Path) -> None:
 
 
 def upsert(board: Path, row: Dict[str, str]) -> None:
-    """Insert or replace the row for (ticker, exchange). Refuses to replace a newer run."""
+    """Insert or replace the row for (ticker, exchange). Refuses to replace a newer run. A row from before 4.0.0 may
+    leave out the six newer fields: they are recorded as not recorded."""
+    row = dict(row)
+    for c in V4_COLUMNS:
+        if str(row.get(c, "")).strip() == "" and rl.version_tuple(str(row.get("methodology_version") or "0")) < rl.V40:
+            row[c] = NOT_RECORDED
     missing = [c for c in COLUMNS if str(row.get(c, "")).strip() == ""]
     if missing:
         raise ScoreboardError("new row missing %s" % missing)

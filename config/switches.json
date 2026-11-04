@@ -390,7 +390,5 @@
   "--weekly-ceiling",
   "--what"
  ],
- "not_yet_wired": {
-  "reading_transport": "batch, Step 10"
- }
+ "not_yet_wired": {}
 }

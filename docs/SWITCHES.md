@@ -155,12 +155,6 @@ The default is **standard**.
 - **May cost in confidence:** None.
 - **Can change:** until specialists.
 
-## Not wired yet
-
-These do nothing yet. The release gate refuses v4.0.0 while any is listed.
-
-- `reading_transport`: batch, Step 10
-
 ## Combinations
 
 - With `reading` off, `digest` on: with reading off the digest is Stage 0.

@@ -28,6 +28,11 @@ useful from the first run. Specialists never see any of this (independence): it 
 
 Prices are NSE bhavcopy closes (`market_data.py`), not adjusted for splits or bonuses since the decision: a close
 less than half or more than twice the decision price is flagged for the CIO to check corporate actions.
+
+Each judged verdict is also set against the market over the same months (v4.0): the Nifty 500 TRI for an Indian
+company, SPY's price return for a US one (no free total-return series was found). The company's own return is its price
+change without dividends, so against a total-return index a high-yield stock is judged slightly against itself; the
+log names the benchmark on every row.
 """
 
 import argparse
@@ -57,6 +62,29 @@ LOG_BEGIN, LOG_END = "<!-- OUTCOMES:BEGIN -->", "<!-- OUTCOMES:END -->"
 MIN_MONTHS = 6                  # a verdict is judged on price only after six months
 
 Quote = Callable[[str, dt.date], Optional[dict]]
+# (jurisdiction, start, end) -> (return over the period, what the benchmark is) or None when it cannot be had
+Bench = Callable[[str, dt.date, dt.date], Optional[Tuple[float, str]]]
+
+
+def benchmark_return(root: Path, juris: str, start: dt.date, end: dt.date) -> Optional[Tuple[float, str]]:
+    """The jurisdiction's benchmark over a verdict's holding period. India: the Nifty 500 total-return index
+    (niftyindices.com, through connectors.py). US: SPY's price return from the Nasdaq quote API, because no free
+    total-return series was found (measured 2026-11-04): dividends, about 1.5 % a year, are left out, and the label says so."""
+    cache = out_dir(root) / "_cache" / "benchmark"
+    cache.mkdir(parents=True, exist_ok=True)
+    try:
+        if juris == "US":
+            import edgar
+            rows = [r for r in edgar.prices("SPY", cache, years=max(1, end.year - start.year + 1), end=end.isoformat(), asset="etf")
+                    if start.isoformat() <= r["date"] <= end.isoformat() and r["close"]]
+            return (rows[-1]["close"] / rows[0]["close"] - 1, "SPY price return (dividends not included)") if len(rows) > 1 else None
+        import connectors
+        path = connectors.tri(cache, "outcomes", "NIFTY 500", start.strftime("%d-%b-%Y"), end.strftime("%d-%b-%Y"))
+        series = [float(r["total_return_index"]) for r in read_rows(path) if (r.get("total_return_index") or "").strip()]
+        return (series[-1] / series[0] - 1, "Nifty 500 TRI") if len(series) > 1 else None
+    except Exception as exc:                          # a benchmark that cannot be fetched is reported, never invented
+        print("benchmark for %s %s..%s unavailable: %s" % (juris, start, end, exc), file=sys.stderr)
+        return None
 
 
 def research_root(run_dir: Path) -> Path:
@@ -308,7 +336,8 @@ def brier(pairs: List[Tuple[float, int]]) -> Optional[float]:
     return sum((p - y) ** 2 for p, y in pairs) / len(pairs) if pairs else None
 
 
-def score(root: Path, today: dt.date, quote: Optional[Quote], log_path: Optional[Path] = None) -> dict:
+def score(root: Path, today: dt.date, quote: Optional[Quote], log_path: Optional[Path] = None,
+          bench: Optional[Bench] = None) -> dict:
     res = resolutions(root)
     preds = read_rows(out_dir(root) / "predictions.csv")
     resolved = [(p, 1 if res[(p["run_id"], p["id"])]["outcome"] == "hit" else 0) for p in preds
@@ -325,12 +354,19 @@ def score(root: Path, today: dt.date, quote: Optional[Quote], log_path: Optional
         start = _date(d["as_of_date"])
         months = (today - start).days / 30.44 if start else 0
         row = {"ticker": d["ticker"], "run_id": d["run_id"], "verdict": d["verdict"], "months": round(months, 1),
-               "return": None, "hurdle_pro_rata": None, "judged": "too early (< %d months)" % MIN_MONTHS}
+               "return": None, "hurdle_pro_rata": None, "judged": "too early (< %d months)" % MIN_MONTHS,
+               "benchmark": None, "benchmark_return": None, "excess_return": None, "against_benchmark": ""}
         if months >= MIN_MONTHS and quote:
             q = quote(d["ticker"], today)
             p0, hurdle = _num(d["price"]), _num(d["hurdle_rate"])
             if q and q.get("close") and p0:
                 ret = float(q["close"]) / p0 - 1
+                b = bench(juris_of(d), start, today) if bench else None
+                if b:                     # the market over the same months: a rising tide is not a right call
+                    excess = ret - b[0]
+                    row.update(benchmark=b[1], benchmark_return=b[0], excess_return=excess, against_benchmark=(
+                        ("beat" if excess > 0 else "lagged") if d["verdict"] in BUY_SIDE else
+                        ("right" if excess < 0 else "wrong") if d["verdict"] in SELL_SIDE else "not judged (%s)" % d["verdict"]))
                 if hurdle is None:          # no recorded hurdle: nothing to judge the return against, and never zero
                     row.update({"return": ret, "judged": "no hurdle recorded"})
                     verdicts.append(row)
@@ -353,6 +389,14 @@ def score(root: Path, today: dt.date, quote: Optional[Quote], log_path: Optional
     return out
 
 
+def juris_of(decision: dict) -> str:
+    try:
+        import jurisdiction
+        return jurisdiction.for_exchange(decision.get("exchange") or "NSE")
+    except ValueError:
+        return "IN"
+
+
 def fmt(x, pct=False) -> str:
     if x is None:
         return "-"
@@ -370,10 +414,12 @@ def write_log(out: dict, path: Path) -> None:
     lines += ["| Stated probability | Resolved | Mean stated | Came true |", "|---|---|---|---|"]
     lines += ["| %s | %d | %s | %s |" % (b["range"], b["n"], fmt(b["mean_probability"], True), fmt(b["hit_rate"], True))
               for b in out["buckets"]]
-    lines += ["", "| Company | Run | Verdict | Months | Return since | Hurdle pro rata | Judged |", "|---|---|---|---|---|---|---|"]
-    lines += ["| %s | %s | %s | %s | %s | %s | %s |" % (v["ticker"], v["run_id"], v["verdict"], v["months"],
-                                                         fmt(v["return"], True), fmt(v["hurdle_pro_rata"], True), v["judged"])
-              for v in out["verdicts"]]
+    lines += ["", "| Company | Run | Verdict | Months | Return since | Hurdle pro rata | Judged | Benchmark | Its return | "
+              "Excess | Against it |", "|---|---|---|---|---|---|---|---|---|---|---|"]
+    lines += ["| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |" % (
+        v["ticker"], v["run_id"], v["verdict"], v["months"], fmt(v["return"], True), fmt(v["hurdle_pro_rata"], True),
+        v["judged"], v.get("benchmark") or "", fmt(v.get("benchmark_return"), True), fmt(v.get("excess_return"), True),
+        v.get("against_benchmark") or "") for v in out["verdicts"]]
     if out["by_agent"]:
         lines += ["", "Resolved predictions by the agents whose claims they rested on (claim graph):", "",
                   "| Agent | Resolved | Brier |", "|---|---|---|"]
@@ -445,7 +491,7 @@ def main(argv=None) -> int:
         return 0
     log = rl.ROOT / "docs" / "CALIBRATION_LOG.md" if root.resolve() == (rl.ROOT / "research").resolve() else \
         out_dir(root) / "CALIBRATION_LOG.md"
-    out = score(root, today, quote, log)
+    out = score(root, today, quote, log, None if a.offline else (lambda j, s0, s1: benchmark_return(root, j, s0, s1)))
     print("resolved %d of %d; Brier %s; verdicts judged: %d" % (out["resolved"], out["predictions"], fmt(out["brier"]),
                                                                  sum(1 for v in out["verdicts"] if v["judged"] in ("right", "wrong"))))
     return 0

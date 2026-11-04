@@ -91,6 +91,13 @@ def main(argv=None) -> int:
             "methodology_version": manifest.get("methodology_version", rl.methodology_version()),
             "business_quality_score": sc["business_quality"]["final"],
             "investment_attractiveness_score": sc["investment_attractiveness"]["final"],
+            "preset": manifest.get("profile") or sb.NOT_RECORDED,
+            "verdict": sc.get("verdict") or sb.NOT_RECORDED,
+            "primary_layer": (sc.get("primary_layer") or sb.NOT_RECORDED).split(" \u2014 ")[0],
+            "sector": ";".join(manifest.get("sector_modules") or []) or sb.NOT_RECORDED,
+            "confidence": "%s/%s" % (sc["business_quality"].get("confidence") or "?", sc["investment_attractiveness"].get("confidence") or "?")
+                          if sc["business_quality"].get("confidence") else sb.NOT_RECORDED,
+            "expected_irr_5y": sc.get("expected_irr_5y") if sc.get("expected_irr_5y") is not None else sb.NOT_RECORDED,
         }
         board = Path(a.scoreboard)
         sb.write_header_if_missing(board)

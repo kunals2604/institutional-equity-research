@@ -230,6 +230,8 @@ def headless_sessions(run_dir: Path, tdir: Path) -> List[dict]:
         for s in l.get("sessions", []):
             name = "%s.jsonl" % s["session_id"]
             jl = tdir / name if (tdir / name).exists() else archived.get(name)
+            if s.get("runner") == "batch" and Path(s.get("transcript") or "").exists():
+                jl = Path(s["transcript"])          # a batch call's transcript lives in the run (batch_transport.py)
             if jl and s["session_id"] not in seen:
                 seen.add(s["session_id"])
                 out.append({"type": l["agent"], "description": "%s %s %s" % (l["agent"], run_id, l["id"]), "path": jl,

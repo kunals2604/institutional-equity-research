@@ -630,7 +630,8 @@ class TestScoreboard(unittest.TestCase):
                 "methodology_version": "2.1.0", "business_quality_score": bq, "investment_attractiveness_score": ia}
 
     def test_repo_scoreboard_schema(self):
-        self.assertEqual(rl.read_csv(rl.SCOREBOARD)[0], sb.COLUMNS)
+        self.assertIn(rl.read_csv(rl.SCOREBOARD)[0], (sb.COLUMNS, sb.LEGACY_COLUMNS),
+                      "the pre-4.0 header stands until the next finalization rewrites it")
         self.assertEqual(sb.validate_file(rl.SCOREBOARD, check_runs=True), [])
 
     def test_concurrent_writers_lose_no_rows(self):
