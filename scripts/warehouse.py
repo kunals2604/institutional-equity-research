@@ -322,6 +322,25 @@ def implausible(rows: List[dict]) -> List[Tuple[dict, str]]:
     return out
 
 
+def share_count(path: str, kind: str) -> Optional[float]:
+    """Equity shares outstanding at the filing's period end: paid-up equity capital over face value, both as filed
+    (measured on HDFC Bank's FY2024 filing: 759.69 crore of capital at a face value of 1, 7.6 billion shares)."""
+    import xbrl_facts as xf
+    if kind == "xbrl":
+        _contexts, facts, _text = xf.parse_xbrl(path)
+        paid = [v for (n, c), v in facts.items() if n == "PaidUpValueOfEquityShareCapital" and c in ("OneD", "FourD", "OneI")]
+        face = [v for (n, c), v in facts.items() if n == "FaceValueOfEquityShareCapital" and c in ("OneD", "FourD", "OneI")]
+        scale = 1.0
+    else:
+        scale, _nature, statements = xf.parse_integrated(path)
+        rows = [r for st in statements for r in st.get("rows", [])]
+        paid = [r["values"][-1] for r in rows if r["label"] == "paid-up equity share capital" and r["values"][-1]]
+        face = [r["values"][-1] for r in rows if r["label"] == "face value of equity share capital" and r["values"][-1]]
+    if not paid or not face or not face[0]:
+        return None
+    return paid[0] * scale / face[0]
+
+
 def crawl_symbol(con: sqlite3.Connection, symbol: str, index=results_index, download=None, pause: float = 0.3) -> int:
     """One company's annual results, each filing read on its own with the extraction a run uses (xbrl_facts), so a figure
     restated in a later filing is kept as a second version with its own known_at, never a silent overwrite. A filing
@@ -353,6 +372,12 @@ def crawl_symbol(con: sqlite3.Connection, symbol: str, index=results_index, down
                 continue
             add_fact(con, symbol, r["item"], r["period"], r["basis"], r["value"], r["unit"], f["known_at"], f["url"],
                      r["locator"], "1", "xbrl")
+            n += 1
+        years = sorted({r["period"] for r in rows if r["period"].startswith("FY")})
+        shares = share_count(str(local), f["kind"]) if years else None
+        if shares:
+            add_fact(con, symbol, "shares_outstanding", years[-1], f["basis"], shares, "shares", f["known_at"], f["url"],
+                     "paid-up equity share capital / face value", "1", "xbrl")
             n += 1
     con.commit()
     return n

@@ -99,11 +99,29 @@ def of_manifest(manifest: dict) -> Dict[str, object]:
     return values
 
 
+PRESET_ORDER = ("lean", "standard", "deep", "max")
+
+
+def rank(name: str, value) -> Optional[int]:
+    """How deep a switch value is: the first preset, lean to max, that uses it (None when no preset does)."""
+    profiles = presets()["profiles"]
+    for i, p in enumerate(PRESET_ORDER):
+        if name in profiles.get(p, {}).get("switches", {}) and profiles[p]["switches"][name] == value:
+            return i
+    return None
+
+
+def lighter(name: str, value, reference) -> bool:
+    a, b = rank(name, value), rank(name, reference)
+    return value != reference if a is None or b is None else a < b
+
+
 def below(values: Dict[str, object], reference: str = "deep") -> List[dict]:
-    """The switches set lighter than a preset, with what each leaves out."""
+    """The switches set lighter than a preset, with what each leaves out. A switch set deeper than the preset (effort
+    max, 15 years) is not lighter."""
     reg, ref = registry()["switches"], presets()["profiles"][reference]["switches"]
     return [dict(reg[k], name=k, value=values.get(k), reference=ref[k]) for k in reg
-            if k in values and values[k] != ref[k] and k not in ("spend_ceiling", "digest", "early_stop", "reading_transport")]
+            if k in values and lighter(k, values[k], ref[k]) and k not in ("spend_ceiling", "digest", "early_stop", "reading_transport")]
 
 
 def deepen_command(manifest: dict, target: str = "deep") -> str:

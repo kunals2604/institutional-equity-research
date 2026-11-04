@@ -160,7 +160,6 @@ The default is **standard**.
 These do nothing yet. The release gate refuses v4.0.0 while any is listed.
 
 - `reading_transport`: batch, Step 10
-- `--deepen`: the command Depth Disclosure prints, Step 8
 
 ## Combinations
 

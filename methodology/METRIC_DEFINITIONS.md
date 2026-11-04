@@ -51,6 +51,7 @@ Every agent uses these definitions. A ratio that means different things in diffe
 - equity_issued — Cash raised from equity issuance (positive)
 - shares_basic — Weighted-average basic shares
 - shares_diluted — Diluted share count (state year-end or weighted)
+- shares_outstanding — Equity shares outstanding at period end (paid-up equity capital ÷ face value, as filed)
 - dps — Dividend per share declared for the year
 - price — Share price at a stated timestamp
 - market_cap — price × shares outstanding at the same timestamp

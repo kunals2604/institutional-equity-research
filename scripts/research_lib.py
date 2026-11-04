@@ -80,7 +80,7 @@ AUDITOR_PREFIX = "AUD"
 # Workers (methodology 3.1.0): they acquire and read documents for everyone (Stage 0) or re-check claims at their
 # sources (the verifier, after each specialist); they hold no views, write no claim ledger and never score. Their model
 # and effort are pinned by methodology/MODEL_POLICY.md.
-WORKERS = ("reader", "critical-reader", "scanner", "librarian", "verifier", "historian", "digest")
+WORKERS = ("reader", "critical-reader", "scanner", "librarian", "verifier", "historian", "digest", "triage")
 # The synthesis pipeline (methodology 3.2.0, methodology/SYNTHESIS.md): theme analysts integrate and disposition the
 # evidence registry, layer analysts assess one investment layer each, section writers draft the report's evidence
 # sections. Their calculations carry SYN claim IDs (synthesis/ledgers/).

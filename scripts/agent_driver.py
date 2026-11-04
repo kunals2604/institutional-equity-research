@@ -142,7 +142,7 @@ def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
     raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
                     "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py", "archive_transcripts.py",
-                    "warehouse.py", "base_rates.py")
+                    "warehouse.py", "base_rates.py", "scan.py", "triage.py prepare", "triage.py record", "lineage.py")
 SLEEP_STOP = ("the machine went to sleep during this session, and every retry re-sends its context at the cost of real "
               "capacity. Keep the Mac on mains power with the lid open, then run the engine again; it resumes this session")
 SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "forecasting",
@@ -358,6 +358,8 @@ def independence_denies(run_dir: Path, me: str, review: bool = False) -> List[st
         out += [abs_rule("Read", run_dir, "/synthesis/**"), abs_rule("Read", run_dir, "/evidence_ledger.csv")]
     for d in other_runs(run_dir):
         out.append(abs_rule("Read", d, "/**"))
+    if me != "triage":                      # scans and tear sheets: a run's specialists start independent of them
+        out.append(abs_rule("Read", rl.ROOT, "/research/funnel/**"))
     out += [abs_rule("Read", rl.ROOT, "/archive/**"), abs_rule("Read", rl.ROOT, "/docs/**"),
             abs_rule("Read", rl.ROOT, "/COMPANY_SCOREBOARD.csv"), abs_rule("Read", rl.ROOT, "/research/companies/*/latest_run.txt")]
     return out + DENY_TRANSCRIPTS + DENY_SECRETS
@@ -776,6 +778,31 @@ def historian_assignment(run_dir: Path, prompt: str, years: int = 10) -> Assignm
                       fix_msg=("The timeline check still fails:\n%s\nFix every error, re-run python3 scripts/verify.py "
                                "events RUN_DIR until it passes, then give your one-line result."),
                       stage="0", purpose="the company's ten-year event timeline")
+
+
+def triage_assignment(tdir: Path, prompt: str) -> Assignment:
+    """The triage agent: one session, a tear sheet. It reads its pack and the web; it may not read the research runs, the
+    warehouse or the scoreboard (independence_denies treats every run as another's)."""
+    import triage
+    model, effort = reading.pinned(tdir, "triage")
+    sheet = tdir / triage.SHEET
+    allowed = ["Read", "WebSearch", "WebFetch", abs_rule("Write", sheet), abs_rule("Edit", sheet)] + [
+        "Bash(python3 scripts/%s:*)" % s for s in ("fetch_source.py", "triage.py check", "connectors.py")]
+    return Assignment(kind="triage", agent="triage", model=model, effort=effort, prompt=prompt, label="",
+                      tools=agent_tools("triage"), allowed=allowed,
+                      denied=[r for r in independence_denies(tdir, "triage")] + shell_denies(),
+                      dirs=run_paths(tdir), check=lambda: triage.errors(tdir), resume_msg=RESUME_MSG % triage.SHEET,
+                      fix_msg=("The tear sheet's check still fails:\n%s\nFix every error, re-run python3 scripts/triage.py "
+                               "check DIR until it passes, then give your one-line result."),
+                      stage="triage", purpose="KILL or CONTINUE before a full run")
+
+
+def triage_prompt(tdir: Path) -> str:
+    m = rl.load_json(tdir / rl.RUN_MANIFEST)
+    rel = reading.rel_run(tdir)
+    return ("You are the TRIAGE worker for %s (%s, %s), as of %s. DIR: %s\nRead %s/PACK.md, then write %s/TEAR_SHEET.md per "
+            "your definition and check it with python3 scripts/triage.py check %s." % (
+                m.get("company", ""), m.get("ticker", ""), m.get("exchange", ""), m.get("research_cutoff", ""), rel, rel, rel, rel))
 
 
 def historian_prompt(run_dir: Path, years: int = 10) -> str:
@@ -2602,6 +2629,8 @@ def main(argv=None) -> int:
     hs = sub.add_parser("events")
     common(hs, 120)
     hs.add_argument("--years", type=int, default=10)
+    tg = sub.add_parser("triage", help="the funnel (v4.0): one triage session on a directory from triage.py prepare")
+    common(tg, 90)
     sy = sub.add_parser("synthesis", help="Stage 3 (methodology 3.2.0): the synthesis pipeline's agent steps")
     common(sy, 150)
     sy.add_argument("--step", required=True, choices=["registry", "themes", "layers", "writers"])
@@ -2716,6 +2745,13 @@ def main(argv=None) -> int:
             if not job:
                 carry_on(eng, asg)
             return run_jobs(eng, [(asg, job)], 1)
+        if a.cmd == "triage":
+            job = open_job(eng, "triage", "triage")
+            asg = triage_assignment(run_dir, triage_prompt(run_dir))
+            if not job and not asg.check():
+                eng.log("triage: the tear sheet already passes its check; not run again")
+                return 0
+            return run_jobs(eng, [(asg, job)], 1)
         if a.cmd == "synthesis":
             return cmd_synthesis(eng, a.step, [x.strip() for x in a.only.split(",") if x.strip()], a.parallel)
         if a.cmd == "digest":
@@ -2789,6 +2825,8 @@ def dry_run(eng: Engine, a) -> int:
         asg = librarian_assignment(run_dir, "<prompt>")
     elif a.cmd == "events":
         asg = historian_assignment(run_dir, "<prompt>", a.years)
+    elif a.cmd == "triage":
+        asg = triage_assignment(run_dir, "<prompt>")
     else:
         asg = specialist_assignment(run_dir, a.agent, "<prompt>")
     print("next: %s (%s at %s)%s" % (asg.agent, asg.model, asg.effort, " on " + ", ".join(asg.chunks) if asg.chunks else ""))

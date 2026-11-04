@@ -25,7 +25,8 @@ import research_lib as rl  # noqa: E402
 STATUSES = ("preflight", "specialists_running", "specialists_complete", "specialists_incomplete",
             "synthesis", "qc_auto_passed", "qc_auto_failed", "complete", "insufficient_evidence",
             "qc_failed", "failed", "interrupted", "stopped_gate")
-PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay", "profile", "switches"}
+PROTECTED = {"run_id", "ticker", "started_at", "framework_commit", "methodology_version", "reading_mode", "replay", "profile", "switches",
+             "parent_run"}
 FROZEN_AT_START = {"research_cutoff", "sector_modules", "fiscal_year_end"}
 
 

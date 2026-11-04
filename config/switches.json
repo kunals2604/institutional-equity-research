@@ -248,6 +248,7 @@
   "--cutoff",
   "--date",
   "--days",
+  "--deepen",
   "--doc",
   "--doctypes",
   "--dom",
@@ -298,6 +299,7 @@
   "--message-file",
   "--metric",
   "--metrics",
+  "--min-traded-inr",
   "--model",
   "--n",
   "--name",
@@ -330,6 +332,7 @@
   "--reason",
   "--reference",
   "--reference-position",
+  "--refresh",
   "--remote",
   "--replan",
   "--replay",
@@ -369,6 +372,7 @@
   "--to",
   "--todate",
   "--tolerance",
+  "--top",
   "--transcripts",
   "--type",
   "--types",
@@ -384,7 +388,6 @@
   "--what"
  ],
  "not_yet_wired": {
-  "reading_transport": "batch, Step 10",
-  "--deepen": "the command Depth Disclosure prints, Step 8"
+  "reading_transport": "batch, Step 10"
  }
 }

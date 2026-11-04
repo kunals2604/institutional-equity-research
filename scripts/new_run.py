@@ -5,6 +5,8 @@ Usage (CIO, Stage 0):
   python3 scripts/new_run.py --ticker TVSMOTOR --company "TVS Motor Company Limited" \
       --exchange NSE --segment main --currency INR --fy-end 03-31 [--isin INE494B01023] \
       [--cutoff 2026-10-12] [--hurdle 0.12] [--reference-position 5000000] [--dry-run]
+  python3 scripts/new_run.py --deepen RUN_ID --profile deep      # the same question, deeper (scripts/lineage.py)
+  python3 scripts/new_run.py --refresh RUN_ID [--cutoff DATE]     # the same company after new results
 
 Prints the run directory path (relative to the repository root). Never
 overwrites an existing run. --dry-run prints the paths and plan and writes nothing.
@@ -20,6 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lineage  # noqa: E402
 import research_lib as rl  # noqa: E402
 import switches  # noqa: E402
 
@@ -42,10 +45,15 @@ def git_head(root: Path) -> str:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--ticker", required=True)
-    p.add_argument("--company", required=True)
-    p.add_argument("--exchange", required=True, help="one of %s (others allowed with a warning)" % ", ".join(EXCHANGES))
-    p.add_argument("--segment", choices=["main", "sme"], required=True)
+    child = p.add_mutually_exclusive_group()
+    child.add_argument("--deepen", metavar="RUN_ID", help="a child of RUN_ID at the same cutoff with deeper switches: it "
+                       "inherits Stage 0 and runs the rest again (scripts/lineage.py)")
+    child.add_argument("--refresh", metavar="RUN_ID", help="a child of RUN_ID at a later cutoff, after new results: it "
+                       "inherits the downloaded documents and does the rest again")
+    p.add_argument("--ticker")
+    p.add_argument("--company")
+    p.add_argument("--exchange", help="one of %s (others allowed with a warning)" % ", ".join(EXCHANGES))
+    p.add_argument("--segment", choices=["main", "sme"])
     p.add_argument("--currency", default="INR")
     p.add_argument("--fy-end", default="03-31", help="MM-DD fiscal year end")
     p.add_argument("--isin", default="unknown")
@@ -66,8 +74,30 @@ def main(argv=None) -> int:
                    help="the `reading` switch: on (Stage 0b: every in-scope page read) or off (Stage 0c: the web digest)")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args(argv)
+    relation = "deepen" if a.deepen else "refresh" if a.refresh else None
+    parent_dir, pm = None, {}
+    if relation:
+        try:
+            parent_dir = lineage.find_run(a.deepen or a.refresh, Path(a.root))
+        except ValueError as exc:
+            p.error(str(exc))
+        pm = rl.load_json(parent_dir / rl.RUN_MANIFEST)
+        a.ticker, a.company, a.exchange = pm["ticker"], pm["company"], pm["exchange"]
+        a.segment, a.currency, a.fy_end, a.isin = pm.get("listing_segment") or "main", pm.get("currency") or "INR", \
+            pm.get("fiscal_year_end") or "03-31", pm.get("isin") or "unknown"
+        a.held, a.cost_basis = bool(pm.get("held")), pm.get("cost_basis")
+        if relation == "deepen":
+            a.cutoff = a.cutoff or pm["research_cutoff"]
+    elif not (a.ticker and a.company and a.exchange and a.segment):
+        p.error("--ticker, --company, --exchange and --segment are required (or --deepen / --refresh RUN_ID)")
+    reading = ["reading=%s" % a.reading] if a.reading else []
     try:
-        resolved = switches.resolve(a.profile, a.set + (["reading=%s" % a.reading] if a.reading else []))
+        if relation and not a.profile:
+            base = switches.presets()["profiles"][pm.get("profile") or switches.presets()["default"]]["switches"]
+            inherited = ["%s=%s" % (k, v) for k, v in switches.of_manifest(pm).items() if k in base and base.get(k) != v]
+            resolved = switches.resolve(pm.get("profile"), inherited + a.set + reading)
+        else:
+            resolved = switches.resolve(a.profile, a.set + reading)
     except ValueError as exc:
         p.error(str(exc))
     sw = resolved["values"]
@@ -95,6 +125,10 @@ def main(argv=None) -> int:
     run_id = a.run_id or now.strftime("%Y%m%dT%H%M%SZ")
     if not rl.RUN_ID_RE.fullmatch(run_id):
         p.error("run id must look like 20261012T074500Z")
+    if relation:
+        bad = lineage.check_child(relation, pm, sw, cutoff)
+        if bad:
+            p.error("; ".join(bad))
     root = Path(a.root)
     company_dir = root / "research" / "companies" / ticker
     run_dir = company_dir / "runs" / run_id
@@ -199,11 +233,18 @@ def main(argv=None) -> int:
         "synthesis": {name: {"invocations": []} for name in rl.SYNTHESIS_ROLES},
         "notes": [],
     }
+    if relation:
+        manifest.update(lineage.inherited_manifest(pm, relation))
     rl.write_json(run_dir / rl.RUN_MANIFEST, manifest)
     rl.write_json(run_dir / "contract.json", run_contract(resolved))
     (run_dir / "engine").mkdir(exist_ok=True)
     rl.write_json(run_dir / "engine" / "templates.json", {rel: hashlib.sha256((run_dir / rel).read_bytes()).hexdigest()
                                                           for rel in TEMPLATED if (run_dir / rel).exists()})
+    if relation:
+        entry = lineage.inherit(parent_dir, run_dir, relation, sw)
+        rl.update_json(run_dir / rl.RUN_MANIFEST, lambda m: m.update(parent_run=entry))
+        print("%s of %s: %d files inherited (%.0f MB), %d paths rewritten to this run" % (
+            relation, entry["run_id"], entry["files"], entry["bytes"] / 1e6, entry["paths_rewritten"]), file=sys.stderr)
     print(rel)
     return 0
 

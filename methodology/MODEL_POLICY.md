@@ -35,6 +35,7 @@ If a task needs Sonnet at maximum effort to do well, it is a reasoning task and 
 | Downloads, structured filings, de-duplication, tables, tie-outs, page record, coverage tables, reading audit, scoring arithmetic | scripts | none | exact |
 | Finding documents the indexes missed | `librarian` | Sonnet · high | search and download; a script validates every file |
 | A dated ten-year timeline of the company's major events from news and the web (leads and a completeness check of the reading, never evidence) | `historian` | Sonnet · high | search and list; a script checks every row and that every source was opened |
+| Triage (v4.0): one session per company deciding whether a full run is worth it (KILL or CONTINUE), from a script-built pack and the web | `triage` | Opus · high | judgment, so Opus; high rather than xhigh because triage is the cheap tier by design and the full run carries the depth; a script checks the form and that every figure is in the pack or on a cited page |
 | Reading every chunk (one call, no tools) | `critical-reader` | Opus · high | Sonnet and Haiku cannot be primary (41–59 % and 46 % recall against 92 %); the check makes skipping visible |
 | The independent second read of non-critical sections, transcripts, presentations, filings | `scanner` | Haiku · high | conflicts are adjudicated by Opus; a class it matches in the run's own calibration may be read by it alone |
 | With the reading stage off (methodology 3.2.0): web summaries of the reports, transcripts and presentations, recorded as tier-6 leads in the reading schema; a script page-confirms them against the filings | `digest` | Sonnet · high | fully specified (plan and schema), checkable (each quote on its snapshot page, each amount in its quote, each page opened in its session), omissions detectable (a search-log row per document; `digest.py calibrate` against a run that read the same pages), no judgment |
@@ -71,6 +72,7 @@ the owner if it is not Opus at xhigh.
     "scanner": {"model": "haiku", "effort": "high", "kind": "worker"},
     "librarian": {"model": "sonnet", "effort": "high", "kind": "worker"},
     "historian": {"model": "sonnet", "effort": "high", "kind": "worker"},
+    "triage": {"model": "opus", "effort": "high", "kind": "worker"},
     "digest": {"model": "sonnet", "effort": "high", "kind": "worker"},
     "theme-analyst": {"model": "opus", "effort": "xhigh", "kind": "synthesis"},
     "layer-analyst": {"model": "opus", "effort": "xhigh", "kind": "synthesis"},

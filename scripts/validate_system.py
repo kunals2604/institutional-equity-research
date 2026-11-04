@@ -237,6 +237,10 @@ def check_agents(rep):
                 rep.add("digest can search the web: %s" % name, {"WebSearch", "WebFetch"} <= set(tools))
                 rep.add("digest checks its items with digest.py: %s" % name, "digest.py check" in text)
                 rep.add("digest records tier-6 leads only: %s" % name, "tier-6" in text.lower() or "tier 6" in text.lower())
+            elif name == "triage":
+                rep.add("triage can search the web: %s" % name, {"WebSearch", "WebFetch"} <= set(tools))
+                rep.add("triage checks its tear sheet with triage.py: %s" % name, "triage.py check" in text)
+                rep.add("triage gives no verdict or score: %s" % name, "No score" in text and "KILL" in text and "CONTINUE" in text)
             elif name == "librarian":
                 rep.add("librarian can search and fetch: %s" % name, {"WebSearch", "WebFetch", "Bash"} <= set(tools))
                 rep.add("librarian registers through the document map: %s" % name, "document_map.py add" in text)
