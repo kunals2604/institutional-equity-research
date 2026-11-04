@@ -31,10 +31,12 @@ judgment alongside.
 **What is proved, and what is not.** 694 tests and 438 system checks pass; the golden replay of Bharti is unchanged.
 All of it runs on scripts and fake agents. No agent of this version has met real data: the verifier, theme and layer
 analysts, writers, auditor and triage are proved in plumbing, not in judgment. The first live run is the acceptance test
-(BHARTIARTL at standard, with review pauses after the first specialist, the first theme and the first layer). Open
-before the release (`docs/V4_DEFECT_REGISTER.md`): **O1** (no free source yet for the results of BSE-only companies),
-**O3** (the US path has never met a live run), and the owner's confirmation of the gating labels
-(`tests/golden/gating_labels.csv`). `python3 scripts/release_gate.py` reports them.
+(BHARTIARTL at standard, with review pauses after the first specialist, the first theme and the first layer). Still
+open at the release (`docs/V4_DEFECT_REGISTER.md`): **O1** (no free source yet for the results of BSE-only companies;
+deferred by the owner on 2026-11-04, so `scan` and `triage` show those companies with prices only) and **O3** (the US
+path has never met a live run). The gating labels (`tests/golden/gating_labels.csv`) were reviewed and confirmed by
+Claude on the owner's delegation, 2026-11-04: the same model that wrote them, so they have had no independent human
+check. `python3 scripts/release_gate.py check` reports all of it.
 
 ## v3.2.0 — 2026-10-31 — The synthesis pipeline; the reading switch and the web digest; the forecasting specialist and sector modules
 
