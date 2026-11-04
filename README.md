@@ -1,53 +1,82 @@
 # Institutional Equity Research
 
-A Claude Code–native, multi-agent research system for evaluating listed companies (built with Indian equities in mind, but company-agnostic). A **CIO** acquires and cross-checks the company's filings (NSE, BSE, the IR site, the Internet Archive and the owner's local library), has **every in-scope page read once and recorded** by reader agents (critical sections read twice, by two different models), orchestrates **independent specialists** who start from the resulting dossiers, audits and adjudicates their evidence, assesses the company under all four investment layers, and issues two separate, calibrated scores and a verdict. An **independent auditor** then checks the draft before it can pass QC. Every material claim is traceable to a source location.
+A Claude Code–native, multi-agent research system for evaluating listed companies, run like a fund for one owner's
+capital. Indian equities (NSE and BSE) first; US companies (NYSE, NASDAQ) on the same method. A **CIO** (the main
+session) acquires and cross-checks the company's filings, runs eleven **independent specialists** that never see each
+other's work, verifies every specialist against its own sources, builds the report through a **synthesis pipeline**
+that gives every piece of evidence a recorded fate, and writes a **verdict that is a reasoned judgment**: scores,
+must-pass tests and the price ladder inform it as a computed guide shown beside it, and never decide it. An
+**independent auditor** checks the draft before it can pass QC, and the owner makes the final call. Every material
+claim is traceable to a source location.
 
 ```text
-/research-company "TVS Motor Company Limited" TVSMOTOR NSE
-/research-company --validate-only          # cheap configuration check, no research
+/scan 2026-11-04                                   # every company in the warehouse, as a lead list (scripts only)
+/triage TVSMOTOR                                   # one session: KILL, or CONTINUE with the questions to answer
+/research-company "TVS Motor Company Limited" TVSMOTOR NSE      # a full run, at the standard preset
+/run-status TVSMOTOR                               # where it is, what it has spent, how to go deeper
+/deepen <RUN_ID> --profile deep                    # the same question, deeper, reusing what was done
+/decide <RUN_DIR> --action buy --reason "..."      # the owner's own decision, recorded apart from the verdict
 ```
 
-## How it works
+## How a run moves
+
+`config/pipeline.json` lists the steps; `scripts/orchestrate.py` decides what comes next from the run's files alone
+(so a crash or a lost session loses nothing) and runs every script and engine step itself, stopping only where the CIO
+must judge. Each step ends when its check passes, never on an exit code.
 
 | Stage | What happens |
 |---|---|
-| 0 Preflight and acquisition | The CIO verifies that name, ticker and exchange identify one security, records the exchange close (bhavcopy) as the price, creates `research/companies/<T>/runs/<UTC RUN_ID>/`, then indexes NSE, BSE, the IR site and the Internet Archive, downloads and validates every core document (15 years of annual reports, 24 quarters of transcripts and presentations), and cross-checks them against the local corpus (`corpus/DOCUMENT_MAP.md`) |
-| 0b Reading | Every page of the latest 5 fiscal years' annual reports and the core sections (audit, statements and notes, Board's report, MD&A) of the 5 before, 24 quarters of transcripts, 12 of presentations and the forensic exchange filings is read once in small fresh contexts, as headless sessions outside the CIO's context (`agent_driver.py reading`, one at a time by default); a missing in-scope report blocks the plan until found or explained, and a document an earlier run read and audited is reused: `reader` agents (Sonnet) read everything, `critical-reader` agents (Opus) read the auditor's reports, CARO, critical notes, Board's report, AOC-1/2, secretarial audit and related-party filings again, independently, and every disagreement is resolved against the page. Sentences and whole tables that repeat word for word in another year are read once; labels, values and headings are always read, and pages with images, no reliable text or numbers to confirm are viewed on the rendered page. Every quote, and every number an item states, is checked against its passage by script; `corpus/reading/COVERAGE.md` records every page. |
-| 1 Independent research | Ten specialists, the separate heads of the fund, run **one at a time by default** (`--parallel` optional) as headless sessions of the engine (`agent_driver.py`), each finished and validated before the next, and **without seeing each other's work** (their sessions cannot read it, and the reading audit checks their transcripts): financials, filings, management, industry, moat, concalls, valuation, bear-case, special-situations and scuttlebutt (ground truth). Each writes a report and a claim ledger. |
-| 2 Completion barrier and gap closure | **The verification loop** has already checked each specialist against its own transcripts (every FACT value seen in a source it opened, every cited page opened, its reading pack read) and had an independent `verifier` agent re-open a sample of its claims at the sources, sending every discrepancy back to the specialist; `verify.py run` re-checks the whole research and the barrier fails until it passes. `scripts/validate_run.py --stage specialists` checks every deliverable, including each report's Method Coverage Checklist. Failures are re-invoked, never invented. Every Partial or Not available step goes into `cio/gap_register.md`, and closable gaps go back to the owning specialist. Git batch 1 is committed and pushed. |
-| 3 Adjudication | The CIO reads everything, re-verifies at least 12 decision-critical claims, recomputes at least 3 calculations, logs contradictions and runs targeted follow-ups. It then writes its own **independent analysis** (`cio/cio_analysis.md`), the synthesis, the four independent layer assessments and the thesis-disproof exercise, and **only then scores**: `build_scorecard.py` computes the scores from its judgments, and the robustness test sets the confidence |
-| 4 Audit, QC and publish | The **reading audit** checks from the agents' own transcripts that every reader received every line and every agent ran on its pinned model and effort; the **auditor** (fresh context) ties out the report's numbers, re-verifies a stratified claim sample at the source, recomputes the calculations and audits the scoring; the CIO resolves every finding, and Critical ones are re-audited → automated and manual QC → `finalize_run.py` (scoreboard and `latest_run.txt` only on a `complete` outcome) → git batch 2, pushed to the current branch (never forced) |
+| 0 Acquisition | Identity and price (the exchange close); the filings indexed and downloaded from the exchanges, the IR site, the Internet Archive and the local library, cross-checked (`corpus/DOCUMENT_MAP.md`); structured filings; a ten-year events timeline from the web; what the warehouse already knows, as of the cutoff (`corpus/facts/`); sector modules; three to ten key questions |
+| 0b / 0c Reading | Switch `reading` on: every in-scope page read once and recorded, critical sections twice. Off (the default): web summaries recorded as tier-6 leads, each number page-confirmed by script |
+| 1–2 Specialists | Financials, filings, industry, scuttlebutt, moat, management, concalls, forecasting, valuation, special situations, bear case: one at a time, each verified against its own transcripts and by an independent verifier the moment it finishes; an early-stop pause for a disqualifying flag; the gap loop; git batch 1 |
+| 3 Synthesis | The evidence registry; theme analysts give every item a disposition; the CIO adjudicates contradictions; four layer analysts; the CIO decides from a bounded packet and writes the verdict's reasoning (for, against, the judgment, and where it departs from the computed guide); adversarial review of every verdict; section writers; the report assembled as a build artifact |
+| 4 Audit and publish | The reading and independence audit; the independent auditor (with planted canaries to measure what it catches); QC; finalization (scoreboard, pointer, decision record); facts promoted to the warehouse; transcripts archived; git batch 2 |
 
-**The four investment layers (immutable):** Layer 1 — Bedrock Compounder · Layer 2 — High-Growth Business · Layer 3 — Cyclical / Event-Driven Opportunity · Layer 4 — Venture-Style / Optionality Bet.
+**Depth is a dial, and always disclosed.** Fourteen documented switches (`docs/SWITCHES.md`) grouped in four presets:
+lean (a design target, unmeasured), standard (about $340–380, the default), deep (about $1,400) and max. Every report
+ends with a Depth Disclosure: what was off, what that may cost in confidence, and the exact command to go deeper. No
+switch caps a verdict or a confidence level.
 
-**Two scores, never mixed:** Business Quality (0–100, price-independent) and Investment Attractiveness (0–100, at the verified price), each with fixed dimensions, gates, confidence and a judgment band.
+**The four investment layers (immutable):** Layer 1 — Bedrock Compounder · Layer 2 — High-Growth Business · Layer 3 —
+Cyclical / Event-Driven Opportunity · Layer 4 — Venture-Style / Optionality Bet.
 
-**A fund manager's decision, not a formula** (methodology 3.0.0): weights follow the archetype (fixed in advance per layer), every judgment carries its own confidence and uncertainty is never rewarded, archetype must-pass tests are non-compensatory, the required margin of safety rises as confidence falls, and the verdict states its decision drivers, conviction and the condition that decided it.
+**Two scores, never mixed:** Business Quality (0–100, price-independent) and Investment Attractiveness (0–100, at the
+verified price), each with fixed dimensions, gates and confidence.
+
+## Around the runs
+
+| | |
+|---|---|
+| Warehouse | `research/warehouse/eqr.sqlite`: point-in-time prices (NSE and BSE bhavcopies; US daily closes) and reported facts (exchange XBRL and EDGAR, each with the day it was filed), plus the verified facts of finished runs, never their conclusions. Agents never read it; a run gets what was known at its cutoff |
+| Funnel | `scan.py` (every company as known on a date, a rank that orders and never decides), `triage.py` (one session, KILL or CONTINUE), child runs (`new_run.py --deepen` and `--refresh`, which reuse a parent's work by copy and never change it) |
+| Base rates | `base_rates.py`: how often companies actually did what a forecast assumes; survivor-biased, and every result says so |
+| Jurisdictions | `config/jurisdictions/IN.json` and `US.json`: sources, units, filings, regulators and words. A US run's specialists are told what the methodology's Indian words mean there |
+| Decisions and outcomes | `decide.py` (the owner's call), `ideas.py rank`, `outcomes.py` (predictions scored, verdicts judged against the hurdle and the market over the same months) |
+| Guard | A main-session hook (`scripts/guard.py`): a finished run, an assembled report, `archive/` and the scoreboard are never hand-edited |
 
 ## Repository map
 
 | Path | Purpose |
 |---|---|
 | `CLAUDE.md` | Compact session instructions |
-| `.claude/agents/` | The operative agent definitions (`cio`, the specialists, `auditor`, the workers and the synthesis roles; `scripts/validate_system.py` checks the roster) |
-| `.claude/skills/research-company/` | The `/research-company` workflow |
-| `.claude/skills/investment-constitution/` | Canonical definitions, preloaded into every specialist |
-| `methodology/` | Scoring, evidence standards, report contracts, research playbook (10+ year depth standard, the reading stage), reading schemas, model policy, metric dictionary, 18 sector playbooks, source guide, investor lenses |
-| `config/investment_policy.json` | Owner policy: no risk limits; hurdle derived each run from the cost of equity |
-| `config/data_sources.json` | Path to the FilingForge library of downloaded filings (read via `scripts/corpus.py`; used at par with full web research, never as a limit) |
-| `MASTER_RESEARCH_FRAMEWORK.md` | Comprehensive research specification |
-| `PROJECT_INSTRUCTIONS.md` | Global research and execution rules |
-| `COMPANY_SCOREBOARD.csv` | Compact index: identity, run metadata and the two scores, one row per company |
-| `research/companies/` | Per-company run archive |
-| `scripts/`, `tests/` | Deterministic validation and reporting tools, plus their tests |
-| `templates/` | Run templates and the scorecard schema example |
-| `docs/` | Migration audit, architecture, operations guide, framework change log |
-| `archive/` | Pre-migration Antigravity definitions (non-operative) |
+| `.claude/agents/` | The agent definitions: `cio`, the eleven specialists, `auditor`, `verifier`, the readers, `librarian`, `historian`, `digest`, `triage` and the synthesis roles |
+| `.claude/skills/` | `/research-company`, the CIO's stage skills, the owner's skills (`/run-status`, `/switches`, `/scan`, `/triage`, `/deepen`, `/refresh`, `/decide`, `/ic`, `/rank`, `/postmortem`) and the investment constitution |
+| `methodology/` | Scoring (the verdict as a judgment, §0), evidence standards, report contracts, research playbook, reading schemas, synthesis, model policy, metric dictionary, sector playbooks (19 sections and their modules), source guide, investor lenses |
+| `config/` | The investment policy (no position or risk limits), switches and presets, the pipeline, jurisdictions, data sources |
+| `research/companies/` | One directory per run; `latest_run.txt` points to the latest finished one. `COMPANY_SCOREBOARD.csv` indexes them |
+| `research/outcomes/`, `research/funnel/`, `research/warehouse/` | Decisions and outcomes; scans and tear sheets; the warehouse (gitignored) |
+| `scripts/`, `tests/` | Deterministic tools and their tests (standard library only) |
+| `docs/` | Operations, architecture, switches, the change log, the v4.0 defect register |
+| `archive/` | Pre-migration definitions (non-operative) |
 
 ## Requirements
 
-- Claude Code (developed against 2.1.296) with access to Opus and Sonnet. Models and efforts are pinned per agent (`methodology/MODEL_POLICY.md`): judgment on Opus at xhigh effort (`--effort max` per run), document reading on Sonnet at high with Opus re-reading the critical sections.
-- Web search and fetch tools enabled, because research depends on retrieving primary documents.
-- Python 3.9 or newer (standard library only).
+- Claude Code with Opus and Sonnet (and Haiku for second reads). Models and efforts are pinned per agent in
+  `methodology/MODEL_POLICY.md`; the CIO session runs on Opus at xhigh.
+- Web search and fetch enabled: research depends on retrieving primary documents.
+- Python 3.9 or newer, standard library only.
+- For a US run: `EQUITY_RESEARCH_USER_AGENT` set to a name and contact (SEC asks for it). For the batch reading
+  transport: `ANTHROPIC_API_KEY` (it spends real money).
 
-See `docs/OPERATIONS.md` for running, re-running, follow-ups, validation and troubleshooting.
+See `docs/OPERATIONS.md` for running, resuming, deepening and troubleshooting, and `docs/FRAMEWORK_CHANGES.md` for what
+changed in each version.

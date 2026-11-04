@@ -171,9 +171,36 @@ sources ──fetch_source.py──▶ _cache/ (git-ignored) + source_retrievals
 
 Headless sessions ignore `.claude/settings.json` permission rules until the workspace is trusted. Open Claude Code interactively in the repository once and accept the trust dialog.
 
+## 6a. Methodology 4.0.0: what changes in the architecture
+
+- **Code runs the process.** `config/pipeline.json` lists 38 steps, each typed (script, agent, cio), gated by switches
+  (`when`) and ended by a named check (`done_when` in `orchestrate.CHECKS`). `orchestrate.py next` is a pure function of
+  the manifest and the disk; `run` executes script and engine steps and stops at the CIO's judgment steps. The CIO stays
+  the main session, loading one stage skill at a time (`cio-stage-0` to `cio-stage-4`).
+- **Depth is data.** `config/switches.json` (14 switches) and `config/run_profiles.json` (presets); a run freezes its
+  switches, roster, materiality and sections in `contract.json`, so a later recalibration cannot re-judge it.
+- **The verdict is a judgment** (`SCORING.md` §0): `evaluate_v3` still computes, but its mapped verdict is the computed
+  guide, shown beside the CIO's reasoned verdict; validators require the reasoning, not agreement with the guide.
+- **Memory outside the runs, walled off from the agents.** The warehouse (`research/warehouse/eqr.sqlite`) holds
+  point-in-time prices and facts and finished runs' verified tier 1–3 facts; agents are denied it (and `sqlite3`), and a
+  run receives `corpus/facts/` as known at its cutoff. Scans and tear sheets (`research/funnel/`) are denied to the
+  specialists too. The reading audit flags any reach for them.
+- **Runs have lineage.** A child run (`--deepen`, `--refresh`) copies what it reuses, rewrites every mention of its
+  parent and lists each inherited file; the parent never changes.
+- **Jurisdictions are configuration.** The acquisition path follows the run's jurisdiction (`exchange_index` and
+  `xbrl_facts` for India, `edgar.py` for the US); the method and the contracts do not change, and the brief translates
+  the methodology's Indian words.
+- **Two transports for one-shot reads**: the CLI on the subscription (`plan`), or the Message Batches API (`batch`,
+  `batch_transport.py`), both feeding the same check-fix-close loop and the same audit.
+- **Guards at both ends.** Agent sessions run isolated (no hooks, no memory, denied paths); the main session has a
+  PreToolUse guard (`guard.py`) on the files that are built, never hand-edited. Neither replaces the validators.
+- **Measured, not assured.** Canaries in the verifier's and auditor's samples give every run a catch rate; the mutation
+  suite and fault injection prove the scripts' checks; the golden replay of the Bharti run pins behaviour.
+
 ## 7. Known limitations
 
-- Independence is instruction-enforced. A hook-based read guard could enforce it technically; it was not added because a wrong hook would block legitimate CIO reads.
+- Independence is enforced by each agent session's denied paths and checked afterwards by the reading audit; the main session's guard (4.0.0) protects built files from hand edits and does not restrict the CIO's reads.
+- No agent of 4.0.0 has met real data yet: the verifier, the synthesis roles, the auditor and triage are proved in plumbing by fake-CLI tests, not in judgment. The first live run is the test (`docs/FRAMEWORK_CHANGES.md`).
 - Validators check structure and traceability; the auditor and the CIO's re-verification check semantic truth on samples, not on every claim.
 - Exchange endpoints are unofficial and change without notice. `exchange_index.py` records every failing endpoint in `corpus/index_summary.json`, and the retrieval mechanics are documented with their verification date (`SOURCE_GUIDE.md` §6).
 - The reading audit depends on Claude Code's local transcript files; if they are absent or their format changes, the audit reports *not measurable* and the run needs a recorded waiver, never a silent pass.

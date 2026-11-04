@@ -358,6 +358,7 @@
   "--set",
   "--size",
   "--skip",
+  "--skip-tests",
   "--sleep",
   "--snapshot",
   "--solve",

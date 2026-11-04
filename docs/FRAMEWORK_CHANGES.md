@@ -1,5 +1,41 @@
 # Framework Change Log
 
+## v4.0.0 — 2026-11-04 (branch `v4.0`; not yet released) — Decisions, not reports: depth as a dial, code runs the process, the verdict is a judgment, and the framework remembers
+
+**Why.** A read of the code, the stored runs and the usage logs, made as an organisational review. Only one company had
+ever finished a run (BHARTIARTL, on 2.2.0); no audit, verifier or synthesis pipeline had met a real company; every test
+passed on fixtures, and nothing measured research quality. Measured during planning: real data exposed what fixtures
+could not (112 gating items on Bharti where 22 were warranted); capacity is about $166 a week on clean work, and sleep
+aborts consumed capacity without being recorded; Bharti's AVOID turned on one manual score; a rule-mapped verdict can
+turn on one table cell whatever the rest of the research says; Claude Code was deleting the transcripts the verification
+reads. Owner's decisions (2026-10-31): own capital, run like a fund; no coverage limit by design (NSE and BSE, then the
+US); depth by documented switches, so the current plan stays feasible and deeper runs open after an upgrade; one release,
+with no live run until it is built and the first live run as its acceptance test; proof by scripts only; everything in
+scope; and **no rigid rule decides the verdict**: it is a reasoned judgment from all the research, with the owner's
+judgment alongside.
+
+| Step | Change |
+|---|---|
+| 0 | Transcripts kept (`cleanupPeriodDays`, `archive_transcripts.py`, the reading audit falls back to the archive); golden baselines frozen; `docs/V4_DEFECT_REGISTER.md` |
+| 1 | Repairs to 3.2.0, each from a failing test: wrong numbers can no longer pass (digest magnitude, exact-number and scale checks, digest laundering, prose sources, waivers scoped to their claims and given only by the CIO); evidence can no longer be lost in Stage 3 (open verification findings reach the registry, split-theme contradictions, gating exits, adjudication that means adjudicated, order and dead ends); the engine sees what a session did (sleep aborts detected and reported, empty work fails, resumes reset on progress, atomic locked state, cost from clean stretches); the forecast reaches the valuation; contracts match what happens. Gating recalibrated on real Bharti items: 22 of 1,407, every labelled red flag kept |
+| 2 | Proof on current code: the golden replay of the Bharti files through every script stage; the computed guide tested across archetypes; new fault modes in the fake CLI; the mutation suite (18 of 18 planted defects caught, three of them real defects found by it: M1–M3) |
+| 3 | Depth as a dial: `config/switches.json` (14 switches), `config/run_profiles.json` (lean, standard, deep, max), `contract.json` frozen per run, `docs/SWITCHES.md` generated, the Depth Disclosure in every report, every command-line flag declared as a depth switch or not |
+| 4 | Code runs the process: `config/pipeline.json` and `scripts/orchestrate.py` (`next` is a pure function of the disk; a step ends when its check passes); `cio.md` cut from 74.7 KB to 14.8 KB with one skill per stage |
+| 5 | Proof on the new pipeline: fault injection generated from the pipeline (every step against kill, stream abort, usage limit, failed check, empty output); canaries, known-false claims planted among the verifier's and the auditor's samples, so every run measures what they catch; the hindsight rule |
+| 6 | The decision engine: the key questions register; the forecast committed before consensus is seen; early stop as a pause the owner answers; adversarial review of every verdict; **the verdict as a judgment** (`SCORING.md` §0: the CIO writes for, against and the judgment; the old mapped verdict is shown beside it as the computed guide, with every departure explained; the auditor reviews whether the reasoning is faithful to the evidence); the Decision Memo; `decide.py`, `ideas.py rank`, owner notes with an MNPI attestation; `--held` |
+| 7 | The warehouse (`warehouse.py`): point-in-time prices (NSE's three bhavcopy formats and BSE's through one parser, securities classified by ISIN) and facts (each filing a version with its `known_at`); promotion of finished runs' verified facts, never conclusions; `corpus/facts/` as known at a run's cutoff; `base_rates.py`; company files and sector knowledge. Building it found W1–W6 in the shared extraction (bank and NBFC filings, a 20-row index page, unfilled zeros), fixed or screened |
+| 8 | The funnel: `scan.py`, `triage.py` and the `triage` agent, child runs (`new_run.py --deepen` and `--refresh`, `lineage.py`: copies, every mention of the parent rewritten, the parent byte-identical) |
+| 9 | Jurisdictions (`config/jurisdictions/`, `jurisdiction.py`) and the US path (`edgar.py`: EDGAR submissions and XBRL company facts, Nasdaq closes, the Treasury yield), tested on stored real Apple data; US sector modules (§19) |
+| 10 | The operating surface: ten owner skills; the main-session guard; batch reading transport through the Message Batches API; six new scoreboard fields; verdicts judged against the market over the same months |
+
+**What is proved, and what is not.** 694 tests and 438 system checks pass; the golden replay of Bharti is unchanged.
+All of it runs on scripts and fake agents. No agent of this version has met real data: the verifier, theme and layer
+analysts, writers, auditor and triage are proved in plumbing, not in judgment. The first live run is the acceptance test
+(BHARTIARTL at standard, with review pauses after the first specialist, the first theme and the first layer). Open
+before the release (`docs/V4_DEFECT_REGISTER.md`): **O1** (no free source yet for the results of BSE-only companies),
+**O3** (the US path has never met a live run), and the owner's confirmation of the gating labels
+(`tests/golden/gating_labels.csv`). `python3 scripts/release_gate.py` reports them.
+
 ## v3.2.0 — 2026-10-31 — The synthesis pipeline; the reading switch and the web digest; the forecasting specialist and sector modules
 
 **Why.** The owner judged the final report to be "almost 90 % the CIO's own research", not weighing the specialists or
