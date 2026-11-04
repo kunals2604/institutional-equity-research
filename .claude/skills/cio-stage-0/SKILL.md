@@ -48,6 +48,13 @@ description: The CIO's Stage 0: preflight, acquisition, the reading stage or the
    `reading.py dossiers` checks every event against what the readers extracted (`corpus/dossiers/events.md`, must-read
    in every pack); an event the reports read do not show is either a reading miss or something the company did not
    disclose.
+9c. **What the framework already knows (v4.0).** The orchestrator runs `python3 scripts/warehouse.py facts RUN_DIR`: the
+   company's facts from the warehouse, as known at the cutoff (exchange results as filed, and earlier finished runs'
+   verified tier 1–3 facts, never their conclusions), into `corpus/facts/`. For a key question that turns on how often
+   something happens (sustained growth, margins, returns), compute the reference class by script and give it to the run:
+   `python3 scripts/base_rates.py cagr --metric revenue --years 5 --threshold 0.20 --run RUN_DIR` or `dist --metric roe
+   --period FY2025 --run RUN_DIR` (`metrics` lists what it derives). It is survivor-biased and says so; the CIO and the
+   specialists weigh it as an outside view, never as a fact about the company. Agents never read the warehouse itself.
 10. **Prior runs.** Do not show prior conclusions to specialists. Read a prior run's final report yourself only **after** Stage 2.
 11. **Sector modules and the reading mode (methodology 3.2.0).** Select the sector modules that apply
     (`methodology/SECTOR_PLAYBOOKS.md`, the SECTOR_MODULES block: one per material sector of the company, plus

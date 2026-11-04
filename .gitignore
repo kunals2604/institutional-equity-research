@@ -19,3 +19,9 @@ research/outcomes/_cache/
 
 # Agent transcripts kept past Claude Code's retention period (scripts/archive_transcripts.py)
 research/_archive/
+
+# The warehouse and the knowledge layers built from it (scripts/warehouse.py): rebuilt from public exchange files and
+# the committed runs, so nothing in them needs git
+research/warehouse/
+research/knowledge/
+research/companies/*/file/

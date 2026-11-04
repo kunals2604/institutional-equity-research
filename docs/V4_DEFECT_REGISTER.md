@@ -138,6 +138,22 @@ line itself cites the test stays strong. Compared exactly, random numbers coinci
 `unsupported` uses. A wrong number that equals a real value of the run still passes every script: only the verifier and
 the auditor, reading the sources, can catch it.
 
+## Found building the warehouse (Step 7)
+
+Crawling real filings of HDFC Bank, Bajaj Finance, Castrol India and Bharti Airtel on 2026-11-04 found defects in the
+extraction every run's Stage 0 uses (`xbrl_facts.py`, `exchange_index.py`). Checked against published figures; the
+extraction of every non-lender filing on disk is unchanged except for W4.
+
+| ID | Sev | Defect | Failure | Where | Status |
+|---|---|---|---|---|---|
+| W1 | H | The Integrated Filing index stops at 20 rows | NSE pages it by 20; HDFC Bank's FY2025 annual results were in neither index a run read. Now one 1,000-row page, and a short answer is recorded as a failure | `exchange_index.py`, `structured_filings.py` | Fixed |
+| W2 | H | A bank's results give almost nothing | 9 items from a banking-taxonomy filing: no profit, interest, deposits or advances, and capex read as 0 (intangibles only). Bank and NBFC maps now; a lender's names are tried first, then the general ones | `xbrl_facts.py` | Fixed |
+| W3 | M | Bank filings before FY2024 give no annual figures | Their year-to-date context has an end date only; it now starts on `DateOfStartOfFinancialYear` | `xbrl_facts.parse_xbrl` | Fixed |
+| W4 | M | An owners' share filed as 0 becomes a fact of 0 | Bajaj Finance's consolidated FY2020, FY2021 and FY2023; Castrol's standalone FY2018 and FY2019. Now dropped (consolidated) or equal to profit (standalone); zero equity or assets dropped | `xbrl_facts.drop_unfilled` | Fixed |
+| W5 | M | An NBFC's Integrated Filing P&L is skipped | It is labelled "total revenue from operations"; banks' Integrated Filings had no P&L or balance sheet either. Both mapped; their NPA percents stored as fractions | `xbrl_facts.rows_from_integrated` | Fixed |
+| W6 | L | Values wrong as filed pass through | Bajaj Finance's FY2026 NCI in rupees inside a table in lakhs (larger than total assets): the warehouse rejects that class and records it. HDFC Bank's FY2019 consolidated profit (39,689 crore against 21,078 standalone) is implausible but passes as filed | `warehouse.implausible` | Partly fixed: screens use XBRL as leads |
+| O1 | H | No free source for BSE-only companies' results | BSE prices ingest through the NSE parser, but no BSE results index was found (the run's BSE indexer reads annual reports and announcements; no documented endpoint). About 1,200 of BSE's 4,275 equities are not on NSE | `warehouse.py` | **Open, release item**: measure the endpoint bseindia.com's results pages call (browser network log) before building |
+
 ## Warnings where the documents imply a block
 
 Layer-fit deviation over 10 points (`synthesis.py:1145`); over-budget packet (`:1228`); placeholder contradiction log, empty

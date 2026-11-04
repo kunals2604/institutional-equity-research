@@ -112,6 +112,10 @@ DENY_SECRETS = ["Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(~/.config/**)", "Rea
 # Code keeps in ~/.claude/projects/<project>/<session>/tool-results/; the audit checks they are its own.)
 DENY_TRANSCRIPTS = ["Read(~/.claude/projects/*/*.jsonl)", "Read(~/.claude/projects/*/*/subagents/**)",
                     "Read(/%s/research/_archive/**)" % rl.ROOT.resolve()]
+# The warehouse and the knowledge layers (v4.0): agents never read them; `warehouse.py facts` writes what a run may know,
+# as of its cutoff, into its corpus/facts/. Kept in this list, which every headless session receives.
+DENY_TRANSCRIPTS += ["Read(/%s/research/%s/**)" % (rl.ROOT.resolve(), d) for d in ("warehouse", "knowledge")]
+DENY_TRANSCRIPTS += ["Read(/%s/research/companies/*/file/**)" % rl.ROOT.resolve()]
 # Every headless session sees only the project: no user settings (their hooks and plugins), no hook of any source,
 # no auto-memory. Measured 2026-10-23: without these a reader session carried the owner's MEMORY.md, and a user-level
 # hook or plugin (RTK, claude-mem, ECC, superpowers) would inject its context into every reader and specialist,
@@ -137,7 +141,8 @@ def mcp_server(name: str, run_dir: Path, agent: str) -> dict:
                          "--block-service-workers", "--output-dir", str(out)]}
     raise ValueError("unknown MCP server %r" % name)
 CIO_ONLY_SCRIPTS = ("git_publish.py", "finalize_run.py", "scoreboard.py", "manifest.py", "build_scorecard.py",
-                    "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py", "archive_transcripts.py")
+                    "merge_ledgers.py", "agent_driver.py", "reading_audit.py", "new_run.py", "archive_transcripts.py",
+                    "warehouse.py", "base_rates.py")
 SLEEP_STOP = ("the machine went to sleep during this session, and every retry re-sends its context at the cost of real "
               "capacity. Keep the Mac on mains power with the lid open, then run the engine again; it resumes this session")
 SPECIALIST_ORDER = ("financials", "filings", "industry", "scuttlebutt", "moat", "management", "concalls", "forecasting",
@@ -366,7 +371,7 @@ NET_DENY = ("curl", "wget", "nc", "ncat", "netcat", "ssh", "scp", "sftp", "rsync
 
 def shell_denies() -> List[str]:
     return (["Bash(git:*)"] + ["Bash(python3 scripts/%s:*)" % s for s in CIO_ONLY_SCRIPTS]
-            + ["Bash(python3 scripts/verify.py waive:*)"] + ["Bash(%s:*)" % c for c in NET_DENY])
+            + ["Bash(python3 scripts/verify.py waive:*)", "Bash(sqlite3:*)"] + ["Bash(%s:*)" % c for c in NET_DENY])
 
 
 def run_command(cmd: List[str]) -> Tuple[int, str]:

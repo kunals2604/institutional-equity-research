@@ -88,6 +88,70 @@ INSTANT_MAP = {
 }
 # For a standalone filing, NSE tags the owners' equity simply as Equity (no non-controlling interest).
 STANDALONE_FALLBACK = {"total_equity": ["Equity"], "pat_attributable": ["ProfitLossForPeriod"]}
+# Lenders file other element names. Measured on HDFC Bank's (banking taxonomy) and Bajaj Finance's (Ind AS NBFC) FY2024
+# filings. A lender's names are tried first and the general names after, so nothing the general map finds is lost.
+# Banks: asset quality is filed only in the standalone filing (the consolidated one carries 0, so a 0 there is "not
+# reported", never a fact); ratios are filed as fractions; CET1Ratio carried the total capital ratio, so capital ratios
+# are not mapped.
+LENDER_FORMATS = {
+    "bank": {
+        "marker": ["InterestExpended"],
+        "duration": {
+            "interest_income": ["InterestEarned"],
+            "interest_expense": ["InterestExpended"],
+            "employee_cost": ["EmployeesCost"],
+            "opex": ["OperatingExpenses"],
+            "provisions": ["ProvisionsOtherThanTaxAndContingencies"],
+            "exceptional_items": ["ExceptionalItems"],
+            "pbt": ["ProfitLossFromOrdinaryActivitiesBeforeTax"],
+            "pat": ["ProfitLossForThePeriod"],
+            "pat_attributable": ["ProfitLossAfterTaxesMinorityInterestAndShareOfProfitLossOfAssociates"],
+            "capex": ["PurchaseOfTangibleAssetsClassifiedAsInvestingActivities",
+                      "PurchaseOfIntangibleAssetsClassifiedAsInvestingActivities"],
+            "gnpa": ["GrossNonPerformingAssets"],
+            "nnpa": ["NonPerformingAssets"],
+            # The filed ratios use gross advances; fin_metrics derives gnpa_ratio from gnpa and advances, so these stay apart.
+            "other:gnpa_ratio_reported": ["PercentageOfGrossNpa"],
+            "other:nnpa_ratio_reported": ["PercentageOfNpa"],
+            # Reported operating profit includes all other income, so it is not ppop as METRIC_DEFINITIONS defines it.
+            "other:ppop_reported": ["OperatingProfitBeforeProvisionAndContingencies"],
+        },
+        "instant": {
+            "advances": ["Advances"],
+            "deposits": ["Deposits"],
+            "borrowings": ["Borrowings"],
+            "total_equity": ["Capital", "ReservesAndSurplus"],
+        },
+        "standalone": {"pat_attributable": ["ProfitLossForThePeriod"]},
+    },
+    "nbfc": {
+        "marker": ["ImpairmentOnFinancialInstruments", "Loans"],
+        "duration": {
+            "interest_income": ["InterestEarned"],
+            "provisions": ["ImpairmentOnFinancialInstruments"],
+            "other:fees_and_commission": ["FeesAndCommissionIncome"],
+        },
+        "instant": {
+            "advances": ["Loans"],
+            "borrowings": ["DebtSecurities", "Borrowings", "SubordinatedLiabilities"],
+            "deposits": ["Deposits"],
+            "total_equity": ["EquityShareCapital", "OtherEquity"],
+        },
+        "standalone": {},
+    },
+}
+LENDER_RATIOS = {"other:gnpa_ratio_reported", "other:nnpa_ratio_reported"}
+ZERO_IS_MISSING = {"gnpa", "nnpa"} | LENDER_RATIOS
+
+
+def lender_format(names) -> str:
+    names = set(names)
+    for fmt in ("bank", "nbfc"):
+        if all(m in names for m in LENDER_FORMATS[fmt]["marker"]):
+            return fmt
+    return ""
+
+
 SCALE = {"crore": 1e7, "lakh": 1e5, "million": 1e6, "mn": 1e6, "billion": 1e9, "bn": 1e9}
 
 
@@ -130,6 +194,7 @@ def parse_xbrl(path: str) -> Tuple[Dict[str, dict], Dict[Tuple[str, str], float]
         cid = el.get("contextRef")
         if cid:
             raw.append((_local(el.tag), cid, (el.text or "").strip()))
+    fy_start = None
     for name, cid, val in raw:
         if cid not in contexts:
             contexts[cid] = {"start": None, "end": None, "instant": None, "dims": not BASE_CONTEXT_RE.fullmatch(cid)}
@@ -137,6 +202,12 @@ def parse_xbrl(path: str) -> Tuple[Dict[str, dict], Dict[Tuple[str, str], float]
             contexts[cid]["start"] = val
         elif name == "DateOfEndOfReportingPeriod" and val:
             contexts[cid]["end"] = val
+        elif name == "DateOfStartOfFinancialYear" and val:
+            fy_start = val
+    # Banking filings before FY2024 (HDFC Bank's, measured) give FourD, the year-to-date column, an end date only; it
+    # starts on the fiscal year's first day.
+    if fy_start and "FourD" in contexts and contexts["FourD"]["end"] and not contexts["FourD"]["start"]:
+        contexts["FourD"]["start"] = fy_start
     durations = {cid: c for cid, c in contexts.items() if c["end"] and not c["dims"]}
     for cid, c in contexts.items():
         if cid.endswith("I") and not c["dims"] and not c["instant"]:
@@ -189,6 +260,28 @@ def q_label(end: str, fy_end_month: int) -> str:
     return "Q%dFY%d" % (months_after // 3 + 1, fy)
 
 
+# A required line filed as 0 is a field left empty, not a fact: Bajaj Finance's consolidated filings for FY2020, FY2021 and
+# FY2023 carry ProfitOrLossAttributableToOwnersOfParent = 0 beside a profit of 4,420 to 11,508 crore.
+NEVER_ZERO = {"total_equity", "total_assets"}
+
+
+def drop_unfilled(rows: List[dict]) -> List[dict]:
+    """Castrol India's standalone filings for FY2018 and FY2019 leave it at 0 too; a standalone entity has no minority
+    interest, so there the owners' profit is the profit for the period."""
+    pat = {(r["period"], r["basis"]): r for r in rows if r["item"] == "pat"}
+    out = []
+    for r in rows:
+        p = pat.get((r["period"], r["basis"]))
+        if r["value"] == 0 and r["item"] == "pat_attributable" and p and p["value"]:
+            if r["basis"] == "standalone":
+                out.append(dict(p, item="pat_attributable", locator=p["locator"] + "; owners' share filed as 0, standalone"))
+            continue
+        if r["value"] == 0 and r["item"] in NEVER_ZERO:
+            continue
+        out.append(r)
+    return out
+
+
 def rows_from_filing(path: str, url: str, basis: str, unit: str, fy_end_month: int, quarterly: bool) -> List[dict]:
     contexts, facts, text = parse_xbrl(path)
     k = unit_scale(unit)
@@ -199,6 +292,8 @@ def rows_from_filing(path: str, url: str, basis: str, unit: str, fy_end_month: i
     by_ctx: Dict[str, Dict[str, float]] = {}
     for (name, cid), v in facts.items():
         by_ctx.setdefault(cid, {})[name] = v
+    lender = LENDER_FORMATS.get(lender_format(name for name, _ in facts), {})
+    fallback = dict(STANDALONE_FALLBACK, **lender.get("standalone", {}))
     for cid, vals in by_ctx.items():
         c = contexts[cid]
         if c["start"] and c["end"]:
@@ -209,28 +304,37 @@ def rows_from_filing(path: str, url: str, basis: str, unit: str, fy_end_month: i
                 period = q_label(c["end"], fy_end_month)
             else:
                 continue
-            mapping = DURATION_MAP
+            general, specific = DURATION_MAP, lender.get("duration", {})
         elif c["instant"]:
             d = dt.date.fromisoformat(c["instant"])
             if d.month != fy_end_month and not quarterly:
                 continue
             period = fy_label(c["instant"], fy_end_month) if d.month == fy_end_month else q_label(c["instant"], fy_end_month)
-            mapping = INSTANT_MAP
+            general, specific = INSTANT_MAP, lender.get("instant", {})
         else:
             continue
-        for item, elements in mapping.items():
-            names = [e for e in elements if e in vals]
-            if not names and basis == "standalone" and item in STANDALONE_FALLBACK:
-                names = [e for e in STANDALONE_FALLBACK[item] if e in vals]
+        for item in list(general) + [i for i in specific if i not in general]:
+            names = []
+            for elements in (specific.get(item, []), general.get(item, [])):
+                names = [e for e in elements if e in vals]
+                if names:
+                    break
+            if not names and basis == "standalone" and item in fallback:
+                names = [e for e in fallback[item] if e in vals]
             if not names:
                 continue
-            value = sum(vals[e] for e in names) / k
-            out.append({"item": item, "period": period, "value": round(value, 4), "unit": unit, "basis": basis,
+            raw = sum(vals[e] for e in names)
+            if lender and item in ZERO_IS_MISSING and raw == 0:
+                continue
+            ratio = item in LENDER_RATIOS
+            value = raw if ratio else raw / k
+            out.append({"item": item, "period": period, "value": round(value, 6 if ratio else 4),
+                        "unit": "fraction" if ratio else unit, "basis": basis,
                         "source_tier": "1", "source_url_or_id": url,
                         "locator": "XBRL %s (context %s, %s)" % ("+".join(names), cid,
                                                                 c["instant"] or "%s..%s" % (c["start"], c["end"])),
                         "verified": "Y", "note": "NSE results XBRL; machine-readable exchange filing"})
-    return out
+    return drop_unfilled(out)
 
 
 # Integrated Filing (2025+): NSE publishes the XBRL values as a rendered table with the taxonomy's standard labels.
@@ -264,6 +368,32 @@ IF_INSTANT = {
     "goodwill_intangibles": ["goodwill", "other intangible assets", "intangible assets under development"],
 }
 IF_STANDALONE = {"total_equity": ["total equity"], "pat_attributable": ["total profit (loss) for period"]}
+# An Ind AS NBFC's Integrated Filing (Bajaj Finance's FY2026, measured) labels its revenue "total revenue from operations"
+# and adds the lender lines. Its debt securities row has no label, so borrowings are not mapped from it.
+IF_ALTERNATES = {"revenue": ["total revenue from operations"]}
+IF_NBFC_DURATION = dict(IF_DURATION, interest_income=["interest income"], provisions=["impairment on financial instruments"])
+IF_NBFC_INSTANT = dict(IF_INSTANT, advances=["loans"], deposits=["deposits"])
+# A bank's Integrated Filing uses the banking labels (measured on HDFC Bank's FY2026 filings). Its NPA ratios are printed
+# as percents, so they are stored as fractions like the XBRL files' ratios; capital ratios are not mapped (see above).
+IF_BANK_DURATION = {
+    "interest_income": ["total interest earned"], "other_income": ["other income"], "interest_expense": ["interest expenses"],
+    "employee_cost": ["employees cost"], "opex": ["total operating expenses"],
+    "other:ppop_reported": ["operating profit before provision and contingencies"],
+    "provisions": ["provisions other than tax and contingencies"], "exceptional_items": ["exceptional items"],
+    "pbt": ["total profit (loss) from ordinary activities before tax"], "tax": ["provision for tax"],
+    "pat": ["net profit (loss) for the period"],
+    "pat_attributable": ["net profit (loss) after taxes minority interest and share of profit (loss) of associates"],
+    "gnpa": ["amount of gross non-performing assets"], "nnpa": ["amount of net non-performing assets"],
+    "other:gnpa_ratio_reported": ["% of gross npas"], "other:nnpa_ratio_reported": ["% of net npas"],
+}
+IF_BANK_INSTANT = {
+    "deposits": ["deposits"], "borrowings": ["borrowings"], "advances": ["advances"],
+    "total_equity": ["capital", "reserves and surplus"], "minority_interest_bs": ["minority interest"],
+    "total_assets": ["total assets"], "net_fixed_assets": ["fixed assets"],
+    "cash_and_equivalents": ["cash and balances with reserve bank of india", "balances with banks and money at call and short notice"],
+}
+IF_BANK_CASHFLOW = dict(IF_CASHFLOW, capex=["purchase of tangible assets", "purchase of intangible assets"],
+                        **{"other:capex_ppe": ["purchase of tangible assets"]})
 ROUNDING = {"lakhs": 1e5, "lakh": 1e5, "crores": 1e7, "crore": 1e7, "millions": 1e6, "million": 1e6,
             "thousands": 1e3, "thousand": 1e3, "billions": 1e9, "actual": 1.0, "actuals": 1.0, "rupees": 1.0}
 
@@ -333,6 +463,9 @@ def rows_from_integrated(path: str, url: str, basis: str, unit: str, fy_end_mont
         return []
     k = scale / unit_scale(unit)
     out = []
+    every = {r["label"] for st in statements for r in st.get("rows", [])}
+    bank = "total interest earned" in every
+    nbfc = not bank and {"impairment on financial instruments", "loans"} <= every
     for st in statements:
         if st.get("warning"):
             out.append({"item": "other:unit_warning", "period": "", "value": 0, "unit": unit, "basis": basis,
@@ -342,10 +475,18 @@ def rows_from_integrated(path: str, url: str, basis: str, unit: str, fy_end_mont
         labels = {r["label"] for r in st["rows"]}
         is_bs = "total equity and liabilites" in labels or "total equity and liabilities" in labels
         is_cf = any(l.startswith("net cash flows from (used in) operating") for l in labels)
-        is_pl = "revenue from operations" in labels and "total income" in labels
-        if not (is_bs or is_cf or is_pl):
+        is_pl = bool(labels & {"revenue from operations", "total revenue from operations"}) and "total income" in labels
+        bank_pl = "total interest earned" in labels and "operating profit before provision and contingencies" in labels
+        bank_bs = "total capital liabilities" in labels or "total capital and liabilities" in labels
+        if not (is_bs or is_cf or is_pl or bank_pl or bank_bs):
             continue                                  # segment, OCI and ratio tables
-        mapping = IF_INSTANT if is_bs else (IF_CASHFLOW if is_cf else IF_DURATION)
+        is_bs = is_bs or bank_bs
+        if bank:
+            mapping = IF_BANK_INSTANT if is_bs else (IF_BANK_CASHFLOW if is_cf else IF_BANK_DURATION)
+        elif nbfc:
+            mapping = IF_NBFC_INSTANT if is_bs else (IF_CASHFLOW if is_cf else IF_NBFC_DURATION)
+        else:
+            mapping = IF_INSTANT if is_bs else (IF_CASHFLOW if is_cf else IF_DURATION)
         for ci, (start, end) in enumerate(st["columns"]):
             n = months_between(start, end)
             if is_bs:
@@ -360,6 +501,8 @@ def rows_from_integrated(path: str, url: str, basis: str, unit: str, fy_end_mont
                 continue
             for item, labels_wanted in mapping.items():
                 wanted = labels_wanted
+                if item in IF_ALTERNATES and not any(r["label"] in wanted for r in st["rows"]):
+                    wanted = IF_ALTERNATES[item]
                 if basis == "standalone" and item in IF_STANDALONE and not any(r["label"] in wanted for r in st["rows"]):
                     wanted = IF_STANDALONE[item]
                 vals = []
@@ -368,13 +511,15 @@ def rows_from_integrated(path: str, url: str, basis: str, unit: str, fy_end_mont
                         if is_cf and item in ("dividends_paid", "equity_issued", "buybacks") and r["section"] != "financing":
                             continue
                         vals.append(abs(r["values"][ci]) if is_cf and item != "cfo" else r["values"][ci])
-                if not vals:
+                if not vals or (bank and item in ZERO_IS_MISSING and sum(vals) == 0):
                     continue
-                out.append({"item": item, "period": period, "value": round(sum(vals) * k, 4), "unit": unit, "basis": basis,
+                ratio = item in LENDER_RATIOS
+                out.append({"item": item, "period": period, "unit": "fraction" if ratio else unit, "basis": basis,
+                            "value": round(sum(vals) / 100, 6) if ratio else round(sum(vals) * k, 4),
                             "source_tier": "1", "source_url_or_id": url,
                             "locator": "Integrated Filing table: %s (%s..%s)" % (" + ".join(wanted), start, end),
                             "verified": "Y", "note": "NSE Integrated Filing (exchange rendering of the XBRL values)"})
-    return out
+    return drop_unfilled(out)
 
 
 def load_integrated_index(run_dir: Path) -> List[dict]:

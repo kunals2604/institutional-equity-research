@@ -261,7 +261,7 @@ def fetch(run_dir: Path, symbol: str, years: int, log=print) -> dict:
     raw = run_dir / "_cache" / "index" / "raw" / "nse_integrated_results.json"
     integ = json.loads(raw.read_text(encoding="utf-8")).get("data", []) if raw.exists() else []
     if not integ:
-        data, err = _get_json("%s/integrated-filing-results?index=equities&symbol=%s" % (NSE_API, symbol), work)
+        data, err = _get_json("%s/integrated-filing-results?index=equities&symbol=%s&size=1000" % (NSE_API, symbol), work)
         integ = (data or {}).get("data", []) if isinstance(data, dict) else []
     arows, grows = [], []
     for r in integ:

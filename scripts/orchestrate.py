@@ -172,6 +172,7 @@ CHECKS: Dict[str, Callable[[Path], bool]] = {
     "document_map_built": lambda r: exists(r, "corpus/DOCUMENT_MAP.md", "corpus/STRUCTURED.md"),
     "no_document_gaps": lambda r: not missing_documents(r) or invoked(r, "librarian"),
     "events_done": lambda r: exists(r, "corpus/events.csv", "corpus/EVENTS.md"),
+    "facts_materialised": lambda r: exists(r, "corpus/facts/FACTS.md"),
     "sector_modules_set": lambda r: manifest(r).get("sector_modules") is not None,
     "reading_planned": lambda r: exists(r, "corpus/reading/plan.json"),
     "reading_complete": lambda r: bool(status_json(r, rl.READING_STATUS).get("complete")),
@@ -202,6 +203,7 @@ CHECKS: Dict[str, Callable[[Path], bool]] = {
     "final_validated": lambda r: status_is(r, "qc_auto_passed", "complete"),
     "qc_done": qc_done,
     "finalized": lambda r: status_is(r, "complete", "insufficient_evidence", "incomplete"),
+    "promoted": lambda r: exists(r, "qc/promoted.json"),
     "archived": lambda r: run_archived(r),
     "git_final_done": lambda r: git_batch_done(r, "final"),
 }

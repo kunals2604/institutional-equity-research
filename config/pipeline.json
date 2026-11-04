@@ -18,6 +18,14 @@
    "done_when": "document_map_built"
   },
   {
+   "id": "warehouse_facts",
+   "stage": "0",
+   "type": "script",
+   "title": "Write the facts the warehouse holds for the company, as known at the cutoff, into corpus/facts/",
+   "run": "python3 scripts/warehouse.py facts {run}",
+   "done_when": "facts_materialised"
+  },
+  {
    "id": "librarian",
    "stage": "0",
    "type": "agent",
@@ -292,6 +300,14 @@
    "title": "Finalize: scoreboard, pointer, decision record",
    "run": "python3 scripts/finalize_run.py {run}",
    "done_when": "finalized"
+  },
+  {
+   "id": "promote",
+   "stage": "4",
+   "type": "script",
+   "title": "Promote the run's verified tier 1-3 facts to the warehouse (never its conclusions)",
+   "run": "python3 scripts/warehouse.py promote {run}",
+   "done_when": "promoted"
   },
   {
    "id": "archive",

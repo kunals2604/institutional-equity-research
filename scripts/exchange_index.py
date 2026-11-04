@@ -47,6 +47,7 @@ import research_lib as rl  # noqa: E402
 
 INDEX_COLUMNS = ["source", "doc_type", "date", "fiscal_period", "title", "category", "url", "alt_url", "size", "ref"]
 NSE_API = "https://www.nseindia.com/api"
+INTEGRATED_PAGE = 1000
 BSE_API = "https://api.bseindia.com/BseIndiaAPI/api"
 BSE_ATTACH = "https://www.bseindia.com/xml-data/corpfiling/%s/%s"
 DOC_EXT_RE = re.compile(r"\.(pdf|zip|xlsx?|docx?|pptx?|mp3|mp4|m4a|xml|csv)(?:$|\?)", re.I)
@@ -241,6 +242,17 @@ class Indexer:
             time.sleep(self.sleep)
 
     # --- NSE ------------------------------------------------------------------------------------------------
+    def integrated(self, symbol: str):
+        """The Integrated Filing index. NSE serves it 20 rows a page by default, which dropped HDFC Bank's FY2025
+        annual results (measured 2026-11-04), so it is asked for in one large page and a short answer is recorded."""
+        url = "%s/integrated-filing-results?index=equities&symbol=%s&size=%d" % (NSE_API, urllib.parse.quote(symbol),
+                                                                                 INTEGRATED_PAGE)
+        data = self.get_json("nse_integrated_results", url)
+        if isinstance(data, dict) and int(data.get("totalCount") or 0) > len(data.get("data") or []):
+            self.failures.append({"label": "nse_integrated_results", "url": url, "status": 0,
+                                  "attempts": ["%s of %s rows returned" % (len(data.get("data") or []), data.get("totalCount"))]})
+        return data
+
     def nse(self, symbol: str, years: int = 15, cutoff: Optional[dt.date] = None) -> int:
         n0 = len(self.rows)
         sym = urllib.parse.quote(symbol)
@@ -278,8 +290,7 @@ class Indexer:
                                      r.get("broadCastDate") or r.get("filingDate"), title, "Financial results %s" % basis,
                                      xbrl, fy, ref="%s|%s|%s|%s" % (r.get("seqNumber", ""), basis, r.get("fromDate", ""), r.get("toDate", "")),
                                      period=label))
-        integ = self.get_json("nse_integrated_results",
-                              "%s/integrated-filing-results?index=equities&symbol=%s" % (NSE_API, sym))
+        integ = self.integrated(symbol)
         for r in (integ or {}).get("data", []) if isinstance(integ, dict) else []:
             qe = parse_date(r.get("qe_Date"))
             basis = str(r.get("consolidated") or "").lower() or "governance/other"

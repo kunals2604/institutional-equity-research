@@ -37,6 +37,7 @@ scripts/agent_driver.py   # the engine: runs readers, librarian, specialists, fo
 scripts/reading.py · reading_audit.py · verify.py · structured_filings.py   # reading stage, reading and independence audit, verification loop, structured exchange filings
 scripts/digest.py · forecast_tools.py · synthesis.py   # web digest (reading off), forecasting model, synthesis pipeline and integration checks (3.2.0)
 scripts/claim_graph.py · entities.py · outcomes.py   # what each conclusion rests on and what a wrong claim reaches; every entity across years; decisions, predictions and their outcomes (research/outcomes/)
+scripts/warehouse.py · base_rates.py   # v4.0: point-in-time prices and facts across companies (research/warehouse/, gitignored, denied to agents; a run gets corpus/facts/); survivor-biased reference classes
 scripts/connectors.py · browser.py   # free external sources (index TRI, MoSPI, GDELT, openFDA, Indian Kanoon, local transcription; registry in config/data_sources.json) and headless-Chrome page snapshots (fetch_source.py --snapshot)
 scripts/corpus.py · exchange_index.py · document_map.py · doc_text.py · fetch_source.py (netfetch.py) · market_data.py · xbrl_facts.py · html_tables.py · fin_metrics.py · score_guides.py · valuation_tools.py · reconcile_numbers.py · evidence_stats.py · audit_tools.py   # research tools
 ```
